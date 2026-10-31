@@ -1,8 +1,8 @@
-# Arquitetura — DJ IA
+# Arquitetura — YouDJ
 
 ## 1. Visão geral
 
-O DJ IA será uma plataforma SaaS multi-tenant em que cada DJ gerencia suas próprias salas de
+O YouDJ será uma plataforma SaaS multi-tenant em que cada DJ gerencia suas próprias salas de
 música, pedidos e histórico. Convidados acessam uma sala por link ou QR Code, sem cadastro
 obrigatório.
 
