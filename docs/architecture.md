@@ -6,8 +6,9 @@ O YouDJ será uma plataforma SaaS multi-tenant em que cada DJ gerencia suas pró
 música, pedidos e histórico. Convidados acessam uma sala por link ou QR Code, sem cadastro
 obrigatório.
 
-Esta versão entrega apenas a fundação frontend e a estrutura de navegação. Nenhuma integração
-externa, autenticação ou persistência foi implementada.
+Esta versão entrega a fundação frontend, a estrutura de navegação e a configuração inicial do
+cliente Supabase. Autenticação, persistência e operações de dados ainda não foram
+implementadas.
 
 ## 2. Tecnologias atuais
 
@@ -18,6 +19,7 @@ externa, autenticação ou persistência foi implementada.
 | Linguagem         | TypeScript 5.9 (strict)           | Tipagem estática                           |
 | Estilos           | Tailwind CSS 4                    | Design system utilitário e responsividade  |
 | Navegação         | React Router 7                    | Rotas públicas, painel e convidados        |
+| Integração        | @supabase/supabase-js 2.118.0     | Cliente para futuras operações no Supabase |
 | Qualidade         | ESLint 10                         | Análise estática                           |
 | Testes            | Vitest 5 + Testing Library 16     | Testes essenciais de UI e regras           |
 
@@ -29,6 +31,8 @@ src/
   components/             # componentes reutilizáveis (Brand, ícones, badges)
   features/
     guest/lib/            # regras puras do domínio de convidados
+  integrations/
+    supabase/             # cliente centralizado e testes de configuração
   layouts/                # PublicLayout e DjLayout
   pages/
     dj/                   # login e prévia do painel
@@ -38,6 +42,7 @@ src/
   routes/                 # tabela de rotas
   styles/                 # Tailwind e tokens visuais
   test/                   # setup do Vitest
+  vite-env.d.ts           # tipagem das variáveis de ambiente do Vite
 ```
 
 A separação busca manter regras de negócio fora dos componentes de interface. Regras puras
@@ -77,7 +82,20 @@ O acesso será por link/QR Code. Identidades anônimas do Supabase Auth poderão
 limitar e auditar solicitações sem exigir cadastro. Regras de rate limiting e moderação serão
 avaliadas junto da implementação de pedidos.
 
-## 6. Integrações planejadas
+## 6. Integrações
+
+### Cliente Supabase
+
+O SDK `@supabase/supabase-js` está instalado. O cliente é criado sob demanda em
+`src/integrations/supabase/client.ts`, com validação de `VITE_SUPABASE_URL` e
+`VITE_SUPABASE_PUBLISHABLE_KEY`. O acesso deve ser feito por `getSupabaseClient()`. Apenas a
+chave pública pode ser usada no frontend.
+
+Nenhuma autenticação, consulta, tabela, migration ou operação de dados foi implementada. A
+conectividade com o Supabase Auth foi validada manualmente por requisições somente leitura aos
+endpoints oficiais, sem sessão autenticada e sem alterar dados.
+
+### Serviços planejados
 
 | Integração              | Uso planejado                                                | Estado      |
 | ----------------------- | ------------------------------------------------------------ | ----------- |
@@ -88,14 +106,16 @@ avaliadas junto da implementação de pedidos.
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
 | YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
 
-Nenhuma dessas integrações está ativa nesta versão. Não há dependências, variáveis de ambiente
-ou chamadas de rede relacionadas a elas.
+Nenhum desses serviços está integrado à aplicação nesta versão. O SDK do Supabase está
+instalado, mas não há autenticação, chamadas de dados ou operações de rede na aplicação.
 
 ## 7. Segurança
 
 Princípios que devem orientar as próximas etapas:
 
 - Segredos apenas em variáveis de ambiente locais ou no provedor; nunca no repositório.
+- Apenas a publishable key pode ser exposta no frontend. `service_role`, secret keys e a senha
+  do banco nunca devem ser usadas no cliente.
 - Autorização validada no banco e no servidor, não apenas no cliente.
 - Menor privilégio para chaves e tokens.
 - Validação de entrada tanto no cliente quanto no servidor.

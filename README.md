@@ -20,8 +20,9 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 
 > **Aviso de escopo:** este repositório está em desenvolvimento e representa a fundação
 > inicial do produto (`v0.1.0`). Autenticação, banco de dados, salas reais, pedidos,
-> pagamentos, reprodução musical e deploy ainda **não** estão implementados. As interfaces
-> demonstrativas não executam operações reais.
+> pagamentos, reprodução musical e deploy ainda **não** estão implementados. O cliente
+> Supabase está preparado, mas nenhuma operação de autenticação ou de dados foi implementada.
+> As interfaces demonstrativas não executam operações reais.
 
 ## Apresentação
 
@@ -91,7 +92,9 @@ Itens verificados no código atual:
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
-- Testes essenciais para a página inicial, a rota de convidados e as regras de código de sala.
+- Cliente Supabase centralizado, com validação das variáveis públicas e criação sob demanda.
+- Testes essenciais para a página inicial, a rota de convidados, as regras de código de sala e
+  a configuração do cliente Supabase.
 - Scripts de typecheck, lint, teste, build e preview.
 
 ### Rotas atuais
@@ -195,6 +198,7 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 | React                     | 19.3.1 | Construção da interface e composição de componentes |
 | React DOM                 | 19.3.1 | Renderização da aplicação no navegador          |
 | React Router DOM          | 7.18.5 | Roteamento da SPA                               |
+| @supabase/supabase-js     | 2.118.0 | Cliente SDK para futuras integrações com Supabase |
 | TypeScript                | 5.9.3  | Tipagem estática em modo strict                 |
 | Vite                      | 8.3.5  | Servidor de desenvolvimento e build             |
 | @vitejs/plugin-react      | 6.1.2  | Integração do React ao Vite                     |
@@ -208,7 +212,7 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 
 ### Requisitos de ambiente
 
-- Node.js `^20.19.0` ou `>=22.12.0`.
+- Node.js `>=22.12.0`. O SDK atual do Supabase exige Node.js 22 ou superior.
 - npm 10 ou superior.
 
 ### Serviços planejados
@@ -222,7 +226,9 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 | YouTube IFrame Player API  | Reprodução e controle de vídeos, quando permitido  | Planejado |
 | Provedor de pagamentos Pix | Pedidos pagos, confirmação e histórico financeiro  | Planejado |
 
-Nenhum desses serviços está configurado ou ativo nesta versão.
+O SDK `@supabase/supabase-js` já está instalado e o cliente é criado sob demanda em
+`src/integrations/supabase/client.ts`, com validação das variáveis públicas. Nenhuma operação de
+autenticação, consulta ou persistência do Supabase está ativa nesta versão.
 
 ## Arquitetura
 
@@ -231,6 +237,8 @@ Nenhum desses serviços está configurado ou ativo nesta versão.
 - Componentes reutilizáveis em `src/components` e layouts em `src/layouts`.
 - Regras testáveis isoladas em `src/features/*/lib`.
 - Roteamento centralizado em `src/routes`.
+- Cliente Supabase centralizado em `src/integrations/supabase/client.ts`, criado sob demanda
+  com validação das variáveis públicas.
 - Arquitetura multi-tenant planejada, com isolamento por `dj_id` e Row Level Security no
   PostgreSQL.
 - Autenticação e autorização previstas para o backend/banco, nunca apenas no cliente.
@@ -243,6 +251,7 @@ A descrição completa, incluindo o conceito multi-tenant e as integrações pre
 
 ```text
 .
+├── .env.example
 ├── .opencode/
 │   └── agents/
 │       └── normandy.md
@@ -262,6 +271,10 @@ A descrição completa, incluindo o conceito multi-tenant e as integrações pre
 │   │       └── lib/
 │   │           ├── roomCode.test.ts
 │   │           └── roomCode.ts
+│   ├── integrations/
+│   │   └── supabase/
+│   │       ├── client.test.ts
+│   │       └── client.ts
 │   ├── layouts/
 │   │   ├── DjLayout.tsx
 │   │   └── PublicLayout.tsx
@@ -281,6 +294,7 @@ A descrição completa, incluindo o conceito multi-tenant e as integrações pre
 │   │   └── index.css
 │   ├── test/
 │   │   └── setup.ts
+│   ├── vite-env.d.ts
 │   └── main.tsx
 ├── AGENTS.md
 ├── CHANGELOG.md
@@ -310,6 +324,18 @@ cd project-web-youdj
 ```bash
 npm install
 ```
+
+### Configurar o Supabase
+
+1. Copie `.env.example` para `.env.local`.
+2. Preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` com os valores públicos do
+   projeto no painel do Supabase.
+3. Não utilize `service_role`, secret keys ou a senha do banco no frontend.
+4. Mantenha `.env.local` fora do Git; o arquivo já é ignorado.
+
+Nesta etapa, o cliente é preparado, mas não há autenticação, tabelas, migrations ou operações
+de dados. A conectividade com o Supabase Auth foi validada manualmente por requisições somente
+leitura aos endpoints oficiais, sem criação de sessão, usuários ou registros.
 
 ### Executar em desenvolvimento
 
@@ -350,8 +376,8 @@ npm run preview
 
 ## Testes e qualidade
 
-Os testes atuais cobrem a apresentação da página inicial, os estados da rota de convidados e
-as regras de normalização e validação do código de sala.
+Os testes atuais cobrem a apresentação da página inicial, os estados da rota de convidados, as
+regras de normalização e validação do código de sala e a configuração do cliente Supabase.
 
 | Verificação         | Finalidade                                                        |
 | ------------------- | ----------------------------------------------------------------- |
@@ -368,7 +394,10 @@ Não há pipeline de integração contínua configurado no GitHub Actions nesta 
 
 - `.gitignore` cobre dependências, builds, cobertura, logs, variáveis de ambiente e arquivos
   temporários.
-- Nenhuma credencial real é necessária para executar o projeto nesta fase.
+- A aplicação continua executando sem credenciais reais nesta fase; o cliente Supabase exige
+  as variáveis públicas apenas quando for utilizado.
+- Somente a publishable key pode ser usada no frontend. `service_role`, secret keys e a senha
+  do banco nunca devem ser expostas ao cliente.
 - Nenhuma autenticação fictícia, transação simulada ou dado de pagamento é processado.
 - A validação do código de sala é apenas de formato e ocorre no cliente.
 - Segredos não devem ser expostos no frontend nem versionados.
@@ -398,12 +427,14 @@ Não há pipeline de integração contínua configurado no GitHub Actions nesta 
 - Tailwind CSS e layout responsivo.
 - Rotas públicas, área visual do DJ, prévia do painel e acesso de convidados.
 - Validação local do formato do código de sala.
+- Cliente Supabase centralizado, com validação de configuração, testes unitários e conectividade
+  Auth validada.
 - Testes essenciais, lint, typecheck e build configurados.
 - Documentação de arquitetura e changelog inicial.
 
 ### Funcionalidades pendentes
 
-- Supabase Auth, PostgreSQL e Realtime.
+- Integração do Supabase Auth, PostgreSQL e Realtime aos fluxos da aplicação.
 - Salas, links e QR Codes reais.
 - Pedidos, aprovação, fila e histórico.
 - Identidades anônimas de convidados.
@@ -413,8 +444,8 @@ Não há pipeline de integração contínua configurado no GitHub Actions nesta 
 
 ### Próxima etapa prevista
 
-Fase 2: definir o modelo de dados multi-tenant, implementar autenticação de DJs e aplicar
-Row Level Security antes de qualquer dado real.
+Definir o modelo de dados multi-tenant, implementar autenticação de DJs e aplicar Row Level
+Security antes de qualquer dado real.
 
 ## Contribuição e licença
 

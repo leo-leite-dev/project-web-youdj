@@ -25,9 +25,10 @@ Não renomeie caminhos, pacotes ou repositórios sem autorização explícita.
 - TypeScript em **strict mode**.
 - Tailwind CSS.
 - React Router.
+- Supabase JS SDK para integrações futuras.
 - ESLint.
 - Vitest com Testing Library.
-- Node.js 22.12+ (recomendado) ou 20.19+.
+- Node.js 22.12+ (exigido pelo SDK atual do Supabase).
 
 Não introduza dependências desnecessárias. Antes de adicionar uma biblioteca, confirme que o
 problema não pode ser resolvido com o que já existe.
@@ -164,6 +165,8 @@ Implementado:
 - Tailwind CSS e layout responsivo.
 - Rotas públicas, área visual de login do DJ, prévia do painel e rota de convidados.
 - Validação local do formato do código de sala.
+- Cliente Supabase centralizado, com validação de variáveis públicas, testes de configuração e
+  conectividade Auth validada.
 - Testes essenciais, lint, typecheck e build.
 
 Planejado (não implementado):
