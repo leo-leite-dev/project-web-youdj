@@ -22,22 +22,25 @@ versionamento semântico.
 - Suíte pgTAP `supabase/tests/dj_profiles_rls.test.sql` com 28 asserções para permissões,
   isolamento entre DJs, bloqueio de convidados anônimos, constraints, integridade referencial e
   cascade.
-- Documentação da migration preparada, das políticas de RLS e da distinção entre execução
-  local e aplicação remota.
+- Documentação da migration, das políticas de RLS e da distinção entre execução local e
+  aplicação remota.
 - `supabase/config.toml` com a configuração do stack local usada por `supabase start`,
   `supabase db reset` e `supabase test db`.
 - Workflow `.github/workflows/supabase-tests.yml` para executar a migration e os 28 testes
   pgTAP em um Supabase local isolado no GitHub Actions, acionado em Pull Requests para `main`,
   sem credenciais, `service_role` ou conexão com o projeto remoto.
+- Aplicação da migration `20261031000000_create_dj_profiles.sql` ao projeto remoto do YouDJ em
+  2026-11-02, com verificação somente leitura de schema, RLS, políticas e privilégios.
 
 ### Observações
 
 - Nenhuma autenticação foi implementada.
-- A migration de `public.dj_profiles` está preparada localmente, mas não foi aplicada ao
-  Supabase remoto. Nenhuma tabela foi criada no projeto remoto.
-- Os testes pgTAP foram criados, mas ainda não executados: o ambiente local não possui Docker
-  nem PostgreSQL. O workflow do GitHub Actions foi preparado para executá-los, mas ainda não foi
-  executado; os 28 testes não estão declarados como aprovados.
+- A migration de `public.dj_profiles` foi aplicada ao projeto remoto do YouDJ em 2026-11-02; o
+  histórico remoto registra a versão `20261031000000`.
+- Os 28 testes pgTAP foram executados no workflow do GitHub Actions no PR #1 e aprovados,
+  conforme o resultado do PR; não foram reexecutados após a aplicação remota.
+- A validação remota da RLS com fluxos autenticados reais permanece pendente; não foram
+  criados usuários ou dados no projeto remoto.
 - A conectividade com o Supabase Auth foi validada manualmente por requisições somente leitura
   aos endpoints oficiais, sem criação de sessão, usuários ou registros.
 - Nenhum deploy foi realizado.
