@@ -17,6 +17,25 @@ export type Database = {
         }
         Relationships: []
       }
+      rooms: {
+        Row: {
+          created_at: string
+          dj_id: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          dj_id: string
+          name: string
+        }
+        Update: {
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: { [_ in never]: never }
     Functions: { [_ in never]: never }

@@ -1,0 +1,213 @@
+import { useState, type FormEvent } from 'react'
+import { AlertTriangleIcon, QrCodeIcon } from '../../../components/Icons'
+import { AuthField } from '../../auth/components/AuthField'
+import type { RoomsStatus } from '../hooks/useRooms'
+import { getRoomErrorMessage } from '../lib/roomErrors'
+import { getRoomNameError } from '../lib/roomValidation'
+import type { Room, RoomStatus } from '../roomTypes'
+
+const CREATE_ERROR_FALLBACK = 'Não foi possível criar a sala. Tente novamente.'
+
+const statusStyles: Record<RoomStatus, { label: string; className: string }> = {
+  active: {
+    label: 'Ativa',
+    className: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300',
+  },
+  paused: {
+    label: 'Pausada',
+    className: 'border-amber-400/30 bg-amber-400/10 text-amber-300',
+  },
+}
+
+function formatDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+interface RoomsSectionProps {
+  createRoom: (name: string) => Promise<Room>
+  error: string | null
+  onRetry: () => void
+  rooms: Room[]
+  status: RoomsStatus
+}
+
+export function RoomsSection({ createRoom, error, onRetry, rooms, status }: RoomsSectionProps) {
+  const [name, setName] = useState('')
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [created, setCreated] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const nextNameError = getRoomNameError(name)
+    setNameError(nextNameError)
+    setFormError(null)
+
+    if (nextNameError) {
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      await createRoom(name)
+      setName('')
+      setCreated(true)
+    } catch (submitError) {
+      setFormError(getRoomErrorMessage(submitError, CREATE_ERROR_FALLBACK))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const roomCountLabel =
+    rooms.length === 1 ? '1 sala' : `${rooms.length} salas`
+
+  return (
+    <section className="rounded-2xl border border-white/8 bg-night-900/50 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-white">Suas salas</h2>
+          <p className="mt-1 text-xs text-zinc-500">Eventos e links de convidados.</p>
+        </div>
+        {status === 'ready' ? (
+          <span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+            {rooms.length === 0 ? 'Nenhuma' : roomCountLabel}
+          </span>
+        ) : null}
+      </div>
+
+      {status === 'loading' ? (
+        <div
+          role="status"
+          className="mt-6 flex flex-col items-center rounded-xl border border-dashed border-white/10 px-5 py-10 text-center"
+        >
+          <span
+            aria-hidden="true"
+            className="size-8 animate-spin rounded-full border-2 border-white/10 border-t-accent-400"
+          />
+          <p className="mt-4 text-xs leading-5 text-zinc-500">Carregando suas salas...</p>
+        </div>
+      ) : null}
+
+      {status === 'error' ? (
+        <div
+          role="alert"
+          className="mt-6 rounded-xl border border-red-400/20 bg-red-400/5 p-5 text-center"
+        >
+          <span className="mx-auto grid size-10 place-items-center rounded-2xl border border-red-400/20 bg-red-400/10 text-red-300">
+            <AlertTriangleIcon className="size-5" />
+          </span>
+          <p className="mt-3 text-xs leading-5 text-red-200">
+            {error ?? 'Não foi possível carregar suas salas.'}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-4 inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-night-950 transition hover:bg-accent-300"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : null}
+
+      {status === 'ready' ? (
+        <>
+          {rooms.length === 0 ? (
+            <div className="mt-6 flex flex-col items-center rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
+              <span className="grid size-12 place-items-center rounded-2xl bg-accent-500/10 text-accent-300">
+                <QrCodeIcon className="size-6" />
+              </span>
+              <h3 className="mt-4 text-sm font-semibold text-white">Nenhuma sala criada</h3>
+              <p className="mt-2 max-w-xs text-xs leading-5 text-zinc-500">
+                Crie a sala do seu evento para começar. O link e o QR Code para os convidados
+                serão adicionados em uma próxima etapa.
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-6 space-y-3">
+              {rooms.map((room) => {
+                const style = statusStyles[room.status]
+
+                return (
+                  <li
+                    key={room.id}
+                    className="rounded-xl border border-white/8 bg-white/2 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="min-w-0 break-words text-sm font-semibold text-white">
+                        {room.name}
+                      </p>
+                      <span
+                        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${style.className}`}
+                      >
+                        {style.label}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-[11px] leading-5 text-zinc-500">
+                      Criada em {formatDate(room.createdAt)}
+                    </p>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          <form
+            className="mt-6 border-t border-white/8 pt-5"
+            noValidate
+            onSubmit={(event) => void handleSubmit(event)}
+          >
+            <AuthField
+              id="room-name"
+              name="name"
+              type="text"
+              label="Nome da sala"
+              required
+              maxLength={60}
+              autoComplete="off"
+              placeholder="Aniversário da Ana"
+              value={name}
+              error={nameError}
+              disabled={submitting}
+              onChange={(event) => {
+                setName(event.target.value)
+                setNameError(null)
+                setCreated(false)
+              }}
+            />
+
+            {formError ? (
+              <p
+                role="alert"
+                className="mt-3 rounded-xl border border-red-400/20 bg-red-400/5 px-3.5 py-3 text-xs leading-5 text-red-200"
+              >
+                {formError}
+              </p>
+            ) : null}
+
+            {created && !formError ? (
+              <p role="status" className="mt-3 text-xs leading-5 text-emerald-300">
+                Sala criada com sucesso.
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="mt-4 w-full rounded-xl bg-linear-to-r from-accent-500 to-accent-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-accent-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {submitting ? 'Criando...' : 'Criar sala'}
+            </button>
+          </form>
+        </>
+      ) : null}
+    </section>
+  )
+}
