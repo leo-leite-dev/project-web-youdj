@@ -6,7 +6,10 @@ import {
   ListMusicIcon,
   QrCodeIcon,
   SettingsIcon,
+  ShieldCheckIcon,
 } from '../components/Icons'
+import { useAuth } from '../features/auth/AuthContext'
+import { SignOutButton } from '../features/auth/components/SignOutButton'
 
 const upcomingItems = [
   { label: 'Salas', icon: QrCodeIcon },
@@ -15,6 +18,10 @@ const upcomingItems = [
 ]
 
 export function DjLayout() {
+  const { profile, user } = useAuth()
+  const displayName = profile?.displayName ?? user?.email ?? 'DJ'
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'D'
+
   return (
     <div className="flex min-h-svh bg-night-950">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-white/8 bg-night-900/60 lg:flex">
@@ -59,19 +66,21 @@ export function DjLayout() {
         </div>
 
         <div className="mt-auto p-4">
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
-              Ambiente de prévia
+          <div className="rounded-2xl border border-white/10 bg-white/3 p-4">
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
+              <ShieldCheckIcon className="size-3.5" />
+              Sessão ativa
             </p>
-            <p className="mt-2 text-xs leading-5 text-zinc-400">
-              Sem autenticação, dados reais ou persistência nesta etapa.
-            </p>
-            <Link
-              to="/"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-white"
-            >
-              Voltar ao site
-            </Link>
+            <div className="mt-3 flex items-center gap-2.5">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-500/15 text-sm font-semibold text-accent-200">
+                {initial}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-zinc-100">{displayName}</p>
+                <p className="truncate text-[10px] text-zinc-500">{user?.email}</p>
+              </div>
+            </div>
+            <SignOutButton className="mt-3 w-full" />
           </div>
         </div>
       </aside>
@@ -100,6 +109,18 @@ export function DjLayout() {
                 <ClockIcon className="size-3" />
               </span>
             ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/8 pt-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-500/15 text-xs font-semibold text-accent-200">
+                {initial}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-zinc-100">{displayName}</p>
+                <p className="truncate text-[10px] text-zinc-500">{user?.email}</p>
+              </div>
+            </div>
+            <SignOutButton className="shrink-0" />
           </div>
         </header>
 

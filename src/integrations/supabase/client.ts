@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from './database.types'
 
 type SupabaseEnv = Pick<
   ImportMetaEnv,
@@ -20,19 +21,21 @@ function readRequiredEnvironmentVariable(name: string, value: string | undefined
   return normalizedValue
 }
 
-export function createSupabaseClient(env: SupabaseEnv = import.meta.env): SupabaseClient {
+export function createSupabaseClient(
+  env: SupabaseEnv = import.meta.env,
+): SupabaseClient<Database> {
   const url = readRequiredEnvironmentVariable(SUPABASE_URL_VARIABLE, env.VITE_SUPABASE_URL)
   const publishableKey = readRequiredEnvironmentVariable(
     SUPABASE_PUBLISHABLE_KEY_VARIABLE,
     env.VITE_SUPABASE_PUBLISHABLE_KEY,
   )
 
-  return createClient(url, publishableKey)
+  return createClient<Database>(url, publishableKey)
 }
 
-let client: SupabaseClient | undefined
+let client: SupabaseClient<Database> | undefined
 
-export function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): SupabaseClient<Database> {
   client ??= createSupabaseClient()
   return client
 }

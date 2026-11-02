@@ -105,8 +105,8 @@ export function HomePage() {
 
             <p className="mt-5 flex items-start gap-2 text-xs leading-5 text-zinc-600">
               <SparklesIcon className="mt-0.5 size-4 shrink-0 text-accent-400" />
-              Prévia inicial do produto. Autenticação, dados reais e integrações serão
-              implementados nas próximas etapas.
+              Autenticação de DJs já está ativa com Supabase Auth. Salas, pedidos, pagamentos e
+              integrações musicais serão implementados nas próximas etapas.
             </p>
           </div>
 
@@ -253,8 +253,8 @@ export function HomePage() {
             <div>
               <h3 className="text-sm font-semibold text-white">Isolamento por DJ</h3>
               <p className="mt-1 text-xs leading-5 text-zinc-400">
-                A arquitetura multi-tenant será preparada para que cada conta acesse apenas os
-                próprios dados. Segurança desde o início.
+                A arquitetura multi-tenant já protege o perfil de cada DJ com RLS, para que cada
+                conta acesse apenas os próprios dados.
               </p>
             </div>
           </div>

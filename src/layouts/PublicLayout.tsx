@@ -35,8 +35,8 @@ export function PublicLayout() {
           <div className="max-w-md space-y-3">
             <Brand />
             <p className="text-sm leading-6 text-zinc-500">
-              Fundação inicial do DJ IA. Integrações com Supabase, pagamentos e YouTube serão
-              adicionadas em etapas futuras.
+              Autenticação de DJs ativa com Supabase Auth. Salas, pedidos, pagamentos e
+              integrações musicais serão adicionados em etapas futuras.
             </p>
           </div>
           <p className="text-xs text-zinc-600">

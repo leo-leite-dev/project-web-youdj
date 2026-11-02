@@ -3,10 +3,11 @@ import {
   ClockIcon,
   ListMusicIcon,
   QrCodeIcon,
-  SparklesIcon,
+  ShieldCheckIcon,
   WalletIcon,
 } from '../../components/Icons'
 import { PlannedBadge } from '../../components/PlannedBadge'
+import { useAuth } from '../../features/auth/AuthContext'
 
 const stats = [
   { label: 'Salas ativas', value: '—', hint: 'Aguardando integração' },
@@ -16,7 +17,7 @@ const stats = [
 
 const milestones = [
   { label: 'Fundação visual, rotas e testes', done: true },
-  { label: 'Autenticação com Supabase Auth', done: false },
+  { label: 'Autenticação com Supabase Auth', done: true },
   { label: 'Salas, QR Code e links de convidados', done: false },
   { label: 'Pedidos em tempo real com Supabase Realtime', done: false },
   { label: 'Pagamentos, histórico e relatórios', done: false },
@@ -24,6 +25,8 @@ const milestones = [
 ]
 
 export function DjDashboardPage() {
+  const { profile, user } = useAuth()
+
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -35,8 +38,9 @@ export function DjDashboardPage() {
             Visão geral
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-500">
-            Estrutura inicial do painel administrativo. As ações abaixo estarão disponíveis
-            quando as integrações forem implementadas.
+            Olá, {profile?.displayName ?? 'DJ'}. Sua conta está autenticada como{' '}
+            {user?.email ?? 'DJ'}. As demais ações serão liberadas quando as integrações forem
+            implementadas.
           </p>
         </div>
         <button
@@ -49,15 +53,18 @@ export function DjDashboardPage() {
         </button>
       </div>
 
-      <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
-        <SparklesIcon className="mt-0.5 size-4 shrink-0 text-amber-300" />
+      <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
+        <ShieldCheckIcon className="mt-0.5 size-4 shrink-0 text-emerald-300" />
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
-            Ambiente de prévia
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">
+            Sessão autenticada
           </p>
           <p className="mt-1 text-xs leading-5 text-zinc-400">
-            Esta página não está protegida por autenticação e não lê nem grava dados reais.
-            Nenhum pedido, sala ou pagamento é criado nesta etapa.
+            O acesso foi validado pelo Supabase Auth e o perfil foi carregado de{' '}
+            <code className="rounded bg-black/20 px-1 py-0.5 text-[10px] text-zinc-300">
+              public.dj_profiles
+            </code>{' '}
+            com isolamento por RLS. Nenhum pedido, sala ou pagamento é criado nesta etapa.
           </p>
         </div>
       </div>
