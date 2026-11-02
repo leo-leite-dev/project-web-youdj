@@ -6,10 +6,12 @@ O YouDJ será uma plataforma SaaS multi-tenant em que cada DJ gerencia suas pró
 música, pedidos e histórico. Convidados acessam uma sala por link ou QR Code, sem cadastro
 obrigatório.
 
-Esta versão entrega a fundação frontend, cadastro/login/logout de DJs com Supabase Auth e leitura
-ou criação idempotente do perfil autenticado em `public.dj_profiles`. A migration inicial da
-tabela, com RLS e testes pgTAP, foi aplicada ao Supabase remoto. O login com Google foi validado
-com conta real; os fluxos de e-mail/senha seguem com validação remota pendente.
+Esta versão entrega a fundação frontend, cadastro/login/logout de DJs com Supabase Auth, leitura
+ou criação idempotente do perfil autenticado em `public.dj_profiles` e criação/listagem de salas
+em `public.rooms`. A migration de perfis, com RLS e testes pgTAP, foi aplicada ao Supabase
+remoto; a migration de salas está preparada localmente e ainda não foi aplicada. O login com
+Google foi validado com conta real; os fluxos de e-mail/senha seguem com validação remota
+pendente.
 
 ## 2. Tecnologias atuais
 
@@ -32,6 +34,7 @@ src/
   components/             # componentes reutilizáveis (Brand, ícones, badges)
   features/
     auth/                 # AuthProvider, proteção de rota, validação e serviços de auth/perfil
+    rooms/                # tipos, validação, store, hook e seção de salas do painel
     guest/lib/            # regras puras do domínio de convidados
   integrations/
     supabase/             # cliente tipado e integração com Supabase
@@ -50,8 +53,8 @@ public/
   favicon.svg
 supabase/
   config.toml             # configuração do stack local e dos testes
-  migrations/             # migrations SQL versionadas; a inicial foi aplicada ao remoto
-  tests/                  # testes pgTAP de RLS e integridade
+  migrations/             # migrations SQL versionadas; perfis aplicado, salas preparado
+  tests/                  # testes pgTAP de RLS e integridade (perfis e salas)
 .github/
   workflows/
     supabase-tests.yml    # execução local dos testes pgTAP em Pull Requests
@@ -68,7 +71,7 @@ testáveis ficam em `features/*/lib`.
 | `/`               | Implementada | Apresentação, proposta de valor e CTAs.                |
 | `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).       |
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; confirmação de e-mail ou Google.        |
-| `/dj/painel`      | Protegida   | Exige sessão não anônima e perfil carregado.            |
+| `/dj/painel`      | Protegida   | Exige sessão não anônima e perfil carregado; cria e lista salas. |
 | `/sala/:roomCode` | Prévia      | Valida formato local; não consulta banco de dados.      |
 | `*`               | Implementada | Página 404.                                            |
 
@@ -102,8 +105,26 @@ A primeira tabela, `public.dj_profiles`, foi aplicada ao banco remoto:
   `.github/workflows/supabase-tests.yml` em um Supabase local isolado no GitHub Actions, sem
   conexão com o projeto remoto.
 
-As demais tabelas de domínio deverão usar `dj_id` obrigatório e políticas RLS equivalentes,
-sempre validadas no banco antes de qualquer dado real.
+A segunda tabela, `public.rooms` (migration `20261102000000_create_rooms.sql` preparada
+localmente e ainda não aplicada ao remoto):
+
+- `id uuid` é chave primária gerada pelo banco; `dj_id` referencia `dj_profiles(id)` com
+  `on delete cascade`.
+- `name text` tem de 2 a 60 caracteres e não aceita espaços nas extremidades; `status text` é
+  restrito a `active`/`paused`, com `active` como padrão do banco.
+- `created_at` e `updated_at` são gerados pelo banco; `updated_at` é mantido por trigger, e o
+  índice `(dj_id, created_at desc)` sustenta a listagem do proprietário.
+- RLS está habilitada. `authenticated` recebe `SELECT` em todas as colunas, `INSERT` apenas em
+  `dj_id` e `name` e `UPDATE` apenas em `name` e `status`; `DELETE` não é concedido e `anon` não
+  recebe privilégios.
+- As políticas exigem `dj_id = auth.uid()` e o claim `is_anonymous` explicitamente `false`, nas
+  operações de leitura, criação e atualização. Não existe política de `DELETE`, portanto nenhum
+  DJ exclui salas pela API, e nenhum DJ lê ou altera salas de outro DJ.
+- A suíte pgTAP `supabase/tests/rooms_rls.test.sql` tem 33 asserções e é executada pelo mesmo
+  workflow do GitHub Actions em um Supabase local isolado.
+
+As demais tabelas de domínio (pedidos, músicas, pagamentos) deverão usar `dj_id` obrigatório e
+políticas RLS equivalentes, sempre validadas no banco antes de qualquer dado real.
 
 ### Convidados
 
@@ -161,6 +182,20 @@ ainda não foram validados no projeto remoto. Testes frontend usam doubles e nã
 real por si sós. A migration de `public.dj_profiles` permanece aplicada; nenhuma migration ou
 configuração remota foi alterada nesta etapa.
 
+### Salas do DJ
+
+- `RoomStore` (`src/features/rooms/services/roomStore.ts`) concentra a listagem por
+  proprietário (ordenada por `created_at` decrescente) e a criação com retorno da linha criada,
+  no mesmo padrão de `DjProfileStore`.
+- `useRooms` expõe status derivado (carregamento, pronto, erro, ocioso), recarga e criação; o
+  efeito só atualiza estado dentro de callbacks assíncronos, como o `AuthProvider`.
+- `RoomsSection` renderiza os estados de carregamento, vazio, erro com nova tentativa e a lista
+  com selo de status. A validação do nome (2 a 60 caracteres) é local e o servidor revalida pela
+  constraint da tabela.
+- O painel usa a lista para a contagem de salas ativas. A migration de `public.rooms` ainda não
+  foi aplicada ao remoto; QR Codes, links de convidados e a edição de salas pela interface não
+  existem nesta etapa.
+
 ### Publicação no Cloudflare Pages
 
 - O projeto é um SPA estático do Vite: build `npm run build`, saída `dist/`, sem
@@ -186,15 +221,19 @@ configuração remota foi alterada nesta etapa.
 | Supabase Auth           | Cadastro/login/logout de DJs (e-mail e Google)      | Implementado; Google validado com conta real |
 | Supabase Auth           | Identidades anônimas de convidados                             | Planejado |
 | Supabase PostgreSQL     | Perfil de DJ (`public.dj_profiles`)                            | Implementado; leitura/criação no login Google real |
-| Supabase PostgreSQL     | Salas, pedidos, músicas, pagamentos e histórico               | Planejado |
+| Supabase PostgreSQL     | Salas (`public.rooms`)                                         | Implementado; migration local pendente de aplicação |
+| Supabase PostgreSQL     | Pedidos, músicas, pagamentos e histórico                       | Planejado |
 | Supabase Realtime       | Atualização da fila e dos pedidos em tempo real               | Planejado   |
-| Cloudflare Pages        | Hospedagem do frontend estático                               | Domínio e variáveis públicas configurados; deploy pendente |
+| Cloudflare Pages        | Hospedagem do frontend estático                               | Deploy publicado em 2026-11-02; variável pública faltando no bundle |
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
 | YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
 
-Supabase Auth e as operações de leitura/criação de `public.dj_profiles` estão integrados em
-runtime. Realtime, salas, pedidos, pagamentos e player continuam planejados; o Cloudflare Pages
-já está preparado para o build, com o deploy ainda pendente de autorização.
+Supabase Auth, as operações de leitura/criação de `public.dj_profiles` e a criação/listagem de
+`public.rooms` estão integrados em runtime (a migration de salas pendente de aplicação remota).
+Realtime, pedidos, pagamentos e player continuam planejados. No Cloudflare Pages, o deploy do
+commit `a12f170` foi acompanhado com sucesso em 2026-11-02, mas o bundle publicado ficou sem
+`VITE_SUPABASE_URL`, deixando a autenticação em produção indisponível até a correção da variável
+e um novo deploy (não revalidado desde então).
 
 ## 7. Segurança
 
@@ -213,22 +252,23 @@ Princípios que devem orientar as próximas etapas:
 
 ## 8. Fora do escopo desta etapa
 
-- Persistência de salas/pedidos e Supabase Realtime.
-- Criação de salas, QR Codes reais e pedidos.
+- Persistência de pedidos e Supabase Realtime.
+- QR Codes, links de convidados e identidades anônimas.
 - Pagamentos.
 - Player de música/vídeo.
-- Execução do deploy no Cloudflare Pages (preparado, mas não autorizado nesta etapa).
+- Execução de migrations remotas (a de `public.rooms` aguarda autorização).
 - Testes end-to-end em navegador.
 
 ## 9. Próximos passos recomendados
 
-1. Publicar esta etapa no Cloudflare Pages quando autorizado e conferir o build no domínio de
-   produção.
-2. Validar cadastro, confirmação de e-mail, login e logout por e-mail/senha com uma conta real,
+1. Corrigir `VITE_SUPABASE_URL` no Cloudflare Pages, reexecutar o deploy e revalidar a
+   autenticação no domínio de produção.
+2. Aplicar a migration `20261102000000_create_rooms.sql` ao projeto remoto (com autorização) e
+   executar a suíte pgTAP de `rooms` no workflow do GitHub Actions.
+3. Validar cadastro, confirmação de e-mail, login e logout por e-mail/senha com uma conta real,
    além do isolamento entre duas contas de DJs.
-3. Publicar ou verificar o aplicativo Google OAuth no Google Cloud para liberar o login Google
+4. Publicar ou verificar o aplicativo Google OAuth no Google Cloud para liberar o login Google
    além dos usuários de teste.
-4. Definir as próximas tabelas multi-tenant e respectivas políticas de RLS.
-5. Implementar criação de salas, QR Code e links de convidados.
+5. Implementar QR Code e links de convidados para as salas já existentes.
 6. Implementar pedidos com Supabase Realtime.
 7. Adicionar player e, depois, pagamentos.

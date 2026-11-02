@@ -51,6 +51,18 @@ versionamento semântico.
   Cloudflare Pages servir a SPA também no acesso direto e na atualização de rotas internas.
 - `.nvmrc` fixando Node `22.16.0`, pois o build system do Cloudflare Pages não lê o campo
   `engines` do `package.json` e o Vite 8 exige Node `>=22.12`.
+- Migration `supabase/migrations/20261102000000_create_rooms.sql` para a tabela `public.rooms`,
+  vinculada a `public.dj_profiles` com cascade, nome de 2 a 60 caracteres, status
+  (`active`/`paused`), timestamps, índice por proprietário, RLS e privilégios mínimos por coluna.
+- Suíte pgTAP `supabase/tests/rooms_rls.test.sql` com 33 asserções de privilégios, isolamento
+  entre DJs, bloqueio de convidados anônimos e de usuários não autenticados, constraints,
+  integridade referencial e cascade.
+- Feature `src/features/rooms` com tipos, validação de nome, mensagens de erro, store Supabase
+  (`RoomStore`), hook `useRooms` e seção `RoomsSection` com estados de carregamento, vazio,
+  erro com nova tentativa e criação com feedback.
+- Integração da criação e listagem de salas no painel do DJ, com contagem de salas ativas no
+  card de indicadores.
+- 12 testes direcionados de validação, store (adaptador com `fetch` simulado), hook e painel.
 
 ### Alterado
 
@@ -80,9 +92,17 @@ versionamento semântico.
   configurados no projeto remoto e apenas foram lidos para conferência.
 - A criação/leitura de perfil foi validada com testes simulados; no login Google real, a
   leitura/criação do próprio perfil é executada sob a RLS existente.
+- A migration `20261102000000_create_rooms.sql` foi preparada localmente e **não** foi aplicada
+  ao projeto remoto; a suíte pgTAP de `rooms` (33 asserções) só poderá ser executada no workflow
+  do GitHub Actions, pois o ambiente local não possui Docker, Supabase CLI nem PostgreSQL.
+- Os testes frontend de salas usam doubles simulados e não comprovam a RLS real do banco.
+- QR Codes, links de convidados, pedidos e pagamentos continuam fora desta etapa.
 - A verificação anterior de conectividade Auth usou apenas requisições de leitura e não comprova
   cadastro, confirmação ou login por e-mail/senha.
-- Nenhum commit, push, deploy ou migration remota foi realizado nesta etapa.
+- A etapa 2B foi commitada (`7310f73`, `f987ed6`, `a12f170`), enviada a `main` e publicada no
+  Cloudflare Pages em 2026-11-02 com build de sucesso; o bundle publicado ficou sem
+  `VITE_SUPABASE_URL`, o que mantém a autenticação em produção indisponível até a correção da
+  variável e um novo deploy (não revalidado desde então). Nenhuma migration remota foi executada.
 
 ## [0.1.0] - 2026-10-31
 
