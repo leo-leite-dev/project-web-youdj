@@ -19,10 +19,11 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 </div>
 
 > **Aviso de escopo:** este repositório está em desenvolvimento e representa a fundação
-> inicial do produto (`v0.1.0`). Autenticação, banco de dados, salas reais, pedidos,
-> pagamentos, reprodução musical e deploy ainda **não** estão implementados. O cliente
-> Supabase está preparado, mas nenhuma operação de autenticação ou de dados foi implementada.
-> As interfaces demonstrativas não executam operações reais.
+> inicial do produto (`v0.1.0`). Autenticação, banco de dados em execução, salas reais,
+> pedidos, pagamentos, reprodução musical e deploy ainda **não** estão implementados. O
+> cliente Supabase está preparado e existe uma migration local para a primeira tabela, mas
+> nenhuma operação de autenticação ou de dados foi implementada e a migration ainda não foi
+> aplicada ao projeto remoto. As interfaces demonstrativas não executam operações reais.
 
 ## Apresentação
 
@@ -97,6 +98,23 @@ Itens verificados no código atual:
   a configuração do cliente Supabase.
 - Scripts de typecheck, lint, teste, build e preview.
 
+### Banco de dados preparado (não aplicado)
+
+Os arquivos abaixo existem no repositório, mas **não foram aplicados** ao Supabase remoto:
+
+- Migration `supabase/migrations/20261031000000_create_dj_profiles.sql`, que cria
+  `public.dj_profiles` vinculada a `auth.users`, com `display_name` validado, timestamps e
+  trigger de atualização.
+- Row Level Security (RLS) habilitada, permissões mínimas para `authenticated`, bloqueio de
+  `anon` e de convidados anônimos, leitura/escrita restrita ao próprio DJ e ausência de
+  exclusão pela API.
+- Suíte pgTAP `supabase/tests/dj_profiles_rls.test.sql` com 28 asserções planejadas para
+  permissões, isolamento, constraints, integridade referencial e cascade.
+
+A execução da migration e dos testes pgTAP depende de uma instância PostgreSQL/Supabase local.
+O workflow do GitHub Actions foi preparado para executá-los em um runner isolado, sem projeto
+remoto. Nenhuma dessas ações foi executada nesta etapa.
+
 ### Rotas atuais
 
 | Rota              | Estado       | Comportamento atual                                                    |
@@ -110,7 +128,8 @@ Itens verificados no código atual:
 ### O que ainda não está implementado
 
 - Autenticação real e sessões de DJ.
-- Banco de dados e persistência.
+- Banco de dados em execução e persistência. A migration de `public.dj_profiles` está
+  preparada localmente, mas não foi aplicada.
 - Criação de salas, links e QR Codes reais.
 - Pedidos, aprovação, fila, histórico e atualizações em tempo real.
 - Identidades anônimas de convidados.
@@ -128,8 +147,10 @@ Itens verificados no código atual:
 - Interfaces iniciais.
 - Documentação e testes.
 
-### Fase 2 — Banco de dados e autenticação · Planejada
+### Fase 2 — Banco de dados e autenticação · Em preparação
 
+- Migration inicial de `public.dj_profiles` com RLS e testes pgTAP, preparada localmente e
+  ainda não aplicada.
 - Supabase PostgreSQL.
 - Login exclusivo dos DJs.
 - Integração futura com autenticação unificada, se aprovada.
@@ -220,7 +241,7 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 | Serviço                    | Uso planejado                                      | Estado    |
 | -------------------------- | -------------------------------------------------- | --------- |
 | Supabase Auth              | Login de DJs e identidades anônimas de convidados  | Planejado |
-| Supabase PostgreSQL        | Salas, pedidos, músicas, histórico e pagamentos    | Planejado |
+| Supabase PostgreSQL        | Salas, pedidos, músicas, histórico e pagamentos    | Em preparação |
 | Supabase Realtime          | Atualização da fila e dos pedidos em tempo real    | Planejado |
 | Cloudflare Pages           | Hospedagem do frontend estático                    | Planejado |
 | YouTube IFrame Player API  | Reprodução e controle de vídeos, quando permitido  | Planejado |
@@ -228,7 +249,8 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 
 O SDK `@supabase/supabase-js` já está instalado e o cliente é criado sob demanda em
 `src/integrations/supabase/client.ts`, com validação das variáveis públicas. Nenhuma operação de
-autenticação, consulta ou persistência do Supabase está ativa nesta versão.
+autenticação, consulta ou persistência do Supabase está ativa nesta versão. A migration de
+`public.dj_profiles` existe apenas no repositório e não foi aplicada ao projeto remoto.
 
 ## Arquitetura
 
@@ -240,7 +262,7 @@ autenticação, consulta ou persistência do Supabase está ativa nesta versão.
 - Cliente Supabase centralizado em `src/integrations/supabase/client.ts`, criado sob demanda
   com validação das variáveis públicas.
 - Arquitetura multi-tenant planejada, com isolamento por `dj_id` e Row Level Security no
-  PostgreSQL.
+  PostgreSQL. A primeira tabela preparada é `public.dj_profiles`, ainda não aplicada.
 - Autenticação e autorização previstas para o backend/banco, nunca apenas no cliente.
 - Atualização da fila em tempo real planejada com Supabase Realtime.
 
@@ -296,6 +318,15 @@ A descrição completa, incluindo o conceito multi-tenant e as integrações pre
 │   │   └── setup.ts
 │   ├── vite-env.d.ts
 │   └── main.tsx
+├── supabase/
+│   ├── config.toml
+│   ├── migrations/
+│   │   └── 20261031000000_create_dj_profiles.sql
+│   └── tests/
+│       └── dj_profiles_rls.test.sql
+├── .github/
+│   └── workflows/
+│       └── supabase-tests.yml
 ├── AGENTS.md
 ├── CHANGELOG.md
 ├── README.md
@@ -333,9 +364,11 @@ npm install
 3. Não utilize `service_role`, secret keys ou a senha do banco no frontend.
 4. Mantenha `.env.local` fora do Git; o arquivo já é ignorado.
 
-Nesta etapa, o cliente é preparado, mas não há autenticação, tabelas, migrations ou operações
-de dados. A conectividade com o Supabase Auth foi validada manualmente por requisições somente
-leitura aos endpoints oficiais, sem criação de sessão, usuários ou registros.
+Nesta etapa, o cliente é preparado, mas não há autenticação nem operações de dados em
+execução. Existe uma migration local para `public.dj_profiles`, ainda não aplicada, e os testes
+pgTAP correspondentes não foram executados. A conectividade com o Supabase Auth foi validada
+manualmente por requisições somente leitura aos endpoints oficiais, sem criação de sessão,
+usuários ou registros.
 
 ### Executar em desenvolvimento
 
@@ -379,6 +412,11 @@ npm run preview
 Os testes atuais cobrem a apresentação da página inicial, os estados da rota de convidados, as
 regras de normalização e validação do código de sala e a configuração do cliente Supabase.
 
+A suíte pgTAP em `supabase/tests/dj_profiles_rls.test.sql` foi preparada com 28 asserções para
+validar RLS, privilégios, isolamento entre DJs, bloqueio de convidados anônimos, constraints e
+cascade. Ela ainda não foi executada: localmente, o ambiente não possui Docker nem PostgreSQL.
+O workflow do GitHub Actions foi preparado para executá-la em um Supabase local isolado.
+
 | Verificação         | Finalidade                                                        |
 | ------------------- | ----------------------------------------------------------------- |
 | `npm run typecheck` | Garante que o código respeita o TypeScript em modo strict.        |
@@ -386,7 +424,19 @@ regras de normalização e validação do código de sala e a configuração do 
 | `npm run test`      | Executa a suíte Vitest com Testing Library e jsdom.               |
 | `npm run build`     | Valida os tipos e gera os arquivos estáticos de produção.         |
 
-Não há pipeline de integração contínua configurado no GitHub Actions nesta versão.
+### Testes de banco no GitHub Actions
+
+O workflow [`.github/workflows/supabase-tests.yml`](.github/workflows/supabase-tests.yml) é
+acionado em Pull Requests para `main` que alterem `supabase/**` ou o próprio workflow, além de
+execução manual. Ele usa o Supabase CLI `2.122.0` e executa apenas o stack local do runner:
+
+1. `supabase start`
+2. `supabase db reset --local --no-seed --yes`
+3. `supabase test db --local supabase/tests`
+
+O workflow não usa `--linked`, `service_role`, credenciais de produção ou o projeto remoto. Ele
+está preparado, mas ainda não foi executado; portanto, os 28 testes não devem ser considerados
+aprovados até a primeira execução real no GitHub Actions.
 
 ## Segurança
 
@@ -394,13 +444,15 @@ Não há pipeline de integração contínua configurado no GitHub Actions nesta 
 
 - `.gitignore` cobre dependências, builds, cobertura, logs, variáveis de ambiente e arquivos
   temporários.
-- A aplicação continua executando sem credenciais reais nesta fase; o cliente Supabase exige
-  as variáveis públicas apenas quando for utilizado.
+- A aplicação funciona sem sessão autenticada nesta fase; o cliente Supabase exige as
+  variáveis públicas apenas quando for utilizado.
 - Somente a publishable key pode ser usada no frontend. `service_role`, secret keys e a senha
   do banco nunca devem ser expostas ao cliente.
 - Nenhuma autenticação fictícia, transação simulada ou dado de pagamento é processado.
 - A validação do código de sala é apenas de formato e ocorre no cliente.
 - Segredos não devem ser expostos no frontend nem versionados.
+- A migration de `public.dj_profiles` define RLS, permissões mínimas, isolamento por
+  `auth.uid()` e bloqueio de convidados anônimos. Ela ainda não foi aplicada ao banco remoto.
 
 ### Práticas planejadas
 
@@ -429,11 +481,17 @@ Não há pipeline de integração contínua configurado no GitHub Actions nesta 
 - Validação local do formato do código de sala.
 - Cliente Supabase centralizado, com validação de configuração, testes unitários e conectividade
   Auth validada.
+- Migration local de `public.dj_profiles` com RLS e suíte pgTAP preparada; migration não
+  aplicada e testes pgTAP não executados.
+- `supabase/config.toml` e workflow de pgTAP no GitHub Actions preparados para execução local
+  isolada, sem projeto remoto.
 - Testes essenciais, lint, typecheck e build configurados.
 - Documentação de arquitetura e changelog inicial.
 
 ### Funcionalidades pendentes
 
+- Aplicação da migration de `public.dj_profiles` em ambiente controlado.
+- Execução e validação do workflow de pgTAP em um Pull Request real.
 - Integração do Supabase Auth, PostgreSQL e Realtime aos fluxos da aplicação.
 - Salas, links e QR Codes reais.
 - Pedidos, aprovação, fila e histórico.
@@ -444,8 +502,9 @@ Não há pipeline de integração contínua configurado no GitHub Actions nesta 
 
 ### Próxima etapa prevista
 
-Definir o modelo de dados multi-tenant, implementar autenticação de DJs e aplicar Row Level
-Security antes de qualquer dado real.
+Revisar e aplicar a migration de `public.dj_profiles` em ambiente controlado, após autorização,
+validar o workflow de pgTAP em um Pull Request real e então implementar autenticação de DJs e as
+próximas tabelas multi-tenant com Row Level Security.
 
 ## Contribuição e licença
 

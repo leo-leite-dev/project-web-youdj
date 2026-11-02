@@ -60,3 +60,7 @@ tmp/
 *.tmp
 ~$*
 *.stackdump
+
+# Supabase local CLI state
+supabase/.temp/
+supabase/.branches/
