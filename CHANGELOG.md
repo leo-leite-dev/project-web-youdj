@@ -16,10 +16,28 @@ versionamento semântico.
 - Arquivo `.env.example` com valores fictícios e orientação para configuração local.
 - Testes unitários para validação da configuração do cliente Supabase.
 - Documentação das variáveis de ambiente e do estado da integração no README e na arquitetura.
+- Migration `supabase/migrations/20261031000000_create_dj_profiles.sql` para a tabela
+  `public.dj_profiles`, vinculada a `auth.users`, com validação de `display_name`, timestamps,
+  trigger de atualização, RLS e permissões mínimas.
+- Suíte pgTAP `supabase/tests/dj_profiles_rls.test.sql` com 28 asserções para permissões,
+  isolamento entre DJs, bloqueio de convidados anônimos, constraints, integridade referencial e
+  cascade.
+- Documentação da migration preparada, das políticas de RLS e da distinção entre execução
+  local e aplicação remota.
+- `supabase/config.toml` com a configuração do stack local usada por `supabase start`,
+  `supabase db reset` e `supabase test db`.
+- Workflow `.github/workflows/supabase-tests.yml` para executar a migration e os 28 testes
+  pgTAP em um Supabase local isolado no GitHub Actions, acionado em Pull Requests para `main`,
+  sem credenciais, `service_role` ou conexão com o projeto remoto.
 
 ### Observações
 
-- Nenhuma autenticação, tabela, migration ou operação de dados foi implementada.
+- Nenhuma autenticação foi implementada.
+- A migration de `public.dj_profiles` está preparada localmente, mas não foi aplicada ao
+  Supabase remoto. Nenhuma tabela foi criada no projeto remoto.
+- Os testes pgTAP foram criados, mas ainda não executados: o ambiente local não possui Docker
+  nem PostgreSQL. O workflow do GitHub Actions foi preparado para executá-los, mas ainda não foi
+  executado; os 28 testes não estão declarados como aprovados.
 - A conectividade com o Supabase Auth foi validada manualmente por requisições somente leitura
   aos endpoints oficiais, sem criação de sessão, usuários ou registros.
 - Nenhum deploy foi realizado.
