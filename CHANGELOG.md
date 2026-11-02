@@ -31,19 +31,58 @@ versionamento semântico.
   sem credenciais, `service_role` ou conexão com o projeto remoto.
 - Aplicação da migration `20261031000000_create_dj_profiles.sql` ao projeto remoto do YouDJ em
   2026-11-02, com verificação somente leitura de schema, RLS, políticas e privilégios.
+- Cadastro, login, logout e observação de sessão de DJs com Supabase Auth, incluindo confirmação
+  de e-mail quando exigida pelo projeto.
+- Perfil de DJ tipado, leitura do próprio registro e criação idempotente em
+  `public.dj_profiles`, usando a RLS existente.
+- Proteção da rota `/dj/painel`, bloqueio de sessões anônimas e estados localizados para
+  carregamento, falha de sessão e falha de perfil.
+- Rota `/dj/cadastro`, validação dos formulários, saída da sessão e integração visual do estado
+  autenticado no painel.
+- Testes direcionados de validação, sessão, criação de perfil, proteção de rota e formulários;
+  testes de integração usam doubles simulados.
+- Login com Google via `supabase.auth.signInWithOAuth({ provider: 'google' })` nas telas de login e
+  cadastro, com redirecionamento para a raiz do domínio atual, retorno ao destino pretendido e
+  mensagens de erro e cancelamento em português.
+- `VITE_SUPABASE_OAUTH_REDIRECT_URL` opcional para sobrescrever a URL de retorno do OAuth.
+- Testes do fluxo OAuth (redirect, intenção de destino, parsing de erro, perfil reutilizado) e
+  verificação do fluxo no navegador real por Chrome headless.
+- `public/_redirects` reescrevendo rotas desconhecidas para `index.html` com status 200, para o
+  Cloudflare Pages servir a SPA também no acesso direto e na atualização de rotas internas.
+- `.nvmrc` fixando Node `22.16.0`, pois o build system do Cloudflare Pages não lê o campo
+  `engines` do `package.json` e o Vite 8 exige Node `>=22.12`.
+
+### Alterado
+
+- Documentação de README e arquitetura atualizada com o endereço de produção
+  `https://project-web-youdj.pages.dev`, as variáveis públicas do Supabase já configuradas no
+  Cloudflare Pages e o preparo do build (comando `npm run build`, saída `dist/`).
+- Estado do login com Google corrigido na documentação: fluxo validado com conta real, com o
+  aplicativo Google OAuth ainda em modo de teste no Google Cloud (restrito a usuários de teste),
+  distinguido da autenticação por e-mail/senha, cuja validação remota segue pendente.
 
 ### Observações
 
-- Nenhuma autenticação foi implementada.
+- A integração Auth está implementada no frontend; a confirmação de e-mail e os fluxos de
+  e-mail/senha ainda não foram validados ponta a ponta com uma conta real neste projeto.
+- O login com Google foi validado com conta real, incluindo o retorno pelo domínio de produção
+  `https://project-web-youdj.pages.dev`; o aplicativo Google OAuth permanece em modo de teste no
+  Google Cloud, o que restringe o login Google às contas adicionadas como usuários de teste e não
+  afeta o login por e-mail/senha.
 - A migration de `public.dj_profiles` foi aplicada ao projeto remoto do YouDJ em 2026-11-02; o
   histórico remoto registra a versão `20261031000000`.
 - Os 28 testes pgTAP foram executados no workflow do GitHub Actions no PR #1 e aprovados,
   conforme o resultado do PR; não foram reexecutados após a aplicação remota.
-- A validação remota da RLS com fluxos autenticados reais permanece pendente; não foram
-  criados usuários ou dados no projeto remoto.
-- A conectividade com o Supabase Auth foi validada manualmente por requisições somente leitura
-  aos endpoints oficiais, sem criação de sessão, usuários ou registros.
-- Nenhum deploy foi realizado.
+- O isolamento entre DJs com duas contas reais ainda não foi exercitado; a evidência remota
+  limita-se ao login Google validado e às consultas somente leitura anteriores.
+- Não foram alterados configuração remota, migrations, políticas RLS ou dados do Supabase nesta
+  implementação de autenticação. As URLs de redirecionamento e o provedor Google já estavam
+  configurados no projeto remoto e apenas foram lidos para conferência.
+- A criação/leitura de perfil foi validada com testes simulados; no login Google real, a
+  leitura/criação do próprio perfil é executada sob a RLS existente.
+- A verificação anterior de conectividade Auth usou apenas requisições de leitura e não comprova
+  cadastro, confirmação ou login por e-mail/senha.
+- Nenhum commit, push, deploy ou migration remota foi realizado nesta etapa.
 
 ## [0.1.0] - 2026-10-31
 

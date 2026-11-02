@@ -18,12 +18,12 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 
 </div>
 
-> **Aviso de escopo:** este repositório está em desenvolvimento e representa a fundação
-> inicial do produto (`v0.1.0`). Autenticação, persistência em runtime, salas reais,
-> pedidos, pagamentos, reprodução musical e deploy ainda **não** estão implementados. O
-> cliente Supabase está preparado e a migration inicial de `public.dj_profiles` foi aplicada
-> ao projeto remoto, mas nenhuma operação de autenticação ou de dados é usada pela aplicação.
-> As interfaces demonstrativas não executam operações reais.
+> **Aviso de escopo:** este repositório está em desenvolvimento. Cadastro/login de DJs,
+> persistência do perfil `public.dj_profiles` e proteção do painel estão implementados com
+> Supabase Auth e RLS. Salas reais, pedidos, pagamentos e reprodução musical ainda **não** estão
+> implementados. A migration de perfis foi aplicada ao projeto remoto; o login com Google foi
+> validado com conta real e os fluxos de autenticação do frontend têm suíte local aprovada. O
+> deploy no Cloudflare Pages ainda não foi realizado.
 
 ## Apresentação
 
@@ -84,18 +84,24 @@ Itens verificados no código atual:
 - Tailwind CSS com tokens visuais e layout responsivo mobile-first.
 - SPA com React Router e as rotas públicas, área do DJ e acesso de convidados.
 - Landing page com apresentação do produto, proposta de valor e chamadas para ação.
-- Página de login do DJ **somente visual**: o formulário não valida credenciais nem cria
-  sessões.
-- Estrutura visual do painel administrativo com indicadores, estados vazios e roadmap, sem
-  dados reais ou proteção de rota.
+- Cadastro e login de DJs com Supabase Auth, validação local, estados de erro/carregamento e
+  confirmação de e-mail quando exigida pelo projeto.
+- Login com Google via `signInWithOAuth` nas telas de login e cadastro, com retorno ao destino
+  pretendido e mensagens de cancelamento em português.
+- Sessão persistente observada por `AuthProvider`; logout e proteção de `/dj/painel`, incluindo
+  rejeição de sessões anônimas.
+- Criação idempotente e leitura do próprio perfil em `public.dj_profiles`, com RLS como controle
+  de acesso no banco.
+- Painel administrativo com indicadores e roadmap; somente a identidade/perfil é real, enquanto
+  salas, pedidos e pagamentos continuam indisponíveis.
 - Página preparatória de acesso por código de sala, com normalização para maiúsculas e
   validação local do formato de 6 caracteres alfanuméricos.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
 - Cliente Supabase centralizado, com validação das variáveis públicas e criação sob demanda.
-- Testes essenciais para a página inicial, a rota de convidados, as regras de código de sala e
-  a configuração do cliente Supabase.
+- Testes essenciais para a página inicial, a rota de convidados, as regras de código de sala,
+  a configuração do cliente Supabase e os fluxos de autenticação/perfil com doubles simulados.
 - Scripts de typecheck, lint, teste, build e preview.
 
 ### Banco de dados inicial (aplicado no remoto)
@@ -121,22 +127,25 @@ etapa limitou-se a consultas somente leitura de schema, políticas e privilégio
 | Rota              | Estado       | Comportamento atual                                                    |
 | ----------------- | ------------ | ---------------------------------------------------------------------- |
 | `/`               | Implementada | Página inicial e apresentação do produto.                              |
-| `/dj`             | Implementada | Login do DJ somente visual, sem autenticação.                           |
-| `/dj/painel`      | Prévia       | Estrutura do painel administrativo, sem dados reais ou proteção.        |
+| `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).                       |
+| `/dj/cadastro`    | Implementada | Cadastro de DJ; pode exigir confirmação de e-mail ou usar Google.          |
+| `/dj/painel`      | Protegida    | Exige sessão de DJ e carregamento do próprio perfil.                     |
 | `/sala/:roomCode` | Prévia       | Valida o formato local do código e informa que a sala virá depois.      |
 | `*`               | Implementada | Página 404.                                                             |
 
 ### O que ainda não está implementado
 
-- Autenticação real e sessões de DJ.
-- Persistência em runtime. A tabela `public.dj_profiles` existe no projeto remoto, mas ainda
-  não é consumida pela aplicação.
+- Recuperação de senha e gestão de e-mail/senha.
+- Persistência de salas, pedidos, filas e histórico. O perfil de DJ é persistido em runtime.
+- Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
+  vínculo automático por e-mail verificado.
 - Criação de salas, links e QR Codes reais.
 - Pedidos, aprovação, fila, histórico e atualizações em tempo real.
 - Identidades anônimas de convidados.
 - Pagamentos e histórico financeiro.
 - Reprodução musical e integração com a YouTube IFrame Player API.
-- Deploy e endereço de produção.
+- Publicação no Cloudflare Pages: endereço de produção e variáveis públicas configurados, mas
+  nenhum deploy realizado ainda.
 
 ## Roadmap de desenvolvimento
 
@@ -148,16 +157,22 @@ etapa limitou-se a consultas somente leitura de schema, políticas e privilégio
 - Interfaces iniciais.
 - Documentação e testes.
 
-### Fase 2 — Banco de dados e autenticação · Em preparação
+### Fase 2 — Banco de dados e autenticação · Em andamento
 
 - Migration inicial de `public.dj_profiles` com RLS e testes pgTAP, aplicada ao projeto remoto
   e verificada por consultas somente leitura.
-- Supabase PostgreSQL.
-- Login exclusivo dos DJs.
+- Cadastro/login/logout de DJs e proteção do painel com Supabase Auth (implementado; login com
+  Google validado com conta real; fluxos de e-mail/senha com conta remota pendentes).
+- Login com Google (`signInWithOAuth`), com retorno ao destino pretendido e tratamento de
+  cancelamento em português (validado com conta real no domínio de produção).
+- Criação/leitura idempotente do perfil autenticado em `public.dj_profiles`.
+- Validação de RLS remota com fluxos autenticados reais (parcial: login Google; isolamento entre
+  DJs ainda não exercitado).
+- Próximas tabelas de domínio no Supabase PostgreSQL.
 - Integração futura com autenticação unificada, se aprovada.
-- Arquitetura SaaS multi-tenant.
-- Row Level Security (RLS).
-- Isolamento dos dados entre DJs.
+- Aplicação inicial do modelo SaaS multi-tenant em `dj_profiles`.
+- RLS aplicada ao perfil; políticas para as futuras tabelas ainda serão definidas e testadas.
+- Isolamento do perfil entre DJs; isolamento de salas/pedidos depende das tabelas futuras.
 
 ### Fase 3 — Salas e convidados · Planejada
 
@@ -220,7 +235,7 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 | React                     | 19.3.1 | Construção da interface e composição de componentes |
 | React DOM                 | 19.3.1 | Renderização da aplicação no navegador          |
 | React Router DOM          | 7.18.5 | Roteamento da SPA                               |
-| @supabase/supabase-js     | 2.118.0 | Cliente SDK para futuras integrações com Supabase |
+| @supabase/supabase-js     | 2.118.0 | Autenticação e acesso tipado ao perfil do DJ      |
 | TypeScript                | 5.9.3  | Tipagem estática em modo strict                 |
 | Vite                      | 8.3.5  | Servidor de desenvolvimento e build             |
 | @vitejs/plugin-react      | 6.1.2  | Integração do React ao Vite                     |
@@ -234,24 +249,27 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 
 ### Requisitos de ambiente
 
-- Node.js `>=22.12.0`. O SDK atual do Supabase exige Node.js 22 ou superior.
+- Node.js `>=22.12.0`. O SDK atual do Supabase exige Node.js 22 ou superior. O arquivo `.nvmrc`
+  fixa `22.16.0`, a versão usada também no build do Cloudflare Pages.
 - npm 10 ou superior.
 
-### Serviços planejados
+### Serviços — estado atual
 
 | Serviço                    | Uso planejado                                      | Estado    |
 | -------------------------- | -------------------------------------------------- | --------- |
-| Supabase Auth              | Login de DJs e identidades anônimas de convidados  | Planejado |
-| Supabase PostgreSQL        | Salas, pedidos, músicas, histórico e pagamentos    | Em preparação |
+| Supabase Auth              | Login de DJs (e-mail/senha e Google)                 | Implementado; Google validado com conta real |
+| Supabase Auth              | Identidades anônimas de convidados                 | Planejado |
+| Supabase PostgreSQL        | Perfil de DJ (`public.dj_profiles`)                | Implementado; leitura/criação exercitadas no login Google real |
+| Supabase PostgreSQL        | Salas, pedidos, músicas, histórico e pagamentos    | Planejado |
 | Supabase Realtime          | Atualização da fila e dos pedidos em tempo real    | Planejado |
-| Cloudflare Pages           | Hospedagem do frontend estático                    | Planejado |
+| Cloudflare Pages           | Hospedagem do frontend estático                    | Domínio e variáveis públicas configurados; deploy pendente |
 | YouTube IFrame Player API  | Reprodução e controle de vídeos, quando permitido  | Planejado |
 | Provedor de pagamentos Pix | Pedidos pagos, confirmação e histórico financeiro  | Planejado |
 
-O SDK `@supabase/supabase-js` já está instalado e o cliente é criado sob demanda em
-`src/integrations/supabase/client.ts`, com validação das variáveis públicas. Nenhuma operação de
-autenticação, consulta ou persistência do Supabase está ativa nesta versão. A migration de
-`public.dj_profiles` foi aplicada ao projeto remoto, mas ainda não é usada pela aplicação.
+O SDK `@supabase/supabase-js` está instalado e o cliente é criado sob demanda em
+`src/integrations/supabase/client.ts`, com tipos da tabela `dj_profiles` e validação das variáveis
+públicas. Autenticação e leitura/criação do perfil de DJ são usadas em runtime. Salas, pedidos e
+demais dados de domínio ainda não são persistidos.
 
 ## Arquitetura
 
@@ -260,11 +278,14 @@ autenticação, consulta ou persistência do Supabase está ativa nesta versão.
 - Componentes reutilizáveis em `src/components` e layouts em `src/layouts`.
 - Regras testáveis isoladas em `src/features/*/lib`.
 - Roteamento centralizado em `src/routes`.
+- `AuthProvider` observa a sessão Supabase; `RequireDjAuth` protege o painel e exige um perfil
+  carregado. O guard de frontend complementa, mas não substitui, a RLS.
 - Cliente Supabase centralizado em `src/integrations/supabase/client.ts`, criado sob demanda
   com validação das variáveis públicas.
-- Arquitetura multi-tenant planejada, com isolamento por `dj_id` e Row Level Security no
-  PostgreSQL. A primeira tabela, `public.dj_profiles`, foi aplicada ao projeto remoto.
-- Autenticação e autorização previstas para o backend/banco, nunca apenas no cliente.
+- A primeira tabela multi-tenant, `public.dj_profiles`, usa RLS para limitar a leitura/escrita ao
+  usuário autenticado correspondente a `auth.uid()`.
+- Auth e autorização de perfis usam Supabase; a RLS no banco é a autoridade, não o guard do
+  frontend. Políticas das futuras tabelas ainda serão implementadas.
 - Atualização da fila em tempo real planejada com Supabase Realtime.
 
 A descrição completa, incluindo o conceito multi-tenant e as integrações previstas, está em
@@ -275,36 +296,46 @@ A descrição completa, incluindo o conceito multi-tenant e as integrações pre
 ```text
 .
 ├── .env.example
+├── .nvmrc
 ├── .opencode/
 │   └── agents/
 │       └── normandy.md
 ├── docs/
 │   └── architecture.md
 ├── public/
+│   ├── _redirects
 │   └── favicon.svg
 ├── src/
 │   ├── app/
 │   │   └── App.tsx
-│   ├── components/
-│   │   ├── Brand.tsx
-│   │   ├── Icons.tsx
-│   │   └── PlannedBadge.tsx
 │   ├── features/
+│   │   ├── auth/
+│   │   │   ├── AuthProvider.tsx
+│   │   │   ├── RequireDjAuth.tsx
+│   │   │   ├── components/
+│   │   │   ├── lib/
+│   │   │   └── services/
 │   │   └── guest/
 │   │       └── lib/
 │   │           ├── roomCode.test.ts
 │   │           └── roomCode.ts
+│   ├── components/
+│   │   ├── Brand.tsx
+│   │   ├── Icons.tsx
+│   │   └── PlannedBadge.tsx
 │   ├── integrations/
 │   │   └── supabase/
 │   │       ├── client.test.ts
-│   │       └── client.ts
+│   │       ├── client.ts
+│   │       └── database.types.ts
 │   ├── layouts/
 │   │   ├── DjLayout.tsx
 │   │   └── PublicLayout.tsx
 │   ├── pages/
 │   │   ├── dj/
 │   │   │   ├── DjDashboardPage.tsx
-│   │   │   └── DjLoginPage.tsx
+│   │   │   ├── DjLoginPage.tsx
+│   │   │   └── DjSignUpPage.tsx
 │   │   ├── guest/
 │   │   │   ├── GuestRoomPage.test.tsx
 │   │   │   └── GuestRoomPage.tsx
@@ -316,6 +347,7 @@ A descrição completa, incluindo o conceito multi-tenant e as integrações pre
 │   ├── styles/
 │   │   └── index.css
 │   ├── test/
+│   │   ├── authTestDoubles.ts
 │   │   └── setup.ts
 │   ├── vite-env.d.ts
 │   └── main.tsx
@@ -365,11 +397,37 @@ npm install
 3. Não utilize `service_role`, secret keys ou a senha do banco no frontend.
 4. Mantenha `.env.local` fora do Git; o arquivo já é ignorado.
 
-Nesta etapa, o cliente é preparado, mas não há autenticação nem operações de dados em
-execução. A migration de `public.dj_profiles` foi aplicada ao projeto remoto; a suíte pgTAP é
-executada no workflow do GitHub Actions. A conectividade com o Supabase Auth foi validada
-manualmente por requisições somente leitura aos endpoints oficiais, sem criação de sessão,
-usuários ou registros.
+O cadastro/login de DJs e a leitura/criação do próprio perfil estão ativos. No projeto remoto
+atual, a confirmação de e-mail está habilitada e o `site_url` é `https://project-web-youdj.pages.dev`;
+para testar localmente o retorno do e-mail e o login com Google, execute
+`npm run dev -- --port 3000` (a porta 3000 é a autorizada no painel do Supabase). Depois de
+confirmar, acesse `/dj` para entrar. Não altere URLs de redirecionamento no Supabase sem
+autorização.
+
+### Login com Google
+
+O botão "Continuar com Google" usa `supabase.auth.signInWithOAuth({ provider: 'google' })` e o
+retorno acontece na raiz do domínio atual (`window.location.origin`). A URL de retorno precisa
+estar autorizada em **Authentication > URL Configuration** do Supabase. No projeto atual:
+
+| Ambiente            | URL autorizada                                  |
+| ------------------- | ----------------------------------------------- |
+| Local               | `http://localhost:3000/**`                     |
+| Cloudflare Pages    | `https://project-web-youdj.pages.dev/**`        |
+
+Pontos importantes:
+
+- Em desenvolvimento local use a porta `3000`; em `127.0.0.1` ou outra porta o Supabase rejeita
+  o retorno, e a aplicação informa isso antes de iniciar o fluxo.
+- Se o domínio de produção mudar, defina `VITE_SUPABASE_OAUTH_REDIRECT_URL` com a URL
+  autorizada ou atualize as URLs no painel do Supabase.
+- O destino final (por exemplo `/dj/painel`) é resolvido no cliente após o retorno, o que evita
+  depender de rota profunda na allowlist e funciona igual em localhost e no Cloudflare Pages.
+- Não é solicitada nenhuma permissão adicional do Google além de `email profile`.
+- O aplicativo Google OAuth está em **modo de teste** no Google Cloud: somente contas adicionadas
+  como usuários de teste concluem o login com Google. Isso não afeta o login por e-mail/senha nem
+  impede publicar o site; liberar o público em geral exige publicar/verificar o aplicativo no
+  Google Cloud (configuração remota, fora deste repositório).
 
 ### Executar em desenvolvimento
 
@@ -388,7 +446,9 @@ O Vite informa a URL local no terminal, normalmente `http://localhost:5173`.
 npm run build
 ```
 
-O resultado é gerado em `dist/`.
+O resultado é gerado em `dist/`, incluindo `public/_redirects`, que faz o Cloudflare Pages
+responder as rotas internas da SPA (`/dj`, `/dj/cadastro`, `/dj/painel`, `/sala/:roomCode`)
+também no acesso direto ou após atualizar a página.
 
 ### Prévia do build
 
@@ -411,7 +471,9 @@ npm run preview
 ## Testes e qualidade
 
 Os testes atuais cobrem a apresentação da página inicial, os estados da rota de convidados, as
-regras de normalização e validação do código de sala e a configuração do cliente Supabase.
+regras de normalização e validação do código de sala, a configuração do cliente Supabase e os
+fluxos de validação, sessão, rota protegida e criação de perfil com doubles simulados. A suíte
+Vitest tem 64 testes em 18 arquivos.
 
 A suíte pgTAP em `supabase/tests/dj_profiles_rls.test.sql` tem 28 asserções para validar RLS,
 privilégios, isolamento entre DJs, bloqueio de convidados anônimos, constraints e cascade. Ela é
@@ -445,8 +507,11 @@ reexecutados nesta etapa.
 
 - `.gitignore` cobre dependências, builds, cobertura, logs, variáveis de ambiente e arquivos
   temporários.
-- A aplicação funciona sem sessão autenticada nesta fase; o cliente Supabase exige as
-  variáveis públicas apenas quando for utilizado.
+- Login/cadastro usam somente a publishable key e as variáveis públicas do cliente Supabase.
+- O login com Google usa apenas o escopo padrão `email profile` e não solicita permissões
+  adicionais ao Google.
+- A proteção visual do painel é complementada pela RLS em `public.dj_profiles`; não é a única
+  barreira de autorização.
 - Somente a publishable key pode ser usada no frontend. `service_role`, secret keys e a senha
   do banco nunca devem ser expostas ao cliente.
 - Nenhuma autenticação fictícia, transação simulada ou dado de pagamento é processado.
@@ -469,9 +534,18 @@ reexecutados nesta etapa.
 
 - **Repositório oficial:** <https://github.com/leo-leite-dev/project-web-youdj>
 - **Branch principal:** `main`
-- **Estado atual:** não publicado. Não existe endereço de produção configurado.
-- **Cloudflare Pages:** opção planejada para hospedagem do frontend estático, ainda não
-  configurada.
+- **Endereço de produção:** <https://project-web-youdj.pages.dev>
+- **Estado atual:** variáveis públicas do Supabase já configuradas no Cloudflare Pages; o
+  deploy desta etapa ainda **não** foi realizado.
+- **Cloudflare Pages:** projeto preparado para o build estático do Vite (comando `npm run build`,
+  saída `dist/`). `public/_redirects` garante as rotas internas da SPA e `.nvmrc` fixa o Node
+  `22.16.0`, pois o build system do Pages não lê o campo `engines` do `package.json` e o Vite 8
+  exige Node `>=22.12`.
+- **Antes do primeiro deploy:** confirmar no painel do Cloudflare o comando de build
+  (`npm run build`), o diretório de saída (`dist`) e a versão do Node (`22+`, padrão do build
+  system v3 ou a variável de build `NODE_VERSION`). Nenhuma variável secreta deve ser criada
+  no Cloudflare; apenas `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`, que são públicas
+  por definição.
 
 ## Estado atual
 
@@ -479,12 +553,17 @@ reexecutados nesta etapa.
 
 - Fundação React, Vite e TypeScript strict.
 - Tailwind CSS e layout responsivo.
-- Rotas públicas, área visual do DJ, prévia do painel e acesso de convidados.
+- Rotas públicas, cadastro/login de DJs, painel protegido e prévia do acesso de convidados.
 - Validação local do formato do código de sala.
-- Cliente Supabase centralizado, com validação de configuração, testes unitários e conectividade
-  Auth validada.
+- Cliente Supabase centralizado e tipado; cadastro/login/logout de DJs, sessão, perfil próprio e
+  proteção do painel implementados.
 - Migration de `public.dj_profiles` com RLS aplicada ao projeto remoto; schema, políticas e
   privilégios verificados por consultas somente leitura. Suíte pgTAP executada no PR #1.
+- Login com Google validado com conta real (redirect, retorno no domínio de produção e sessão
+  estabelecida); fluxos de e-mail/senha, sessão, logout e perfil cobertos pela suíte local com
+  doubles simulados.
+- Preparo do Cloudflare Pages: `public/_redirects` para as rotas internas da SPA, `.nvmrc` com
+  a versão do Node exigida pelo build e documentação do endereço de produção.
 - `supabase/config.toml` e workflow de pgTAP no GitHub Actions preparados para execução local
   isolada, sem projeto remoto.
 - Testes essenciais, lint, typecheck e build configurados.
@@ -492,19 +571,26 @@ reexecutados nesta etapa.
 
 ### Funcionalidades pendentes
 
-- Validação remota de RLS com fluxos autenticados reais.
-- Integração do Supabase Auth, PostgreSQL e Realtime aos fluxos da aplicação.
+- Validação remota dos fluxos de e-mail/senha (cadastro, confirmação de e-mail, login e logout)
+  com uma conta real no projeto Supabase.
+- Validação do isolamento entre DJs com fluxos autenticados reais (a suíte pgTAP cobre o banco;
+  a execução com duas contas reais ainda não foi feita).
+- Publicação do aplicativo Google OAuth, hoje em modo de teste no Google Cloud (restrito a
+  usuários de teste), para uso geral.
+- Recuperação de senha e gestão de credenciais.
+- Integração do Supabase Realtime aos fluxos da aplicação.
 - Salas, links e QR Codes reais.
 - Pedidos, aprovação, fila e histórico.
 - Identidades anônimas de convidados.
 - Pagamentos.
 - Reprodução musical.
-- Deploy e publicação.
+- Deploy no Cloudflare Pages (estrutura, build e variáveis públicas preparados).
 
 ### Próxima etapa prevista
 
-Validar a RLS remota com fluxos autenticados reais e então implementar autenticação de DJs e as
-próximas tabelas multi-tenant com Row Level Security.
+Publicar esta etapa no Cloudflare Pages quando autorizado; depois, validar e-mail/senha e o
+isolamento entre DJs com contas reais e implementar as próximas tabelas multi-tenant com
+políticas Row Level Security.
 
 ## Contribuição e licença
 
