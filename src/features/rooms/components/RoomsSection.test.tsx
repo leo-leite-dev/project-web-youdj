@@ -24,6 +24,7 @@ function renderSection(
       rooms={rooms}
       status="ready"
       updateRoomStatus={updateRoomStatus}
+      updateRoomMusicPreferences={vi.fn(async (id, musicPreferences) => makeRoom({ id, musicPreferences }))}
     />,
   )
 }
@@ -101,5 +102,23 @@ describe('RoomsSection sharing actions', () => {
       'Não foi possível atualizar o status da sala. Tente novamente.',
     )
     expect(screen.getByRole('button', { name: 'Pausar sala' })).toBeEnabled()
+  })
+
+  it('saves an individual music preference with success feedback', async () => {
+    const update = vi.fn(async (id: string, musicPreferences: Room['musicPreferences']) => makeRoom({ id, musicPreferences }))
+    render(<RoomsSection createRoom={vi.fn()} error={null} onRetry={vi.fn()} rooms={[makeRoom()]} status="ready" updateRoomStatus={vi.fn()} updateRoomMusicPreferences={update} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações musicais' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Exibir playlist' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Preferência salva.')
+    expect(update).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ showPlaylist: true, surpriseMode: true }))
+  })
+
+  it('reports preference persistence failure without showing success', async () => {
+    const update = vi.fn().mockRejectedValue(new Error('offline'))
+    render(<RoomsSection createRoom={vi.fn()} error={null} onRetry={vi.fn()} rooms={[makeRoom()]} status="ready" updateRoomStatus={vi.fn()} updateRoomMusicPreferences={update} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações musicais' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Exibir playlist' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar. Tente novamente.')
+    expect(screen.queryByText('Preferência salva.')).not.toBeInTheDocument()
   })
 })

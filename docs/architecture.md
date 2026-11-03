@@ -254,6 +254,21 @@ configuração remota foi alterada nesta etapa.
   se um código específico existe; códigos aleatórios e únicos mitigam adivinhação, mas não
   substituem rate limiting, que deverá ser avaliado antes de uso em larga escala.
 
+### Preferências musicais por sala — Etapa 3C
+
+- `rooms` recebe as preferências `surprise_mode` (true), `show_playlist` (false),
+  `show_now_playing` (true) e `show_guest_requests` (false). Atualização usa a RLS da sala e grants
+  somente para as colunas necessárias ao DJ proprietário autenticado.
+- A migration `20261104000000_add_room_music_preferences.sql` é local/preparada; não foi aplicada
+  remotamente. `room_by_code` retorna apenas nome, código, estado e esses quatro booleanos; `anon`
+  não recebe leitura direta da tabela.
+- A tela Salas oferece controles individuais e feedback após confirmação do Supabase. As flags são
+  apenas configuração: playlist, player e pedidos não existem ainda. Quando integrados, Modo
+  Surpresa deverá ocultar ordem futura/fila real; a preferência de playlist não concede nem mostra
+  ordem de reprodução; pedidos de convidados não confirmam músicas pelo DJ; música atual só poderá
+  ser exibida quando houver dado real.
+- Testes pgTAP específicos foram preparados, mas dependem do Supabase CLI/stack local para execução.
+
 ### Publicação no Cloudflare Pages
 
 - O projeto é um SPA estático do Vite: build `npm run build`, saída `dist/`, sem

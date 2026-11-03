@@ -34,7 +34,7 @@ describe('SupabasePublicRoomStore', () => {
       requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : null
 
       return new Response(
-        JSON.stringify([{ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active' }]),
+        JSON.stringify([{ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active', surprise_mode: true, show_playlist: false, show_now_playing: true, show_guest_requests: false }]),
         { headers: { 'Content-Type': 'application/json' }, status: 200 },
       )
     }
@@ -44,7 +44,7 @@ describe('SupabasePublicRoomStore', () => {
 
     expect(requestUrl).toContain('/rest/v1/rpc/room_by_code')
     expect(requestBody).toEqual({ p_code: 'AB12CD34EF' })
-    expect(room).toEqual({ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active' })
+    expect(room).toEqual({ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active', musicPreferences: { surpriseMode: true, showPlaylist: false, showNowPlaying: true, showGuestRequests: false } })
   })
 
   it('returns null when the code does not exist', async () => {

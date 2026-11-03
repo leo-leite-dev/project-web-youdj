@@ -25,6 +25,10 @@ export type Database = {
           id: string
           name: string
           status: string
+          surprise_mode: boolean
+          show_playlist: boolean
+          show_now_playing: boolean
+          show_guest_requests: boolean
           updated_at: string
         }
         Insert: {
@@ -34,6 +38,10 @@ export type Database = {
         Update: {
           name?: string
           status?: string
+          surprise_mode?: boolean
+          show_playlist?: boolean
+          show_now_playing?: boolean
+          show_guest_requests?: boolean
         }
         Relationships: []
       }
@@ -46,6 +54,10 @@ export type Database = {
           code: string
           name: string
           status: string
+          surprise_mode: boolean
+          show_playlist: boolean
+          show_now_playing: boolean
+          show_guest_requests: boolean
         }[]
       }
     }

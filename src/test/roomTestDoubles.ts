@@ -1,4 +1,4 @@
-import type { CreateRoomInput, PublicRoom, Room, RoomStatus } from '../features/rooms/roomTypes'
+import { DEFAULT_ROOM_MUSIC_PREFERENCES, type CreateRoomInput, type PublicRoom, type Room, type RoomStatus } from '../features/rooms/roomTypes'
 import type { PublicRoomStore } from '../features/rooms/services/publicRoomStore'
 import type { RoomStore } from '../features/rooms/services/roomStore'
 
@@ -11,6 +11,7 @@ export function makeRoom(overrides: Partial<Room> = {}): Room {
     name: 'Festa Teste',
     status: 'active',
     updatedAt: '2026-11-03T12:00:00.000Z',
+    musicPreferences: DEFAULT_ROOM_MUSIC_PREFERENCES,
     ...overrides,
   }
 }
@@ -20,6 +21,7 @@ export function makePublicRoom(overrides: Partial<PublicRoom> = {}): PublicRoom 
     code: 'AB12CD34EF',
     name: 'Festa Teste',
     status: 'active',
+    musicPreferences: DEFAULT_ROOM_MUSIC_PREFERENCES,
     ...overrides,
   }
 }
@@ -86,6 +88,14 @@ export class FakeRoomStore implements RoomStore {
     const updatedRoom = { ...room, status }
     this.rooms = this.rooms.map((candidate) => (candidate.id === roomId ? updatedRoom : candidate))
     return updatedRoom
+  }
+
+  async updateMusicPreferences(roomId: string, musicPreferences: Room['musicPreferences']): Promise<Room> {
+    const room = this.rooms.find((candidate) => candidate.id === roomId)
+    if (!room) throw new Error('Sala não encontrada.')
+    const updated = { ...room, musicPreferences }
+    this.rooms = this.rooms.map((candidate) => candidate.id === roomId ? updated : candidate)
+    return updated
   }
 }
 

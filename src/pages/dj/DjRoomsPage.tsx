@@ -16,6 +16,7 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
     rooms,
     status,
     updateRoomStatus,
+    updateRoomMusicPreferences,
   } = useRooms(profile?.id ?? null, roomStore)
 
   return (
@@ -40,6 +41,7 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
         rooms={rooms}
         status={status}
         updateRoomStatus={updateRoomStatus}
+        updateRoomMusicPreferences={updateRoomMusicPreferences}
       />
     </div>
   )

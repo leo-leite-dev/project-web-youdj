@@ -7,6 +7,7 @@ import { buildRoomLink } from '../lib/roomLink'
 import { ROOM_STATUS_STYLES } from '../lib/roomStatus'
 import { getRoomNameError } from '../lib/roomValidation'
 import type { Room, RoomStatus } from '../roomTypes'
+import type { RoomMusicPreferences } from '../roomTypes'
 import { RoomQrPanel } from './RoomQrPanel'
 
 const CREATE_ERROR_FALLBACK = 'Não foi possível criar a sala. Tente novamente.'
@@ -29,6 +30,7 @@ interface RoomsSectionProps {
   rooms: Room[]
   status: RoomsStatus
   updateRoomStatus: (roomId: string, status: RoomStatus) => Promise<Room>
+  updateRoomMusicPreferences: (roomId: string, preferences: RoomMusicPreferences) => Promise<Room>
 }
 
 export function RoomsSection({
@@ -38,6 +40,7 @@ export function RoomsSection({
   rooms,
   status,
   updateRoomStatus,
+  updateRoomMusicPreferences,
 }: RoomsSectionProps) {
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
@@ -49,6 +52,23 @@ export function RoomsSection({
   const [visibleQrCode, setVisibleQrCode] = useState<string | null>(null)
   const [updatingRoomId, setUpdatingRoomId] = useState<string | null>(null)
   const [updateError, setUpdateError] = useState<{ id: string; message: string } | null>(null)
+  const [settingsRoomId, setSettingsRoomId] = useState<string | null>(null)
+  const [savingSettingsId, setSavingSettingsId] = useState<string | null>(null)
+  const [settingsFeedback, setSettingsFeedback] = useState<{ id: string; message: string; error: boolean } | null>(null)
+
+  async function savePreference(room: Room, key: keyof RoomMusicPreferences) {
+    const preferences = { ...room.musicPreferences, [key]: !room.musicPreferences[key] }
+    setSavingSettingsId(room.id)
+    setSettingsFeedback(null)
+    try {
+      await updateRoomMusicPreferences(room.id, preferences)
+      setSettingsFeedback({ id: room.id, message: 'Preferência salva.', error: false })
+    } catch {
+      setSettingsFeedback({ id: room.id, message: 'Não foi possível salvar. Tente novamente.', error: true })
+    } finally {
+      setSavingSettingsId(null)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -199,6 +219,11 @@ export function RoomsSection({
                     />
 
                     <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" aria-expanded={settingsRoomId === room.id}
+                        onClick={() => setSettingsRoomId(settingsRoomId === room.id ? null : room.id)}
+                        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10">
+                        Configurações musicais
+                      </button>
                       <button
                         type="button"
                         onClick={() => void handleCopy(room)}
@@ -228,6 +253,21 @@ export function RoomsSection({
                             : 'Ativar sala'}
                       </button>
                     </div>
+
+                    {settingsRoomId === room.id ? <div className="mt-4 space-y-3 border-t border-white/8 pt-4">
+                      <p className="text-xs leading-5 text-zinc-500">Preferências preparadas para a experiência musical. Playlist, reprodução e pedidos ainda não estão disponíveis.</p>
+                      {([
+                        ['surpriseMode', 'Modo Surpresa'],
+                        ['showPlaylist', 'Exibir playlist'],
+                        ['showNowPlaying', 'Mostrar música tocando agora'],
+                        ['showGuestRequests', 'Exibir pedidos dos convidados'],
+                      ] as const).map(([key, label]) => <label key={key} className="flex min-h-11 items-center justify-between gap-3 text-xs text-zinc-200">
+                        <span>{label}</span><input type="checkbox" checked={room.musicPreferences[key]} disabled={savingSettingsId !== null}
+                          onChange={() => void savePreference(room, key)} aria-label={label}
+                          className="size-4 accent-accent-400" />
+                      </label>)}
+                      {settingsFeedback?.id === room.id ? <p role={settingsFeedback.error ? 'alert' : 'status'} className={settingsFeedback.error ? 'text-xs text-red-300' : 'text-xs text-emerald-300'}>{settingsFeedback.message}</p> : null}
+                    </div> : null}
 
                     {updateError?.id === room.id ? (
                       <p role="alert" className="mt-2 text-[11px] leading-5 text-red-300">

@@ -9,6 +9,12 @@ versionamento semântico.
 
 ### Adicionado
 
+- Preferências musicais individuais por sala (Modo Surpresa, exibição de playlist, música atual
+  e pedidos dos convidados), com defaults no banco, edição autenticada pelo proprietário e RPC
+  pública limitada aos booleanos de apresentação. Migration e pgTAP preparados localmente; ainda
+  não aplicados nem validados contra Supabase local/remoto. Playlist, reprodução e pedidos seguem
+  indisponíveis.
+
 - Dependência `@supabase/supabase-js` para preparar a integração do frontend com o Supabase.
 - Cliente Supabase centralizado em `src/integrations/supabase/client.ts`, criado sob demanda
   com validação de `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.

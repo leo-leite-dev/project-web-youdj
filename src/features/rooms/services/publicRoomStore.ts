@@ -35,7 +35,13 @@ class SupabasePublicRoomStore implements PublicRoomStore {
       return null
     }
 
-    return { code: row.code, name: row.name, status: toRoomStatus(row.status) }
+    return {
+      code: row.code, name: row.name, status: toRoomStatus(row.status),
+      musicPreferences: {
+        surpriseMode: row.surprise_mode, showPlaylist: row.show_playlist,
+        showNowPlaying: row.show_now_playing, showGuestRequests: row.show_guest_requests,
+      },
+    }
   }
 }
 

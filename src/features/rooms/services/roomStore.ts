@@ -2,16 +2,17 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseClient } from '../../../integrations/supabase/client'
 import type { Database } from '../../../integrations/supabase/database.types'
 import { toRoomStatus } from '../lib/roomStatus'
-import type { CreateRoomInput, Room, RoomStatus } from '../roomTypes'
+import type { CreateRoomInput, Room, RoomMusicPreferences, RoomStatus } from '../roomTypes'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
 
-const ROOM_COLUMNS = 'id, dj_id, name, status, code, created_at, updated_at'
+const ROOM_COLUMNS = 'id, dj_id, name, status, code, created_at, updated_at, surprise_mode, show_playlist, show_now_playing, show_guest_requests'
 
 export interface RoomStore {
   create: (input: CreateRoomInput) => Promise<Room>
   listByDj: (djId: string) => Promise<Room[]>
   updateStatus: (roomId: string, status: RoomStatus) => Promise<Room>
+  updateMusicPreferences: (roomId: string, preferences: RoomMusicPreferences) => Promise<Room>
 }
 
 function toRoom(row: RoomRow): Room {
@@ -23,6 +24,12 @@ function toRoom(row: RoomRow): Room {
     name: row.name,
     status: toRoomStatus(row.status),
     updatedAt: row.updated_at,
+    musicPreferences: {
+      surpriseMode: row.surprise_mode,
+      showPlaylist: row.show_playlist,
+      showNowPlaying: row.show_now_playing,
+      showGuestRequests: row.show_guest_requests,
+    },
   }
 }
 
@@ -73,6 +80,17 @@ class SupabaseRoomStore implements RoomStore {
       throw error
     }
 
+    return toRoom(data)
+  }
+
+  async updateMusicPreferences(roomId: string, preferences: RoomMusicPreferences): Promise<Room> {
+    const { data, error } = await this.client.from('rooms').update({
+      surprise_mode: preferences.surpriseMode,
+      show_playlist: preferences.showPlaylist,
+      show_now_playing: preferences.showNowPlaying,
+      show_guest_requests: preferences.showGuestRequests,
+    }).eq('id', roomId).select(ROOM_COLUMNS).single()
+    if (error) throw error
     return toRoom(data)
   }
 }
