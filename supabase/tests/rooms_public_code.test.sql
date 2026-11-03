@@ -131,7 +131,7 @@ select ok(
 );
 
 select ok(
-  (select 'search_path=' = any(proconfig)
+  (select 'search_path=""' = any(proconfig)
     from pg_proc
     where oid = 'public.room_by_code(text)'::regprocedure),
   'room_by_code has a locked empty search_path'
