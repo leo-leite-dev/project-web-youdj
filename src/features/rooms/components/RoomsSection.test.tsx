@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeRoom } from '../../../test/roomTestDoubles'
+import type { Room, RoomStatus } from '../roomTypes'
 import { createRoomQrDataUrl } from '../lib/roomQr'
 import { RoomsSection } from './RoomsSection'
 
@@ -10,7 +11,11 @@ vi.mock('../lib/roomQr', () => ({
 
 const link = `${window.location.origin}/sala/AB12CD34EF`
 
-function renderSection(rooms = [makeRoom()]) {
+function renderSection(
+  rooms = [makeRoom()],
+  updateRoomStatus: (roomId: string, status: RoomStatus) => Promise<Room> = async (roomId, status) =>
+    makeRoom({ id: roomId, status }),
+) {
   return render(
     <RoomsSection
       createRoom={vi.fn()}
@@ -18,6 +23,7 @@ function renderSection(rooms = [makeRoom()]) {
       onRetry={vi.fn()}
       rooms={rooms}
       status="ready"
+      updateRoomStatus={updateRoomStatus}
     />,
   )
 }
@@ -70,5 +76,30 @@ describe('RoomsSection sharing actions', () => {
       'download',
       'sala-AB12CD34EF.png',
     )
+  })
+
+  it('requests a status change for the selected room', async () => {
+    const updateRoomStatus = vi.fn(async (roomId: string, status: RoomStatus) =>
+      makeRoom({ id: roomId, status }),
+    )
+    const room = makeRoom()
+    renderSection([room], updateRoomStatus)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar sala' }))
+
+    expect(await screen.findByRole('button', { name: 'Pausar sala' })).toBeEnabled()
+    expect(updateRoomStatus).toHaveBeenCalledWith(room.id, 'paused')
+  })
+
+  it('reports a status update failure without claiming success', async () => {
+    const updateRoomStatus = vi.fn().mockRejectedValue(new Error('offline'))
+    renderSection([makeRoom()], updateRoomStatus)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar sala' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível atualizar o status da sala. Tente novamente.',
+    )
+    expect(screen.getByRole('button', { name: 'Pausar sala' })).toBeEnabled()
   })
 })

@@ -106,6 +106,29 @@ describe('SupabaseRoomStore', () => {
     expect(rooms[1]).toMatchObject({ name: 'Festa Pausada', status: 'paused' })
   })
 
+  it('updates only the requested room status and returns the persisted row', async () => {
+    let requestUrl = ''
+    let requestBody: unknown
+    const fetcher: typeof fetch = async (input, init) => {
+      requestUrl = getUrl(input)
+      requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : null
+
+      return new Response(JSON.stringify(roomRow({ status: 'paused' })), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    const roomId = 'aaaaaaaa-1111-4111-8111-111111111111'
+    const store = createSupabaseRoomStore(createTestClient(fetcher))
+    const room = await store.updateStatus(roomId, 'paused')
+
+    expect(requestUrl).toContain('/rest/v1/rooms')
+    expect(requestUrl).toContain(`id=eq.${roomId}`)
+    expect(requestBody).toEqual({ status: 'paused' })
+    expect(room.status).toBe('paused')
+  })
+
   it('propagates REST errors to the caller', async () => {
     const fetcher: typeof fetch = async () =>
       new Response(JSON.stringify({ code: '42501', message: 'permission denied' }), {

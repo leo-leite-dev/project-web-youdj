@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { AuthContext } from '../../features/auth/AuthContext'
 import type { AuthContextValue } from '../../features/auth/authTypes'
@@ -26,33 +27,27 @@ function makeAuthValue(): AuthContextValue {
 function renderDashboard(store: FakeRoomStore) {
   return render(
     <AuthContext.Provider value={makeAuthValue()}>
-      <DjDashboardPage roomStore={store} />
+      <MemoryRouter>
+        <DjDashboardPage roomStore={store} />
+      </MemoryRouter>
     </AuthContext.Provider>,
   )
 }
 
 describe('DjDashboardPage rooms', () => {
-  it('loads, shows the empty state and creates the first room', async () => {
+  it('keeps an overview summary and links to room management', async () => {
     const store = new FakeRoomStore()
     renderDashboard(store)
 
     expect(screen.getByText('Carregando suas salas...')).toBeInTheDocument()
 
-    await screen.findByText('Nenhuma sala criada')
+    await screen.findByText('0 salas cadastradas')
     expect(screen.getByText('0')).toBeInTheDocument()
-
-    fireEvent.change(screen.getByLabelText('Nome da sala'), {
-      target: { value: 'Festa Teste' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Criar sala' }))
-
-    await screen.findByText('Festa Teste')
-    expect(store.createCalls).toEqual([
-      { djId: makeDjProfile().id, name: 'Festa Teste' },
-    ])
-    expect(screen.getByLabelText('Nome da sala')).toHaveValue('')
-    expect(screen.getByRole('status')).toHaveTextContent('Sala criada com sucesso.')
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gerenciar salas' })).toHaveAttribute(
+      'href',
+      '/dj/painel/salas',
+    )
+    expect(screen.queryByLabelText('Nome da sala')).not.toBeInTheDocument()
   })
 
   it('lists rooms with status labels and counts the active ones', async () => {
@@ -68,7 +63,7 @@ describe('DjDashboardPage rooms', () => {
     expect(screen.getByText('Ativa')).toBeInTheDocument()
     expect(screen.getByText('Aniversário da Ana')).toBeInTheDocument()
     expect(screen.getByText('Pausada')).toBeInTheDocument()
-    expect(screen.getByText('2 salas')).toBeInTheDocument()
+    expect(screen.getByText('2 salas cadastradas')).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 

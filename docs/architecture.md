@@ -9,10 +9,11 @@ obrigatório.
 Esta versão entrega a fundação frontend, cadastro/login/logout de DJs com Supabase Auth, leitura
 ou criação idempotente do perfil autenticado em `public.dj_profiles`, salas em `public.rooms`,
 códigos públicos, links compartilháveis, QR Codes e consulta pública limitada da sala no código.
-As migrations de perfil e salas foram aplicadas ao Supabase remoto; a migration de códigos
-públicos está preparada localmente e ainda não foi aplicada, portanto o fluxo público aguarda essa
-aplicação. O login com Google foi validado com conta real; os fluxos autenticados completos em
-produção seguem aguardando validação manual.
+As migrations de perfil, salas e códigos públicos foram aplicadas ao Supabase remoto. A Etapa 3B
+foi verificada por consultas somente de leitura, e os 88 testes pgTAP foram aprovados no GitHub
+Actions. A interface autenticada agora possui uma página dedicada ao gerenciamento das salas. O
+login com Google foi validado com conta real; os fluxos autenticados completos em produção seguem
+aguardando validação manual.
 
 ## 2. Tecnologias atuais
 
@@ -36,7 +37,7 @@ src/
   components/             # componentes reutilizáveis (Brand, ícones, badges)
   features/
     auth/                 # AuthProvider, proteção de rota, validação e serviços de auth/perfil
-    rooms/                # salas, links/QR, stores privado/público e UI do painel
+    rooms/                # salas, links/QR, stores privado/público e UI de gerenciamento
     guest/lib/            # regras puras do domínio de convidados
   integrations/
     supabase/             # cliente tipado e integração com Supabase
@@ -55,7 +56,7 @@ public/
   favicon.svg
 supabase/
   config.toml             # configuração do stack local e dos testes
-  migrations/             # migrations SQL; perfil e salas aplicados, código público preparado
+  migrations/             # migrations SQL versionadas e aplicadas ao remoto
   tests/                  # testes pgTAP de RLS, códigos e integridade
 .github/
   workflows/
@@ -73,8 +74,9 @@ testáveis ficam em `features/*/lib`.
 | `/`               | Implementada | Apresentação, proposta de valor e CTAs.                |
 | `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).       |
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; confirmação de e-mail ou Google.        |
-| `/dj/painel`      | Protegida   | Exige sessão não anônima e perfil carregado; cria e lista salas. |
-| `/sala/:roomCode` | Implementada | Consulta pública por código (RPC remota aguarda migration 3B). |
+| `/dj/painel`      | Protegida   | Exige sessão não anônima e perfil carregado; resume as salas. |
+| `/dj/painel/salas` | Protegida  | Cria, lista, ativa/pausa e compartilha salas via link e QR Code. |
+| `/sala/:roomCode` | Implementada | Consulta pública por código via RPC `room_by_code`. |
 | `*`               | Implementada | Página 404.                                            |
 
 A validação do código de sala em `features/guest/lib/roomCode.ts` normaliza o valor e exige
@@ -126,9 +128,8 @@ em 2026-11-02):
 - A suíte pgTAP `supabase/tests/rooms_rls.test.sql` tem 33 asserções e é executada pelo mesmo
   workflow do GitHub Actions em um Supabase local isolado.
 
-O código público e a consulta limitada são definidos pela migration local pendente
-`20261103000000_add_rooms_public_code.sql` (implementação da Etapa 3B ainda sem deploy ou
-aplicação remota):
+O código público e a consulta limitada são definidos pela migration
+`20261103000000_add_rooms_public_code.sql`, aplicada ao Supabase remoto:
 
 - `code` é único, obrigatório, restrito a 10 caracteres `A-Z0-9` (~52 bits de entropia) e
   preenchido no banco. A migration faz backfill das salas existentes antes de aplicar `NOT NULL`,
@@ -143,8 +144,8 @@ aplicação remota):
 
 ### Códigos e consulta pública de salas
 
-A migration `20261103000000_add_rooms_public_code.sql` está preparada localmente e ainda não
-aplicada ao remoto:
+A migration `20261103000000_add_rooms_public_code.sql` está aplicada ao remoto e foi confirmada
+no histórico e no schema do projeto YouDJ:
 
 - Adiciona `rooms.code`, único, obrigatório e validado como 10 caracteres `A-Z0-9` (~52 bits de
   entropia); faz backfill das salas existentes antes de aplicar `NOT NULL`, preservando linhas e
@@ -163,8 +164,8 @@ aplicada ao remoto:
 - Os QR Codes são gerados localmente no navegador pela biblioteca `qrcode`, sem enviar links ou
   dados de sala a serviços de terceiros. O painel oferece cópia do link e download PNG.
 - A suíte `supabase/tests/rooms_public_code.test.sql` tem 27 asserções para grants, imutabilidade,
-  geração, unicidade, reabilitação do trigger de timestamp e escopo da RPC. A suíte roda no
-  workflow local de CI; não foi executada contra o banco remoto.
+  geração, unicidade, reabilitação do trigger de timestamp e escopo da RPC. Junto às suítes
+  existentes, os 88 testes pgTAP foram aprovados no workflow local de CI.
 
 As demais tabelas de domínio (pedidos, músicas, pagamentos) deverão usar `dj_id` obrigatório e
 políticas RLS equivalentes, sempre validadas no banco antes de qualquer dado real.
@@ -231,16 +232,16 @@ configuração remota foi alterada nesta etapa.
 - `RoomStore` (`src/features/rooms/services/roomStore.ts`) concentra a listagem por
   proprietário (ordenada por `created_at` decrescente) e a criação com retorno da linha criada,
   no mesmo padrão de `DjProfileStore`.
-- `useRooms` expõe status derivado (carregamento, pronto, erro, ocioso), recarga e criação; o
-  efeito só atualiza estado dentro de callbacks assíncronos, como o `AuthProvider`.
+- `useRooms` expõe status derivado (carregamento, pronto, erro, ocioso), recarga, criação e
+  atualização de status; a UI só reflete a alteração depois da confirmação do store.
 - `RoomsSection` renderiza os estados de carregamento, vazio, erro com nova tentativa e a lista
   com selo de status. A validação do nome (2 a 60 caracteres) é local e o servidor revalida pela
   constraint da tabela.
-- O painel usa a lista para a contagem de salas ativas e oferece cópia do link público e
-  visualização/download do QR Code PNG, gerado localmente pela biblioteca `qrcode`.
-- A migration de códigos ainda não foi aplicada ao remoto; até isso ocorrer, os códigos, a consulta
-  pública por RPC, os links e QR Codes não estarão disponíveis em produção. A edição/pausa de
-  salas pela interface e pedidos musicais continuam fora do escopo.
+- A Visão Geral mostra contagem e resumo das salas; `/dj/painel/salas` concentra criação, lista,
+  ativação/pausa e compartilhamento por link ou QR Code PNG gerado localmente pela biblioteca
+  `qrcode`.
+- A atualização de status usa a permissão `UPDATE` já concedida para `status`, com a RLS existente
+  restringindo a operação às salas do DJ autenticado. Pedidos musicais continuam fora do escopo.
 
 ### Consulta pública do convidado
 
@@ -258,8 +259,8 @@ configuração remota foi alterada nesta etapa.
 - O projeto é um SPA estático do Vite: build `npm run build`, saída `dist/`, sem
   Functions/Workers.
 - `public/_redirects` reescreve qualquer caminho para `/index.html` com status 200, para que
-  `/dj`, `/dj/cadastro`, `/dj/painel` e `/sala/:roomCode` funcionem no acesso direto e na
-  atualização da página. Sem esse arquivo, o Pages responderia 404 nessas rotas.
+  `/dj`, `/dj/cadastro`, `/dj/painel`, `/dj/painel/salas` e `/sala/:roomCode` funcionem no acesso
+  direto e na atualização da página. Sem esse arquivo, o Pages responderia 404 nessas rotas.
 - `.nvmrc` fixa Node `22.16.0`: o build system do Pages não lê o campo `engines` do
   `package.json` e o Vite 8 exige Node `>=22.12` (o padrão do build system v2 seria 18.x).
 - Endereço de produção: `https://project-web-youdj.pages.dev`. As variáveis públicas
@@ -278,16 +279,16 @@ configuração remota foi alterada nesta etapa.
 | Supabase Auth           | Cadastro/login/logout de DJs (e-mail e Google)      | Implementado; Google validado com conta real |
 | Supabase Auth           | Identidades anônimas de convidados                             | Planejado |
 | Supabase PostgreSQL     | Perfil de DJ (`public.dj_profiles`)                            | Implementado; leitura/criação no login Google real |
-| Supabase PostgreSQL     | Salas (`public.rooms`)                                         | Migration 3A aplicada; códigos/RPC pendentes no remoto |
+| Supabase PostgreSQL     | Salas (`public.rooms`)                                         | Migrations 3A/3B aplicadas; RLS e RPC verificados |
 | Supabase PostgreSQL     | Pedidos, músicas, pagamentos e histórico                       | Planejado |
 | Supabase Realtime       | Atualização da fila e dos pedidos em tempo real               | Planejado   |
 | Cloudflare Pages        | Hospedagem do frontend estático                               | Variáveis públicas verificadas no bundle |
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
 | YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
 
-Supabase Auth, as operações de perfil e as operações de criação/listagem de `public.rooms` estão
-integradas em runtime; a migration `20261102000000` foi aplicada ao remoto. Links/QR e a RPC
-pública estão implementados localmente, aguardando a migration `20261103000000`. O build do
+Supabase Auth, as operações de perfil e o gerenciamento de `public.rooms` estão integrados em
+runtime; as migrations `20261102000000` e `20261103000000` foram aplicadas ao remoto. Links/QR e a
+RPC pública estão disponíveis com a coluna `code`. O build do
 Cloudflare Pages foi refeito após a correção de `VITE_SUPABASE_URL`; o bundle de produção foi
 verificado com ambas as variáveis públicas presentes. A validação manual dos fluxos autenticados
 e de salas em produção segue pendente.
@@ -313,18 +314,15 @@ Princípios que devem orientar as próximas etapas:
 - Identidades anônimas de convidados e rate limiting.
 - Pagamentos.
 - Player de música/vídeo.
-- Aplicação remota da migration `20261103000000_add_rooms_public_code.sql` (aguarda autorização).
 - Testes end-to-end em navegador.
 
 ## 9. Próximos passos recomendados
 
-1. Aplicar `20261103000000_add_rooms_public_code.sql` ao remoto (com autorização) e executar as
-   26 novas asserções junto às duas suítes pgTAP existentes no workflow.
-2. Validar manualmente login/logout, proteção de rota, perfil, criação/listagem de sala, link,
+1. Validar manualmente login/logout, proteção de rota, perfil, criação/listagem/pausa de sala, link,
    QR Code e persistência em produção com uma conta real.
-3. Validar cadastro, confirmação de e-mail, login e logout por e-mail/senha, além do isolamento
+2. Validar cadastro, confirmação de e-mail, login e logout por e-mail/senha, além do isolamento
    entre duas contas de DJs.
-4. Publicar/verificar o aplicativo Google OAuth no Google Cloud para liberar login além dos
+3. Publicar/verificar o aplicativo Google OAuth no Google Cloud para liberar login além dos
    usuários de teste.
-5. Implementar pedidos com Supabase Realtime.
-6. Adicionar player e, depois, pagamentos.
+4. Implementar pedidos com Supabase Realtime.
+5. Adicionar player e, depois, pagamentos.

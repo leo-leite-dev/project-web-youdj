@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Room } from '../roomTypes'
+import type { Room, RoomStatus } from '../roomTypes'
 import { getRoomErrorMessage } from '../lib/roomErrors'
 import { normalizeRoomName } from '../lib/roomValidation'
 import { createSupabaseRoomStore, type RoomStore } from '../services/roomStore'
@@ -12,6 +12,7 @@ export interface UseRoomsResult {
   reload: () => void
   rooms: Room[]
   status: RoomsStatus
+  updateRoomStatus: (roomId: string, status: RoomStatus) => Promise<Room>
 }
 
 const LOAD_ERROR_FALLBACK = 'Não foi possível carregar suas salas. Tente novamente.'
@@ -122,5 +123,40 @@ export function useRooms(djId: string | null, storeOverride?: RoomStore): UseRoo
     setAttempt((current) => current + 1)
   }, [])
 
-  return { createRoom, error: errorMessage, reload, rooms, status }
+  const updateRoomStatus = useCallback(
+    async (roomId: string, nextStatus: RoomStatus): Promise<Room> => {
+      if (!storeState.store) {
+        throw storeState.error
+      }
+
+      if (!djId) {
+        throw new Error('Sessão indisponível para atualizar salas.')
+      }
+
+      const room = await storeState.store.updateStatus(roomId, nextStatus)
+
+      setResult((current) => {
+        if (
+          !current ||
+          current.djId !== djId ||
+          current.attempt !== attempt ||
+          current.kind !== 'ok'
+        ) {
+          return current
+        }
+
+        return {
+          ...current,
+          rooms: current.rooms.map((currentRoom) =>
+            currentRoom.id === room.id ? room : currentRoom,
+          ),
+        }
+      })
+
+      return room
+    },
+    [attempt, djId, storeState],
+  )
+
+  return { createRoom, error: errorMessage, reload, rooms, status, updateRoomStatus }
 }

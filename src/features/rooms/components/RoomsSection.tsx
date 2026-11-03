@@ -6,12 +6,13 @@ import { getRoomErrorMessage } from '../lib/roomErrors'
 import { buildRoomLink } from '../lib/roomLink'
 import { ROOM_STATUS_STYLES } from '../lib/roomStatus'
 import { getRoomNameError } from '../lib/roomValidation'
-import type { Room } from '../roomTypes'
+import type { Room, RoomStatus } from '../roomTypes'
 import { RoomQrPanel } from './RoomQrPanel'
 
 const CREATE_ERROR_FALLBACK = 'Não foi possível criar a sala. Tente novamente.'
 const COPY_ERROR_FALLBACK =
   'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.'
+const UPDATE_ERROR_FALLBACK = 'Não foi possível atualizar o status da sala. Tente novamente.'
 
 function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString('pt-BR', {
@@ -27,9 +28,17 @@ interface RoomsSectionProps {
   onRetry: () => void
   rooms: Room[]
   status: RoomsStatus
+  updateRoomStatus: (roomId: string, status: RoomStatus) => Promise<Room>
 }
 
-export function RoomsSection({ createRoom, error, onRetry, rooms, status }: RoomsSectionProps) {
+export function RoomsSection({
+  createRoom,
+  error,
+  onRetry,
+  rooms,
+  status,
+  updateRoomStatus,
+}: RoomsSectionProps) {
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -38,6 +47,8 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<{ code: string; message: string } | null>(null)
   const [visibleQrCode, setVisibleQrCode] = useState<string | null>(null)
+  const [updatingRoomId, setUpdatingRoomId] = useState<string | null>(null)
+  const [updateError, setUpdateError] = useState<{ id: string; message: string } | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -73,6 +84,23 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
       setCopiedCode(room.code)
     } catch {
       setCopyError({ code: room.code, message: COPY_ERROR_FALLBACK })
+    }
+  }
+
+  async function handleToggleStatus(room: Room) {
+    const nextStatus: RoomStatus = room.status === 'active' ? 'paused' : 'active'
+    setUpdatingRoomId(room.id)
+    setUpdateError(null)
+
+    try {
+      await updateRoomStatus(room.id, nextStatus)
+    } catch (statusError) {
+      setUpdateError({
+        id: room.id,
+        message: getRoomErrorMessage(statusError, UPDATE_ERROR_FALLBACK),
+      })
+    } finally {
+      setUpdatingRoomId(null)
     }
   }
 
@@ -187,7 +215,25 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
                         <QrCodeIcon className="size-3.5" />
                         QR Code
                       </button>
+                      <button
+                        type="button"
+                        disabled={updatingRoomId !== null}
+                        onClick={() => void handleToggleStatus(room)}
+                        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {updatingRoomId === room.id
+                          ? 'Atualizando...'
+                          : room.status === 'active'
+                            ? 'Pausar sala'
+                            : 'Ativar sala'}
+                      </button>
                     </div>
+
+                    {updateError?.id === room.id ? (
+                      <p role="alert" className="mt-2 text-[11px] leading-5 text-red-300">
+                        {updateError.message}
+                      </p>
+                    ) : null}
 
                     {copiedCode === room.code ? (
                       <p role="status" className="mt-2 text-[11px] leading-5 text-emerald-300">

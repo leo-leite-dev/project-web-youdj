@@ -95,15 +95,16 @@ Itens verificados no código atual:
   rejeição de sessões anônimas.
 - Criação idempotente e leitura do próprio perfil em `public.dj_profiles`, com RLS como controle
   de acesso no banco.
-- Criação e listagem das salas do DJ em `public.rooms`, com RLS de proprietário, estados de
-  carregamento/vazio/erro no painel e contagem de salas ativas.
+- Gerenciamento das salas do DJ em `public.rooms` (criação, listagem e ativação/pausa) na rota
+  protegida `/dj/painel/salas`, com RLS de proprietário e estados de carregamento/vazio/erro; a
+  Visão Geral mantém contagem e resumo das salas.
 - Código público único de 10 caracteres por sala (~52 bits de entropia, gerado no banco e
   imutável pela API), com backfill das salas existentes, link compartilhável `/sala/:codigo` e QR Code gerado
   localmente (sem serviços externos), com cópia do link e download de PNG no painel.
 - Página pública do convidado que consulta a sala por código (somente nome e estado), com
   estados de carregamento, não encontrada, indisponível e erro com nova tentativa.
-- Painel administrativo com indicadores e roadmap; a identidade/perfil e as salas são reais,
-  enquanto pedidos e pagamentos continuam indisponíveis.
+- Painel administrativo com Visão Geral resumida e página dedicada para gerenciar salas; a
+  identidade/perfil e as salas são reais, enquanto pedidos e pagamentos continuam indisponíveis.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
@@ -126,7 +127,7 @@ Os arquivos abaixo existem no repositório e a migration inicial foi aplicada ao
 - Suíte pgTAP `supabase/tests/dj_profiles_rls.test.sql` com 28 asserções para permissões,
   isolamento, constraints, integridade referencial e cascade.
 
-Arquivos preparados nesta etapa (**ainda não aplicados ao remoto**):
+Migration da Etapa 3B aplicada ao Supabase remoto:
 
 - Migration `supabase/migrations/20261103000000_add_rooms_public_code.sql`, que adiciona o
   código público de 10 caracteres (`A-Z0-9`, ~52 bits de entropia) às salas existentes, com
@@ -143,6 +144,11 @@ e `20261102000000`, e `public.rooms` foi verificada por consultas somente leitur
 políticas, privilégios, constraints, FK e dados preservados). A suíte pgTAP é executada em um
 Supabase local no workflow do GitHub Actions, sem projeto remoto.
 
+A migration `20261103000000_add_rooms_public_code.sql` também foi aplicada ao projeto remoto do
+YouDJ. A coluna `rooms.code`, os códigos existentes, a função `room_by_code`, suas permissões e
+as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 testes pgTAP da Etapa
+3B foram aprovados no GitHub Actions.
+
 ### Rotas atuais
 
 | Rota              | Estado       | Comportamento atual                                                    |
@@ -150,16 +156,15 @@ Supabase local no workflow do GitHub Actions, sem projeto remoto.
 | `/`               | Implementada | Página inicial e apresentação do produto.                              |
 | `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).                       |
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; pode exigir confirmação de e-mail ou usar Google.          |
-| `/dj/painel`      | Protegida    | Exige sessão de DJ e perfil carregado; cria e lista salas. |
-| `/sala/:roomCode` | Implementada | Consulta pública por código (a RPC aguarda a migration 3B remota).       |
+| `/dj/painel`      | Protegida    | Exige sessão de DJ e perfil carregado; mostra o resumo das salas. |
+| `/dj/painel/salas` | Protegida   | Cria, lista, ativa/pausa e compartilha salas via link e QR Code. |
+| `/sala/:roomCode` | Implementada | Consulta pública por código via RPC `room_by_code`. |
 | `*`               | Implementada | Página 404.                                                             |
 
 ### O que ainda não está implementado
 
 - Recuperação de senha e gestão de e-mail/senha.
 - Persistência de pedidos, filas e histórico. O perfil e as salas são persistidos em runtime.
-- Aplicação da migration `20261103000000_add_rooms_public_code.sql` ao projeto remoto
-  (preparada localmente).
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
 - Pedidos, aprovação, fila, histórico e atualizações em tempo real.
@@ -200,8 +205,7 @@ Supabase local no workflow do GitHub Actions, sem projeto remoto.
 ### Fase 3 — Salas e convidados · Em andamento
 
 - Criação e listagem de salas com isolamento por DJ (implementado; migration aplicada ao remoto).
-- Links exclusivos e QR Codes por sala (implementado; migration dos códigos pendente de
-  aplicação remota).
+- Links exclusivos e QR Codes por sala (implementado; migration dos códigos aplicada ao remoto).
 - Acesso público do convidado ao nome e ao estado da sala, sem cadastro (implementado).
 - Identidades anônimas controladas (planejado; necessário para os pedidos).
 - Proteção contra spam.
@@ -284,7 +288,7 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 | Supabase Auth              | Login de DJs (e-mail/senha e Google)                 | Implementado; Google validado com conta real |
 | Supabase Auth              | Identidades anônimas de convidados                 | Planejado |
 | Supabase PostgreSQL        | Perfil de DJ (`public.dj_profiles`)                | Implementado; leitura/criação exercitadas no login Google real |
-| Supabase PostgreSQL        | Salas (`public.rooms`)                             | Implementado; código público com migration pendente no remoto |
+| Supabase PostgreSQL        | Salas (`public.rooms`)                             | Implementado; migrations 3A/3B aplicadas e verificadas |
 | Supabase PostgreSQL        | Pedidos, músicas, histórico e pagamentos           | Planejado |
 | Supabase Realtime          | Atualização da fila e dos pedidos em tempo real    | Planejado |
 | Cloudflare Pages           | Hospedagem do frontend estático                    | Deploy publicado; variáveis públicas verificadas no bundle |
@@ -535,9 +539,9 @@ execução manual. Ele usa o Supabase CLI `2.122.0` e executa apenas o stack loc
 2. `supabase db reset --local --no-seed --yes`
 3. `supabase test db --local supabase/tests`
 
-O workflow não usa `--linked`, `service_role`, credenciais de produção ou o projeto remoto. Os
-61 testes existentes (28 de perfis + 33 de salas) passaram no GitHub Actions; as 27 novas
-asserções de códigos públicos aguardam execução no PR da Etapa 3B.
+O workflow não usa `--linked`, `service_role`, credenciais de produção ou o projeto remoto. Os 88
+testes pgTAP (28 de perfis + 33 de RLS de salas + 27 de códigos públicos) passaram no GitHub
+Actions.
 
 ## Segurança
 
@@ -566,8 +570,8 @@ asserções de códigos públicos aguardam execução no PR da Etapa 3B.
 - A consulta pública de salas (`room_by_code`) é uma função `security definer` com `search_path`
   travado que devolve **apenas** `code`, `name` e `status`; o papel `anon` continua sem nenhum
   privilégio sobre a tabela, e o código só pode ser lido/alterado pelo proprietário (gerado no
-  banco, sem `INSERT`/`UPDATE` na API). A migration `20261103000000` e suas 27 asserções pgTAP
-  estão preparadas localmente e ainda não foram aplicadas ao remoto.
+  banco, sem `INSERT`/`UPDATE` na API). A migration `20261103000000` está aplicada no remoto e as
+  permissões/schema foram confirmadas por consulta; os 88 testes pgTAP passaram no GitHub Actions.
 - Os QR Codes são gerados **localmente** no navegador (biblioteca `qrcode`, sem serviços
   externos); nenhum link ou dado de sala é enviado a terceiros.
 
@@ -610,13 +614,14 @@ asserções de códigos públicos aguardam execução no PR da Etapa 3B.
 - Validação local do formato do código de sala.
 - Cliente Supabase centralizado e tipado; cadastro/login/logout de DJs, sessão, perfil próprio e
   proteção do painel implementados.
-- Criação e listagem de salas (`public.rooms`) integradas ao painel, com RLS de proprietário,
-  validação de nome e estados de carregamento, vazio e erro.
+- Gerenciamento de salas (`public.rooms`) integrado ao painel: Visão Geral resumida e página
+  protegida com criação, listagem, ativação/pausa e RLS de proprietário.
 - Migration de `public.rooms` com RLS aplicada ao projeto remoto em 2026-11-02 e verificada por
   consultas somente leitura; suíte pgTAP de 33 asserções executada no workflow.
 - Código público único por sala com backfill, link compartilhável, QR Code local (cópia e
-  download no painel) e página pública do convidado com estados de carga, não encontrada,
-  indisponível e erro — migration `20261103000000` e 27 asserções pgTAP preparadas localmente.
+  download) e página pública do convidado com estados de carga, não encontrada, indisponível e
+  erro — migration `20261103000000` aplicada e schema/RPC/permissões verificados remotamente;
+  88 testes pgTAP aprovados no GitHub Actions.
 - Migration de `public.dj_profiles` com RLS aplicada ao projeto remoto; schema, políticas e
   privilégios verificados por consultas somente leitura. Suíte pgTAP executada no PR #1.
 - Login com Google validado com conta real (redirect, retorno no domínio de produção e sessão

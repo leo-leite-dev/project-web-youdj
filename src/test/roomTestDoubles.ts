@@ -1,4 +1,4 @@
-import type { CreateRoomInput, PublicRoom, Room } from '../features/rooms/roomTypes'
+import type { CreateRoomInput, PublicRoom, Room, RoomStatus } from '../features/rooms/roomTypes'
 import type { PublicRoomStore } from '../features/rooms/services/publicRoomStore'
 import type { RoomStore } from '../features/rooms/services/roomStore'
 
@@ -27,18 +27,22 @@ export function makePublicRoom(overrides: Partial<PublicRoom> = {}): PublicRoom 
 interface FakeRoomStoreOptions {
   createError?: unknown
   listError?: unknown
+  updateError?: unknown
   rooms?: Room[]
 }
 
 export class FakeRoomStore implements RoomStore {
   readonly createCalls: CreateRoomInput[] = []
+  readonly updateCalls: Array<{ roomId: string; status: RoomStatus }> = []
   createError?: unknown
   listError?: unknown
+  updateError?: unknown
   rooms: Room[]
 
   constructor(options: FakeRoomStoreOptions = {}) {
     this.createError = options.createError
     this.listError = options.listError
+    this.updateError = options.updateError
     this.rooms = options.rooms ?? []
   }
 
@@ -64,6 +68,24 @@ export class FakeRoomStore implements RoomStore {
     }
 
     return this.rooms.filter((room) => room.djId === djId)
+  }
+
+  async updateStatus(roomId: string, status: RoomStatus): Promise<Room> {
+    this.updateCalls.push({ roomId, status })
+
+    if (this.updateError) {
+      throw this.updateError
+    }
+
+    const room = this.rooms.find((candidate) => candidate.id === roomId)
+
+    if (!room) {
+      throw new Error('Sala não encontrada.')
+    }
+
+    const updatedRoom = { ...room, status }
+    this.rooms = this.rooms.map((candidate) => (candidate.id === roomId ? updatedRoom : candidate))
+    return updatedRoom
   }
 }
 

@@ -12,7 +12,6 @@ import { useAuth } from '../features/auth/AuthContext'
 import { SignOutButton } from '../features/auth/components/SignOutButton'
 
 const upcomingItems = [
-  { label: 'Salas', icon: QrCodeIcon },
   { label: 'Pedidos', icon: ListMusicIcon },
   { label: 'Configurações', icon: SettingsIcon },
 ]
@@ -47,6 +46,20 @@ export function DjLayout() {
             >
               <HomeIcon className="size-4" />
               Visão geral
+            </NavLink>
+
+            <NavLink
+              to="/dj/painel/salas"
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-accent-500/15 text-accent-300'
+                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                }`
+              }
+            >
+              <QrCodeIcon className="size-4" />
+              Salas
             </NavLink>
 
             {upcomingItems.map(({ label, icon: Icon }) => (
@@ -97,9 +110,29 @@ export function DjLayout() {
             </Link>
           </div>
           <div className="mt-3 flex items-center gap-2 overflow-x-auto text-xs">
-            <span className="rounded-lg bg-accent-500/15 px-3 py-1.5 font-semibold text-accent-300">
+            <NavLink
+              to="/dj/painel"
+              end
+              className={({ isActive }) =>
+                `shrink-0 rounded-lg px-3 py-1.5 font-semibold ${
+                  isActive ? 'bg-accent-500/15 text-accent-300' : 'text-zinc-400'
+                }`
+              }
+            >
               Visão geral
-            </span>
+            </NavLink>
+            <NavLink
+              to="/dj/painel/salas"
+              className={({ isActive }) =>
+                `inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
+                  isActive
+                    ? 'border-accent-400/30 bg-accent-500/15 text-accent-300'
+                    : 'border-white/8 text-zinc-400'
+                }`
+              }
+            >
+              Salas
+            </NavLink>
             {upcomingItems.map(({ label }) => (
               <span
                 key={label}

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import {
   CheckIcon,
   ClockIcon,
@@ -8,7 +9,6 @@ import {
 } from '../../components/Icons'
 import { PlannedBadge } from '../../components/PlannedBadge'
 import { useAuth } from '../../features/auth/AuthContext'
-import { RoomsSection } from '../../features/rooms/components/RoomsSection'
 import { useRooms } from '../../features/rooms/hooks/useRooms'
 import type { RoomStore } from '../../features/rooms/services/roomStore'
 
@@ -29,10 +29,7 @@ interface DjDashboardPageProps {
 export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
   const { profile, user } = useAuth()
   const djId = profile?.id ?? null
-  const { createRoom, error: roomsError, reload, rooms, status: roomsStatus } = useRooms(
-    djId,
-    roomStore,
-  )
+  const { error: roomsError, reload, rooms, status: roomsStatus } = useRooms(djId, roomStore)
 
   const activeRoomCount = rooms.filter((room) => room.status === 'active').length
 
@@ -64,7 +61,7 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-500">
           Olá, {profile?.displayName ?? 'DJ'}. Sua conta está autenticada como{' '}
-          {user?.email ?? 'DJ'}. Gerencie suas salas abaixo; pedidos e pagamentos serão
+          {user?.email ?? 'DJ'}. Acompanhe o resumo das suas salas; pedidos e pagamentos serão
           liberados nas próximas etapas.
         </p>
       </div>
@@ -102,13 +99,57 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <RoomsSection
-          createRoom={createRoom}
-          error={roomsError}
-          onRetry={reload}
-          rooms={rooms}
-          status={roomsStatus}
-        />
+        <section className="rounded-2xl border border-white/8 bg-night-900/50 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-white">Resumo das salas</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                {roomsStatus === 'ready'
+                  ? `${rooms.length} ${rooms.length === 1 ? 'sala cadastrada' : 'salas cadastradas'}`
+                  : roomsStatus === 'error'
+                    ? 'Não foi possível carregar suas salas.'
+                    : 'Carregando suas salas...'}
+              </p>
+            </div>
+            <Link
+              to="/dj/painel/salas"
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-accent-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-accent-400"
+            >
+              Gerenciar salas
+            </Link>
+          </div>
+
+          {roomsStatus === 'ready' && rooms.length > 0 ? (
+            <ul className="mt-5 divide-y divide-white/6">
+              {rooms.slice(0, 3).map((room) => (
+                <li key={room.id} className="flex items-center justify-between gap-3 py-3">
+                  <span className="truncate text-sm text-zinc-200">{room.name}</span>
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {room.status === 'active' ? 'Ativa' : 'Pausada'}
+                  </span>
+                </li>
+              ))}
+              {rooms.length > 3 ? (
+                <li className="pt-3 text-xs text-zinc-500">E mais {rooms.length - 3} salas.</li>
+              ) : null}
+            </ul>
+          ) : null}
+
+          {roomsStatus === 'error' ? (
+            <div className="mt-4" role="alert">
+              <p className="text-xs text-red-300">
+                {roomsError ?? 'Não foi possível carregar suas salas.'}
+              </p>
+              <button
+                type="button"
+                onClick={reload}
+                className="mt-3 min-h-10 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : null}
+        </section>
 
         <section className="rounded-2xl border border-white/8 bg-night-900/50 p-6">
           <div className="flex items-center justify-between gap-3">

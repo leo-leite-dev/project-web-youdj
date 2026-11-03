@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseClient } from '../../../integrations/supabase/client'
 import type { Database } from '../../../integrations/supabase/database.types'
 import { toRoomStatus } from '../lib/roomStatus'
-import type { CreateRoomInput, Room } from '../roomTypes'
+import type { CreateRoomInput, Room, RoomStatus } from '../roomTypes'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
 
@@ -11,6 +11,7 @@ const ROOM_COLUMNS = 'id, dj_id, name, status, code, created_at, updated_at'
 export interface RoomStore {
   create: (input: CreateRoomInput) => Promise<Room>
   listByDj: (djId: string) => Promise<Room[]>
+  updateStatus: (roomId: string, status: RoomStatus) => Promise<Room>
 }
 
 function toRoom(row: RoomRow): Room {
@@ -50,6 +51,21 @@ class SupabaseRoomStore implements RoomStore {
     const { data, error } = await this.client
       .from('rooms')
       .insert({ dj_id: input.djId, name: input.name })
+      .select(ROOM_COLUMNS)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return toRoom(data)
+  }
+
+  async updateStatus(roomId: string, status: RoomStatus): Promise<Room> {
+    const { data, error } = await this.client
+      .from('rooms')
+      .update({ status })
+      .eq('id', roomId)
       .select(ROOM_COLUMNS)
       .single()
 

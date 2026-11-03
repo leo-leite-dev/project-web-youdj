@@ -49,4 +49,19 @@ describe('useRooms', () => {
     expect(store.createCalls).toEqual([{ djId, name: 'Festa Nova' }])
     expect(result.current.rooms.map((room) => room.name)).toEqual(['Festa Nova', 'Original'])
   })
+
+  it('updates local room state only after the store confirms a status change', async () => {
+    const room = makeRoom()
+    const store = new FakeRoomStore({ rooms: [room] })
+    const { result } = renderHook(() => useRooms(djId, store))
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    await act(async () => {
+      await result.current.updateRoomStatus(room.id, 'paused')
+    })
+
+    expect(store.updateCalls).toEqual([{ roomId: room.id, status: 'paused' }])
+    expect(result.current.rooms[0]?.status).toBe('paused')
+  })
 })

@@ -79,6 +79,13 @@ versionamento semântico.
   fallback quando a área de transferência está indisponível) e alternância do painel de QR Code.
 - Página pública `/sala/:codigo` com consulta real: estados de carregamento, sala encontrada
   (nome e estado), não encontrada, indisponível (sala pausada) e erro com nova tentativa.
+- Página protegida `/dj/painel/salas` com criação, listagem, compartilhamento por link/QR Code e
+  ativação/pausa de salas, reutilizando o store e a seção de gerenciamento existentes.
+- Atualização do `RoomStore` e do hook `useRooms` para persistir o status via Supabase e refletir a
+  mudança apenas após confirmação do banco.
+- Navegação para Salas habilitada nos menus desktop e mobile do painel do DJ.
+- 20 testes frontend direcionados de navegação, resumo, atualização de status, store e página Salas
+  aprovados; typecheck executado.
 - 41 testes novos/afetados executados na etapa 3B (libs, stores, componentes, painel e página
   do convidado).
 
@@ -94,6 +101,8 @@ versionamento semântico.
   pública e exibe nome e estado, mantendo a tela de link inválido para códigos malformados.
 - Seção de salas do painel passou a expor o link público de cada sala com cópia e QR Code;
   a mensagem do estado vazio foi atualizada para refletir o compartilhamento disponível.
+- A Visão Geral foi reduzida a um resumo de contagens e salas recentes; a criação e as ações de
+  gerenciamento ficam na página dedicada `/dj/painel/salas`.
 
 ### Observações
 
@@ -105,6 +114,9 @@ versionamento semântico.
   afeta o login por e-mail/senha.
 - A migration de `public.dj_profiles` foi aplicada ao projeto remoto do YouDJ em 2026-11-02; o
   histórico remoto registra a versão `20261031000000`.
+- A migration `20261103000000_add_rooms_public_code.sql` foi aplicada ao Supabase remoto do YouDJ;
+  coluna, códigos, função pública, permissões e RLS foram confirmados por consultas somente de
+  leitura. Os 88 testes pgTAP da Etapa 3B foram aprovados no GitHub Actions.
 - Os 28 testes pgTAP foram executados no workflow do GitHub Actions no PR #1 e aprovados,
   conforme o resultado do PR; não foram reexecutados após a aplicação remota.
 - O isolamento entre DJs com duas contas reais ainda não foi exercitado; a evidência remota
@@ -119,11 +131,12 @@ versionamento semântico.
   (tabela, RLS, políticas, privilégios, constraints, FK e preservação dos dados). Os 61 testes
   pgTAP (28 de perfis + 33 de salas) passaram no GitHub Actions; o ambiente local não possui
   Docker, Supabase CLI nem PostgreSQL.
-- A migration `20261103000000_add_rooms_public_code.sql` foi preparada localmente e **não** foi
-  aplicada ao remoto; suas 27 asserções pgTAP seguem o mesmo modelo de execução no workflow.
-- Nenhum commit, push, deploy ou migration remota foi realizado na etapa 3B; as correções do
-  Cloudflare Pages feitas pelo responsável foram validadas por comparação booleana do bundle
-  publicado com a `.env.local` (ambas as variáveis presentes em 2026-11-02), sem exibir valores.
+- A migration `20261103000000_add_rooms_public_code.sql` foi aplicada posteriormente ao remoto;
+  coluna, códigos, RPC, permissões e RLS foram conferidos por consultas somente de leitura. Os 88
+  testes pgTAP passaram no GitHub Actions. Não houve commit, push ou deploy neste ciclo de validação.
+- As correções do Cloudflare Pages feitas pelo responsável foram validadas por comparação booleana
+  do bundle publicado com a `.env.local` (ambas as variáveis presentes em 2026-11-02), sem exibir
+  valores.
 - Os QR Codes são gerados no navegador pela biblioteca `qrcode`; a auditoria `npm audit`
   aponta apenas avisos moderados pré-existentes no toolchain de desenvolvimento
   (eslint/minimatch, dev-only), sem vulnerabilidade em `qrcode`.
