@@ -11,8 +11,8 @@ versionamento semântico.
 
 - Preferências musicais individuais por sala (Modo Surpresa, exibição de playlist, música atual
   e pedidos dos convidados), com defaults no banco, edição autenticada pelo proprietário e RPC
-  pública limitada aos booleanos de apresentação. Migration e pgTAP preparados localmente; ainda
-  não aplicados nem validados contra Supabase local/remoto. Playlist, reprodução e pedidos seguem
+  pública limitada aos booleanos de apresentação. Migration aplicada ao Supabase remoto; 105
+  testes pgTAP aprovados e controles validados localmente. Playlist, reprodução e pedidos seguem
   indisponíveis.
 
 - Dependência `@supabase/supabase-js` para preparar a integração do frontend com o Supabase.

@@ -259,15 +259,16 @@ configuração remota foi alterada nesta etapa.
 - `rooms` recebe as preferências `surprise_mode` (true), `show_playlist` (false),
   `show_now_playing` (true) e `show_guest_requests` (false). Atualização usa a RLS da sala e grants
   somente para as colunas necessárias ao DJ proprietário autenticado.
-- A migration `20261104000000_add_room_music_preferences.sql` é local/preparada; não foi aplicada
-  remotamente. `room_by_code` retorna apenas nome, código, estado e esses quatro booleanos; `anon`
-  não recebe leitura direta da tabela.
+- A migration `20261104000000_add_room_music_preferences.sql` foi aplicada ao Supabase remoto.
+  `room_by_code` retorna apenas nome, código, estado e esses quatro booleanos; `anon` não recebe
+  leitura direta da tabela.
 - A tela Salas oferece controles individuais e feedback após confirmação do Supabase. As flags são
   apenas configuração: playlist, player e pedidos não existem ainda. Quando integrados, Modo
   Surpresa deverá ocultar ordem futura/fila real; a preferência de playlist não concede nem mostra
   ordem de reprodução; pedidos de convidados não confirmam músicas pelo DJ; música atual só poderá
   ser exibida quando houver dado real.
-- Testes pgTAP específicos foram preparados, mas dependem do Supabase CLI/stack local para execução.
+- Os 105 testes pgTAP passaram, incluindo os testes específicos de preferências; os controles
+  foram validados localmente. A interface publicada ainda precisa ser confirmada após o deploy.
 
 ### Publicação no Cloudflare Pages
 
