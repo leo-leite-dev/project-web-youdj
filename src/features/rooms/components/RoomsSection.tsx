@@ -3,21 +3,15 @@ import { AlertTriangleIcon, QrCodeIcon } from '../../../components/Icons'
 import { AuthField } from '../../auth/components/AuthField'
 import type { RoomsStatus } from '../hooks/useRooms'
 import { getRoomErrorMessage } from '../lib/roomErrors'
+import { buildRoomLink } from '../lib/roomLink'
+import { ROOM_STATUS_STYLES } from '../lib/roomStatus'
 import { getRoomNameError } from '../lib/roomValidation'
-import type { Room, RoomStatus } from '../roomTypes'
+import type { Room } from '../roomTypes'
+import { RoomQrPanel } from './RoomQrPanel'
 
 const CREATE_ERROR_FALLBACK = 'Não foi possível criar a sala. Tente novamente.'
-
-const statusStyles: Record<RoomStatus, { label: string; className: string }> = {
-  active: {
-    label: 'Ativa',
-    className: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300',
-  },
-  paused: {
-    label: 'Pausada',
-    className: 'border-amber-400/30 bg-amber-400/10 text-amber-300',
-  },
-}
+const COPY_ERROR_FALLBACK =
+  'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.'
 
 function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString('pt-BR', {
@@ -41,6 +35,9 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
   const [formError, setFormError] = useState<string | null>(null)
   const [created, setCreated] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState<{ code: string; message: string } | null>(null)
+  const [visibleQrCode, setVisibleQrCode] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -66,8 +63,20 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
     }
   }
 
-  const roomCountLabel =
-    rooms.length === 1 ? '1 sala' : `${rooms.length} salas`
+  async function handleCopy(room: Room) {
+    const link = buildRoomLink(room.code, window.location.origin)
+    setCopiedCode(null)
+    setCopyError(null)
+
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiedCode(room.code)
+    } catch {
+      setCopyError({ code: room.code, message: COPY_ERROR_FALLBACK })
+    }
+  }
+
+  const roomCountLabel = rooms.length === 1 ? '1 sala' : `${rooms.length} salas`
 
   return (
     <section className="rounded-2xl border border-white/8 bg-night-900/50 p-6">
@@ -126,20 +135,19 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
               </span>
               <h3 className="mt-4 text-sm font-semibold text-white">Nenhuma sala criada</h3>
               <p className="mt-2 max-w-xs text-xs leading-5 text-zinc-500">
-                Crie a sala do seu evento para começar. O link e o QR Code para os convidados
-                serão adicionados em uma próxima etapa.
+                Crie a sala do seu evento para começar. Depois, compartilhe o link ou o QR Code
+                com os convidados.
               </p>
             </div>
           ) : (
             <ul className="mt-6 space-y-3">
               {rooms.map((room) => {
-                const style = statusStyles[room.status]
+                const style = ROOM_STATUS_STYLES[room.status]
+                const link = buildRoomLink(room.code, window.location.origin)
+                const qrVisible = visibleQrCode === room.code
 
                 return (
-                  <li
-                    key={room.id}
-                    className="rounded-xl border border-white/8 bg-white/2 p-4"
-                  >
+                  <li key={room.id} className="rounded-xl border border-white/8 bg-white/2 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="min-w-0 break-words text-sm font-semibold text-white">
                         {room.name}
@@ -153,6 +161,49 @@ export function RoomsSection({ createRoom, error, onRetry, rooms, status }: Room
                     <p className="mt-1.5 text-[11px] leading-5 text-zinc-500">
                       Criada em {formatDate(room.createdAt)}
                     </p>
+
+                    <input
+                      readOnly
+                      value={link}
+                      aria-label={`Link público da sala ${room.name}`}
+                      onFocus={(event) => event.currentTarget.select()}
+                      className="mt-3 w-full rounded-lg border border-white/8 bg-night-950/60 px-3 py-2 font-mono text-[11px] text-zinc-400 outline-none"
+                    />
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(room)}
+                        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10"
+                      >
+                        Copiar link
+                      </button>
+                      <button
+                        type="button"
+                        aria-expanded={qrVisible}
+                        onClick={() => setVisibleQrCode(qrVisible ? null : room.code)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10"
+                      >
+                        <QrCodeIcon className="size-3.5" />
+                        QR Code
+                      </button>
+                    </div>
+
+                    {copiedCode === room.code ? (
+                      <p role="status" className="mt-2 text-[11px] leading-5 text-emerald-300">
+                        Link copiado.
+                      </p>
+                    ) : null}
+
+                    {copyError?.code === room.code ? (
+                      <p role="alert" className="mt-2 text-[11px] leading-5 text-red-300">
+                        {copyError.message}
+                      </p>
+                    ) : null}
+
+                    {qrVisible ? (
+                      <RoomQrPanel code={room.code} link={link} roomName={room.name} />
+                    ) : null}
                   </li>
                 )
               })}

@@ -1,23 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseClient } from '../../../integrations/supabase/client'
 import type { Database } from '../../../integrations/supabase/database.types'
-import type { CreateRoomInput, Room, RoomStatus } from '../roomTypes'
+import { toRoomStatus } from '../lib/roomStatus'
+import type { CreateRoomInput, Room } from '../roomTypes'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
 
-const ROOM_COLUMNS = 'id, dj_id, name, status, created_at, updated_at'
+const ROOM_COLUMNS = 'id, dj_id, name, status, code, created_at, updated_at'
 
 export interface RoomStore {
   create: (input: CreateRoomInput) => Promise<Room>
   listByDj: (djId: string) => Promise<Room[]>
 }
 
-function toRoomStatus(value: string): RoomStatus {
-  return value === 'paused' ? 'paused' : 'active'
-}
-
 function toRoom(row: RoomRow): Room {
   return {
+    code: row.code,
     createdAt: row.created_at,
     djId: row.dj_id,
     id: row.id,

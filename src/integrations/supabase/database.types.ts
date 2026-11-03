@@ -19,6 +19,7 @@ export type Database = {
       }
       rooms: {
         Row: {
+          code: string
           created_at: string
           dj_id: string
           id: string
@@ -38,7 +39,16 @@ export type Database = {
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      room_by_code: {
+        Args: { p_code: string }
+        Returns: {
+          code: string
+          name: string
+          status: string
+        }[]
+      }
+    }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
   }

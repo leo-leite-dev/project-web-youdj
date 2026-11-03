@@ -1,4 +1,4 @@
-const ROOM_CODE_LENGTH = 6
+const ROOM_CODE_LENGTH = 10
 const ROOM_CODE_PATTERN = /^[A-Z0-9]+$/
 
 export function normalizeRoomCode(value: string | null | undefined): string {

@@ -135,7 +135,7 @@ export function HomePage() {
                       Código da sala
                     </p>
                     <p className="font-mono text-lg font-bold tracking-[0.28em] text-white">
-                      A1B2C3
+                      A1B2C3D4E5
                     </p>
                   </div>
                 </div>
@@ -297,13 +297,10 @@ export function HomePage() {
                 Entrar na área do DJ
                 <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
-              <Link
-                to="/sala/A1B2C3"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/3 px-5 py-3.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/8"
-              >
-                Ver prévia do convidado
-              </Link>
             </div>
+            <p className="mt-4 text-center text-[11px] leading-5 text-zinc-500 sm:text-left">
+              Convidados acessam salas reais pelo link ou QR Code compartilhado pelo DJ.
+            </p>
           </div>
         </div>
       </section>

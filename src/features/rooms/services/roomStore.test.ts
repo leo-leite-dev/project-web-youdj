@@ -32,6 +32,7 @@ function roomRow(overrides: Record<string, unknown> = {}) {
     dj_id: djId,
     name: 'Festa Teste',
     status: 'active',
+    code: 'AB12CD34EF',
     created_at: '2026-11-03T12:00:00.000Z',
     updated_at: '2026-11-03T12:00:00.000Z',
     ...overrides,
@@ -95,8 +96,13 @@ describe('SupabaseRoomStore', () => {
     expect(requestUrl).toContain('/rest/v1/rooms')
     expect(requestUrl).toContain(`dj_id=eq.${djId}`)
     expect(requestUrl).toContain('order=created_at.desc')
+    expect(requestUrl).toContain('code')
     expect(rooms).toHaveLength(2)
-    expect(rooms[0]).toMatchObject({ name: 'Festa Teste', status: 'active' })
+    expect(rooms[0]).toMatchObject({
+      name: 'Festa Teste',
+      status: 'active',
+      code: 'AB12CD34EF',
+    })
     expect(rooms[1]).toMatchObject({ name: 'Festa Pausada', status: 'paused' })
   })
 

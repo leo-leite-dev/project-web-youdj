@@ -63,6 +63,24 @@ versionamento semântico.
 - Integração da criação e listagem de salas no painel do DJ, com contagem de salas ativas no
   card de indicadores.
 - 12 testes direcionados de validação, store (adaptador com `fetch` simulado), hook e painel.
+- Migration `supabase/migrations/20261103000000_add_rooms_public_code.sql` que adiciona às
+  salas um código público único de 10 caracteres (`A-Z0-9`, ~52 bits de entropia), gerado
+  uniformemente no banco a partir de `gen_random_uuid()`. Inclui trigger de preenchimento,
+  backfill das salas existentes preservando timestamps, constraints de unicidade/formato e a
+  RPC pública `room_by_code` (`security definer`, `search_path` travado), que retorna apenas
+  `code`, `name` e `status`.
+- Suíte pgTAP `supabase/tests/rooms_public_code.test.sql` com 27 asserções de privilégios da
+  coluna `code`, menor privilégio das funções, geração e imutabilidade dos códigos e
+  comportamento da consulta pública (anon e autenticado).
+- Biblioteca `qrcode` (+ `@types/qrcode`) para gerar QR Codes localmente, sem serviços externos.
+- `roomLink`, `roomStatus` e `roomQr` em `src/features/rooms/lib`, `PublicRoomStore` (RPC
+  `room_by_code`) e `RoomQrPanel` com exibição e download em PNG.
+- Ações de compartilhamento no painel: campo com o link público, botão "Copiar link" (com
+  fallback quando a área de transferência está indisponível) e alternância do painel de QR Code.
+- Página pública `/sala/:codigo` com consulta real: estados de carregamento, sala encontrada
+  (nome e estado), não encontrada, indisponível (sala pausada) e erro com nova tentativa.
+- 41 testes novos/afetados executados na etapa 3B (libs, stores, componentes, painel e página
+  do convidado).
 
 ### Alterado
 
@@ -72,6 +90,10 @@ versionamento semântico.
 - Estado do login com Google corrigido na documentação: fluxo validado com conta real, com o
   aplicativo Google OAuth ainda em modo de teste no Google Cloud (restrito a usuários de teste),
   distinguido da autenticação por e-mail/senha, cuja validação remota segue pendente.
+- Página `/sala/:roomCode` deixou de ser uma prévia: agora consulta a sala real pela RPC
+  pública e exibe nome e estado, mantendo a tela de link inválido para códigos malformados.
+- Seção de salas do painel passou a expor o link público de cada sala com cópia e QR Code;
+  a mensagem do estado vazio foi atualizada para refletir o compartilhamento disponível.
 
 ### Observações
 
@@ -92,17 +114,29 @@ versionamento semântico.
   configurados no projeto remoto e apenas foram lidos para conferência.
 - A criação/leitura de perfil foi validada com testes simulados; no login Google real, a
   leitura/criação do próprio perfil é executada sob a RLS existente.
-- A migration `20261102000000_create_rooms.sql` foi preparada localmente e **não** foi aplicada
-  ao projeto remoto; a suíte pgTAP de `rooms` (33 asserções) só poderá ser executada no workflow
-  do GitHub Actions, pois o ambiente local não possui Docker, Supabase CLI nem PostgreSQL.
-- Os testes frontend de salas usam doubles simulados e não comprovam a RLS real do banco.
-- QR Codes, links de convidados, pedidos e pagamentos continuam fora desta etapa.
+- A migration `20261102000000_create_rooms.sql` foi aplicada ao projeto remoto em 2026-11-02
+  com `supabase db push --linked --skip-vault` e verificada por consultas somente leitura
+  (tabela, RLS, políticas, privilégios, constraints, FK e preservação dos dados). Os 61 testes
+  pgTAP (28 de perfis + 33 de salas) passaram no GitHub Actions; o ambiente local não possui
+  Docker, Supabase CLI nem PostgreSQL.
+- A migration `20261103000000_add_rooms_public_code.sql` foi preparada localmente e **não** foi
+  aplicada ao remoto; suas 27 asserções pgTAP seguem o mesmo modelo de execução no workflow.
+- Nenhum commit, push, deploy ou migration remota foi realizado na etapa 3B; as correções do
+  Cloudflare Pages feitas pelo responsável foram validadas por comparação booleana do bundle
+  publicado com a `.env.local` (ambas as variáveis presentes em 2026-11-02), sem exibir valores.
+- Os QR Codes são gerados no navegador pela biblioteca `qrcode`; a auditoria `npm audit`
+  aponta apenas avisos moderados pré-existentes no toolchain de desenvolvimento
+  (eslint/minimatch, dev-only), sem vulnerabilidade em `qrcode`.
+- A validação manual dos fluxos autenticados em produção (login, salas, link e QR) continua
+  pendente; os testes frontend usam doubles e não comprovam a RLS real do banco.
+- Na etapa 3A, QR Codes, links de convidados, pedidos e pagamentos continuavam fora do escopo.
 - A verificação anterior de conectividade Auth usou apenas requisições de leitura e não comprova
   cadastro, confirmação ou login por e-mail/senha.
 - A etapa 2B foi commitada (`7310f73`, `f987ed6`, `a12f170`), enviada a `main` e publicada no
-  Cloudflare Pages em 2026-11-02 com build de sucesso; o bundle publicado ficou sem
-  `VITE_SUPABASE_URL`, o que mantém a autenticação em produção indisponível até a correção da
-  variável e um novo deploy (não revalidado desde então). Nenhuma migration remota foi executada.
+  Cloudflare Pages em 2026-11-02 com build de sucesso. O primeiro build ficou sem
+  `VITE_SUPABASE_URL`; após a correção no painel do Cloudflare, o bundle publicado foi
+  revalidado em 2026-11-02 contendo ambas as variáveis. Nenhuma migration remota foi executada
+  nas etapas 2B/3B além das já autorizadas (`20261102000000`).
 
 ## [0.1.0] - 2026-10-31
 
