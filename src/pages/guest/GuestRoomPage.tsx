@@ -10,12 +10,84 @@ import { isValidRoomCode, normalizeRoomCode } from '../../features/guest/lib/roo
 import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
 import { ROOM_STATUS_STYLES } from '../../features/rooms/lib/roomStatus'
 import type { PublicRoom } from '../../features/rooms/roomTypes'
+import { searchGuestVideos, submitGuestRequest, type GuestRequestInput, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
 import {
   createSupabasePublicRoomStore,
   type PublicRoomStore,
 } from '../../features/rooms/services/publicRoomStore'
 
 const LOAD_FALLBACK = 'Não foi possível carregar a sala. Verifique sua conexão e tente novamente.'
+
+function GuestMusicRequests({ room }: { room: PublicRoom }) {
+  const [query, setQuery] = useState('')
+  const [videos, setVideos] = useState<YoutubeVideo[]>([])
+  const [selected, setSelected] = useState<YoutubeVideo | null>(null)
+  const [title, setTitle] = useState('')
+  const [artist, setArtist] = useState('')
+  const [url, setUrl] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [searchUnavailable, setSearchUnavailable] = useState(false)
+
+  async function search() {
+    const normalized = query.trim().replace(/\s+/g, ' ')
+    if (normalized.length < 2 || busy) return
+    setBusy(true); setMessage('')
+    try {
+      const result = await searchGuestVideos(room.code, normalized)
+      setSearchUnavailable(!result.available)
+      setVideos(result.videos)
+      setMessage(result.available ? (result.videos.length ? '' : 'Nenhum vídeo encontrado.') : 'Busca no YouTube ainda não configurada. Você pode enviar um pedido manual.')
+    } catch (error) {
+      setVideos([])
+      setMessage(error instanceof Error ? error.message : 'Pesquisa temporariamente indisponível. O pedido manual continua disponível.')
+    } finally { setBusy(false) }
+  }
+
+  async function send(input: GuestRequestInput) {
+    if (busy) return
+    setBusy(true); setMessage('')
+    try {
+      await submitGuestRequest(room.code, input)
+      setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([])
+      setMessage('Pedido recebido. Isso não garante aprovação ou reprodução pelo DJ.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="mt-6 space-y-5 border-t border-white/10 pt-6">
+      <div>
+        <h2 className="text-lg font-semibold text-white">Peça uma música</h2>
+        <p className="mt-1 text-xs leading-5 text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
+      </div>
+      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void search() }}>
+        <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label>
+        <input id="music-search" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={100} placeholder="Título, artista ou música" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-night-950 px-3 text-sm text-white outline-none focus:border-accent-400" />
+        <button disabled={busy || query.trim().length < 2} className="min-h-11 rounded-xl bg-accent-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Aguarde…' : 'Buscar vídeos'}</button>
+      </form>
+      {searchUnavailable && <p className="text-xs text-amber-200">A chave do YouTube ainda não foi configurada no servidor. O pedido manual funciona.</p>}
+      {videos.length > 0 && <ul className="grid gap-3 sm:grid-cols-2">{videos.map((video) => <li key={video.videoId}>
+        <button type="button" aria-pressed={selected?.videoId === video.videoId} onClick={() => setSelected(video)} className={`flex w-full gap-3 rounded-xl border p-2 text-left transition ${selected?.videoId === video.videoId ? 'border-accent-400 bg-accent-400/10' : 'border-white/10 bg-night-950/60 hover:border-white/20'}`}>
+          <img src={video.thumbnail} alt="" loading="lazy" className="aspect-video w-28 shrink-0 rounded-lg object-cover" />
+          <span className="min-w-0"><span className="line-clamp-2 block text-sm font-medium text-white">{video.title}</span><span className="mt-1 block truncate text-xs text-zinc-400">{video.channel}</span></span>
+        </button>
+      </li>)}</ul>}
+      {selected && <button type="button" disabled={busy} onClick={() => void send({ kind: 'youtube', video: selected })} className="min-h-11 w-full rounded-xl border border-accent-400/40 bg-accent-400/10 px-4 text-sm font-semibold text-accent-300 disabled:opacity-50">Enviar “{selected.title}”</button>}
+      <details className="rounded-xl border border-white/10 bg-night-950/40 p-4">
+        <summary className="cursor-pointer text-sm font-medium text-zinc-200">Não encontrou? Faça um pedido manual</summary>
+        <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); void send({ kind: 'manual', title, artist, url }) }}>
+          <label className="block text-xs text-zinc-300">Título<input required maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
+          <label className="block text-xs text-zinc-300">Artista<input required maxLength={120} value={artist} onChange={(event) => setArtist(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
+          <label className="block text-xs text-zinc-300">Link do YouTube (opcional)<input type="url" maxLength={500} value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://youtu.be/..." className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
+          <button disabled={busy} className="min-h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-night-950 disabled:opacity-50">Enviar pedido manual</button>
+        </form>
+      </details>
+      {message && <p role="status" aria-live="polite" className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-200">{message}</p>}
+    </div>
+  )
+}
 
 type GuestResult =
   | { attempt: number; code: string; kind: 'found'; room: PublicRoom }
@@ -244,7 +316,7 @@ export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
         {room.status === 'active' ? (
           <div className="mt-5 rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3">
             <p className="text-xs leading-5 text-emerald-200/90">
-              Sala ativa. A busca e o envio de pedidos musicais estarão disponíveis em breve.
+              Sala ativa. Envie uma sugestão musical para o DJ.
             </p>
           </div>
         ) : (
@@ -255,6 +327,8 @@ export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
             </p>
           </div>
         )}
+
+        {room.status === 'active' && <GuestMusicRequests room={room} />}
 
         <HomeLink />
         <p className="mt-3 text-center text-[11px] text-zinc-600">

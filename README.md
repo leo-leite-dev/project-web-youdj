@@ -23,7 +23,9 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > implementados no código com Supabase Auth e RLS. As migrations de perfis e salas foram
 > aplicadas ao projeto remoto; a migration dos códigos públicos (`20261103000000`) está
 > preparada localmente, ainda sem aplicação remota nem deploy — o compartilhamento 3B aguarda
-> essas etapas. Pedidos, pagamentos e reprodução musical ainda **não** estão implementados.
+> essas etapas. Pesquisa musical e envio inicial de pedidos estão implementados localmente na
+> Etapa 4A, mas aguardam configuração das secrets/Functions no Cloudflare e aplicação da migration
+> de pedidos. Aprovação, fila, pagamentos e reprodução ainda **não** estão implementados.
 > O login com Google foi validado com conta real; a validação manual completa dos fluxos
 > autenticados e de salas em produção segue pendente. O último bundle publicado foi verificado
 > com `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` presentes.
@@ -103,8 +105,11 @@ Itens verificados no código atual:
   localmente (sem serviços externos), com cópia do link e download de PNG no painel.
 - Página pública do convidado que consulta a sala por código (somente nome e estado), com
   estados de carregamento, não encontrada, indisponível e erro com nova tentativa.
+- Busca opcional de vídeos sob ação do convidado e envio de pedidos por busca ou formulário
+  manual, mediados por Cloudflare Pages Functions; pedidos pendentes criados por RPC restrita ao
+  backend, sem acesso público direto à tabela.
 - Painel administrativo com Visão Geral resumida e página dedicada para gerenciar salas; a
-  identidade/perfil e as salas são reais, enquanto pedidos e pagamentos continuam indisponíveis.
+  identidade/perfil e as salas são reais; o painel ainda não oferece gestão de pedidos ou pagamentos.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
@@ -158,17 +163,18 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; pode exigir confirmação de e-mail ou usar Google.          |
 | `/dj/painel`      | Protegida    | Exige sessão de DJ e perfil carregado; mostra o resumo das salas. |
 | `/dj/painel/salas` | Protegida   | Cria, lista, ativa/pausa e compartilha salas via link e QR Code. |
-| `/sala/:roomCode` | Implementada | Consulta pública por código via RPC `room_by_code`. |
+| `/sala/:roomCode` | Implementada | Consulta pública, pesquisa sob demanda e envio inicial de pedidos (requer backend configurado). |
 | `*`               | Implementada | Página 404.                                                             |
 
 ### O que ainda não está implementado
 
 - Recuperação de senha e gestão de e-mail/senha.
-- Persistência de pedidos, filas e histórico. O perfil e as salas são persistidos em runtime.
+- Gestão/consulta de pedidos, filas, aprovação e histórico no painel. A gravação inicial depende
+  da migration local e das Pages Functions configuradas.
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
-- Pedidos, aprovação, fila, histórico e atualizações em tempo real.
-- Identidades anônimas de convidados.
+- Aprovação, rejeição, fila, histórico e atualizações em tempo real.
+- Identidades anônimas de convidados; convidados continuam sem conta, usando limits server-side.
 - Pagamentos e histórico financeiro.
 - Reprodução musical e integração com a YouTube IFrame Player API.
 - Validação manual dos fluxos autenticados em produção (o build publicado em 2026-11-02 já
@@ -210,9 +216,12 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 - Identidades anônimas controladas (planejado; necessário para os pedidos).
 - Proteção contra spam.
 
-### Fase 4 — Pedidos musicais · Planejada
+### Fase 4 — Pedidos musicais · Em andamento (Etapa 4A local)
 
-- Solicitações de músicas.
+- Pesquisa de vídeos no YouTube e pedido manual pelo convidado (implementados localmente; Pages
+  Functions e migration ainda não configuradas/aplicadas remotamente).
+- Persistência inicial de pedidos pendentes vinculados à sala, com validação e rate limits no
+  servidor (migration preparada localmente; sem validação real no banco).
 - Aprovação e rejeição.
 - Fila livre.
 - Reorganização de pedidos.
@@ -289,7 +298,8 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 | Supabase Auth              | Identidades anônimas de convidados                 | Planejado |
 | Supabase PostgreSQL        | Perfil de DJ (`public.dj_profiles`)                | Implementado; leitura/criação exercitadas no login Google real |
 | Supabase PostgreSQL        | Salas (`public.rooms`)                             | Implementado; migrations 3A/3B aplicadas e verificadas |
-| Supabase PostgreSQL        | Pedidos, músicas, histórico e pagamentos           | Planejado |
+| Supabase PostgreSQL        | Pedidos pendentes (Etapa 4A)                        | Implementação local; migration pendente de aplicação |
+| Supabase PostgreSQL        | Histórico e pagamentos                              | Planejado |
 | Supabase Realtime          | Atualização da fila e dos pedidos em tempo real    | Planejado |
 | Cloudflare Pages           | Hospedagem do frontend estático                    | Deploy publicado; variáveis públicas verificadas no bundle |
 | YouTube IFrame Player API  | Reprodução e controle de vídeos, quando permitido  | Planejado |
@@ -298,8 +308,8 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 O SDK `@supabase/supabase-js` está instalado e o cliente é criado sob demanda em
 `src/integrations/supabase/client.ts`, com tipos de `dj_profiles` e `rooms` e validação das
 variáveis públicas. Autenticação, perfil e criação/listagem de salas são usados em runtime. A
-consulta pública de sala usa a RPC `room_by_code` definida localmente na migration 3B, ainda
-pendente de aplicação remota; os pedidos e demais dados de domínio ainda não são persistidos.
+consulta pública usa a RPC `room_by_code`; a Etapa 4A adiciona migration e Pages Functions locais,
+mas pedidos ainda não serão persistidos até a migration ser aplicada e o backend configurado.
 
 ## Arquitetura
 
@@ -437,6 +447,31 @@ npm install
    projeto no painel do Supabase.
 3. Não utilize `service_role`, secret keys ou a senha do banco no frontend.
 4. Mantenha `.env.local` fora do Git; o arquivo já é ignorado.
+
+### Etapa 4A — pedidos e pesquisa do YouTube
+
+- `functions/api/youtube-search.ts` e `functions/api/guest-requests.ts` são Cloudflare Pages
+  Functions. Configure no runtime do Pages as secrets `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY` e, para habilitar a busca, `YOUTUBE_API_KEY`. **Nunca** use prefixo
+  `VITE_` para essas chaves. A service-role key é privilegiada e deve existir somente no servidor.
+- A migration `20261105000000_add_guest_requests_and_youtube_quota.sql` está preparada localmente,
+  ainda não aplicada remotamente. O deploy/configuração do Pages também não foi realizado.
+- Sem `YOUTUBE_API_KEY`, a interface sinaliza a configuração pendente e permite pedido manual.
+  Limites no banco: no máximo 10 novas chamadas `search.list` por dia do Pacífico, 10 buscas/IP/hora,
+  cache por 6h e até 5 pedidos/IP/10 min. A documentação do YouTube informa padrão de 100 chamadas
+  `search.list`/dia, 1 unidade por chamada e reset à meia-noite do Pacífico; o limite global é
+  configurável de 0 a 10 em `youtube_search_budget_config` (zero bloqueia consultas sem cache),
+  apenas para reduzir esse teto. Confirme
+  a cota efetiva do projeto no Google Cloud e ajuste abaixo dela. Tentativas sem cache reservam cota
+  mesmo se a API falhar. Cache hits não gastam cota de busca. Todas as deployments que compartilham
+  a mesma chave do YouTube devem compartilhar este banco/orçamento; bancos isolados têm contadores
+  separados e não formam, juntos, um limite global do projeto Google.
+- O banco guarda hash SHA-256 do IP para rate limit e elimina eventos após 24h; a busca só ocorre
+  após ação explícita.
+- Referências: [custos e cotas da API](https://developers.google.com/youtube/v3/determine_quota_cost)
+  e [políticas para desenvolvedores](https://developers.google.com/youtube/terms/developer-policies).
+  Antes da busca estar disponível ao público, o produto também precisa cumprir os requisitos de
+  Termos de Serviço e Política de Privacidade do cliente YouTube.
 
 O cadastro/login de DJs e a leitura/criação do próprio perfil estão ativos. No projeto remoto
 atual, a confirmação de e-mail está habilitada e o `site_url` é `https://project-web-youdj.pages.dev`;

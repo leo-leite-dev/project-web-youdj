@@ -9,11 +9,16 @@ versionamento semântico.
 
 ### Adicionado
 
+- Etapa 4A: pesquisa sob ação explícita via Cloudflare Pages Function e formulário manual na sala pública; pedidos são submetidos a uma função de servidor e recebem confirmação de recebimento sem promessa de aprovação ou reprodução.
+- Migration local `20261105000000_add_guest_requests_and_youtube_quota.sql`: pedidos pendentes vinculados à sala e ao DJ, tabelas privadas de cache, frequência e orçamento; RPCs executáveis somente por `service_role`. Teste pgTAP direcionado de privilégios.
+- Proteções de busca: normalização, cache server-side de 6 horas, até 5 resultados, limite de 10 buscas/IP/hora e orçamento PostgreSQL de até 10 chamadas novas por dia do Pacífico (configurável para baixo); pedidos limitados a 5/IP/10 minutos. A documentação atual informa padrão de 100 chamadas `search.list` por dia, a 1 unidade por chamada.
+- Busca permanece indisponível e sinalizada sem `YOUTUBE_API_KEY`; pedidos manuais independem da configuração do YouTube.
+
 - Preferências musicais individuais por sala (Modo Surpresa, exibição de playlist, música atual
   e pedidos dos convidados), com defaults no banco, edição autenticada pelo proprietário e RPC
   pública limitada aos booleanos de apresentação. Migration aplicada ao Supabase remoto; 105
-  testes pgTAP aprovados e controles validados localmente. Playlist, reprodução e pedidos seguem
-  indisponíveis.
+  testes pgTAP aprovados e controles validados localmente. Playlist, reprodução e gestão de pedidos
+  seguem indisponíveis no painel.
 
 - Dependência `@supabase/supabase-js` para preparar a integração do frontend com o Supabase.
 - Cliente Supabase centralizado em `src/integrations/supabase/client.ts`, criado sob demanda
