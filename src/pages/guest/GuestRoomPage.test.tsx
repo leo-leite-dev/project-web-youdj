@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { FakePublicRoomStore, makePublicRoom } from '../../test/roomTestDoubles'
@@ -70,12 +70,12 @@ describe('GuestRoomPage', () => {
     expect(screen.getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos-de-uso')
     expect(screen.getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute('href', '/privacidade')
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'artista teste' } })
-    expect(screen.getByRole('button', { name: 'Buscar vídeos' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Buscar agora' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Enviar pedido manual' })).toBeDisabled()
     expect(fetchSpy).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('checkbox'))
-    expect(screen.getByRole('button', { name: 'Buscar vídeos' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Buscar agora' })).toBeEnabled()
     fetchSpy.mockRestore()
   })
 
@@ -90,15 +90,42 @@ describe('GuestRoomPage', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: '  música   exemplo ' } })
     expect(fetchSpy).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Buscar vídeos' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar agora' }))
     expect(await screen.findByText('Música exemplo')).toBeInTheDocument()
     expect(screen.getByText('Canal exemplo')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /música exemplo/i }))
-    fireEvent.click(screen.getByRole('button', { name: /enviar “música exemplo”/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar e enviar pedido' }))
     expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
     expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/youtube-search', expect.any(Object))
     expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/guest-requests', expect.any(Object))
+    const submittedBody = JSON.parse(String(fetchSpy.mock.calls[1]?.[1]?.body)) as { request: { video: { videoId: string } } }
+    expect(submittedBody.request.video.videoId).toBe(video.videoId)
     fetchSpy.mockRestore()
+  })
+
+  it('debounces typing before querying the search API', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    const video = { videoId: 'abcdefghijk', title: 'Resultado', channel: 'Canal', thumbnail: 'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg' }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ available: true, videos: [video] }), { status: 200 }))
+    renderRoom('/sala/a1b2c3d4e5', store)
+    await screen.findByRole('heading', { name: /peça uma música/i })
+    fireEvent.click(screen.getByRole('checkbox'))
+    vi.useFakeTimers()
+    try {
+      fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'Estação Fandangueira' } })
+      await act(async () => { vi.advanceTimersByTime(899) })
+      expect(fetchSpy).not.toHaveBeenCalled()
+      await act(async () => {
+        vi.advanceTimersByTime(1)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(screen.getByText('Resultado')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+      fetchSpy.mockRestore()
+    }
   })
 
   it('shows when the room does not exist', async () => {

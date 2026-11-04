@@ -9,6 +9,7 @@ versionamento semântico.
 
 ### Adicionado
 
+- Etapa 4B: busca visual do YouTube com debounce, seleção e confirmação do convidado; seção de pedidos pendentes no painel, aprovação/rejeição por RPC autenticada e pedidos aprovados separados, sem playlist/reprodução. Migration e pgTAP novos estão locais, ainda sem aplicação remota.
 - Páginas `/termos-de-uso` e `/privacidade`, links no rodapé e aceite explícito antes de buscas/envios de pedidos de convidados. Os textos são rascunhos aguardando validação do controlador, contato, retenção e revisão jurídica.
 - Privacidade da Etapa 4A: migrations locais para função SQL de expurgo, agendamento horário opcional por `pg_cron`, código privado (somente hash persistido), versões e timestamp de aceite nos pedidos. A interface exibe o código uma vez e orienta solicitação manual de exclusão por e-mail; buscas não registram aceite persistente.
 - Etapa 4A: pesquisa sob ação explícita via Cloudflare Pages Function e formulário manual na sala pública; pedidos são submetidos a uma função de servidor e recebem confirmação de recebimento sem promessa de aprovação ou reprodução.

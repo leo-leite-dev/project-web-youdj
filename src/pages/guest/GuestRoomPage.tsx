@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertTriangleIcon,
@@ -27,33 +27,50 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
   const [url, setUrl] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [searching, setSearching] = useState(false)
   const [searchUnavailable, setSearchUnavailable] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [privateCode, setPrivateCode] = useState<string | null>(null)
+  const searchSequence = useRef(0)
+  const searchTimer = useRef<number | null>(null)
 
-  async function search() {
+  const searchRef = useRef<(searchQuery: string) => Promise<void>>(async () => {})
+
+  useEffect(() => {
+    searchRef.current = async (searchQuery) => {
+      const normalized = searchQuery.trim().replace(/\s+/g, ' ')
+      if (normalized.length < 3 || busy || !acceptedLegal) return
+      const sequence = ++searchSequence.current
+      setBusy(true); setSearching(true); setMessage('')
+      try {
+        const result = await searchGuestVideos(room.code, normalized)
+        if (sequence !== searchSequence.current) return
+        setSearchUnavailable(!result.available)
+        setVideos(result.videos)
+        setMessage(result.available ? (result.videos.length ? '' : 'Nenhum vídeo encontrado.') : 'Busca no YouTube ainda não configurada. Você pode enviar um pedido manual.')
+      } catch (error) {
+        if (sequence !== searchSequence.current) return
+        setVideos([])
+        setMessage(error instanceof Error ? error.message : 'Pesquisa temporariamente indisponível. O pedido manual continua disponível.')
+      } finally { if (sequence === searchSequence.current) { setBusy(false); setSearching(false) } }
+    }
+  }, [acceptedLegal, busy, room.code])
+
+  useEffect(() => {
     const normalized = query.trim().replace(/\s+/g, ' ')
-    if (normalized.length < 2 || busy || !acceptedLegal) return
-    setBusy(true); setMessage('')
-    try {
-      const result = await searchGuestVideos(room.code, normalized)
-      setSearchUnavailable(!result.available)
-      setVideos(result.videos)
-      setMessage(result.available ? (result.videos.length ? '' : 'Nenhum vídeo encontrado.') : 'Busca no YouTube ainda não configurada. Você pode enviar um pedido manual.')
-    } catch (error) {
-      setVideos([])
-      setMessage(error instanceof Error ? error.message : 'Pesquisa temporariamente indisponível. O pedido manual continua disponível.')
-    } finally { setBusy(false) }
-  }
+    if (!acceptedLegal || normalized.length < 3) return
+    searchTimer.current = window.setTimeout(() => { void searchRef.current(normalized) }, 900)
+    return () => { if (searchTimer.current !== null) window.clearTimeout(searchTimer.current) }
+  }, [query, acceptedLegal])
 
   async function send(input: GuestRequestInput) {
     if (busy || !acceptedLegal) return
-    setBusy(true); setMessage(''); setPrivateCode(null)
+    setBusy(true); setSearching(false); setMessage(''); setPrivateCode(null)
     try {
       const receipt = await submitGuestRequest(room.code, input, acceptedLegal)
       setPrivateCode(receipt.privateCode)
-      setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([])
-      setMessage('Pedido recebido. Guarde o código abaixo para solicitar a exclusão. Isso não garante aprovação ou reprodução pelo DJ.')
+      setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
+      setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.')
     } finally { setBusy(false) }
@@ -66,14 +83,15 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
         <p className="mt-1 text-xs leading-5 text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
       </div>
       <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/60 p-3 text-sm leading-6 text-zinc-300">
-        <input type="checkbox" checked={acceptedLegal} onChange={(event) => setAcceptedLegal(event.target.checked)} className="mt-1 size-4 shrink-0 accent-violet-400" />
+        <input type="checkbox" checked={acceptedLegal} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setSelected(null); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-violet-400" />
         <span>Li e aceito os <Link to="/termos-de-uso" className="font-medium text-accent-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-medium text-accent-300 underline underline-offset-2">Política de Privacidade</Link>.</span>
       </label>
-      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void search() }}>
+      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); void searchRef.current(query) }}>
         <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label>
-        <input id="music-search" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={100} placeholder="Título, artista ou música" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-night-950 px-3 text-sm text-white outline-none focus:border-accent-400" />
-        <button disabled={busy || !acceptedLegal || query.trim().length < 2} className="min-h-11 rounded-xl bg-accent-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Aguarde…' : 'Buscar vídeos'}</button>
+        <input id="music-search" value={query} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setMessage(''); setQuery(event.target.value); setSelected(null) }} maxLength={100} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-night-950 px-3 text-sm text-white outline-none focus:border-accent-400" />
+        <button type="submit" disabled={busy || !acceptedLegal || query.trim().length < 3} className="min-h-11 rounded-xl bg-accent-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Aguarde…' : 'Buscar agora'}</button>
       </form>
+      {searching && <p role="status" aria-live="polite" className="text-xs text-zinc-400">Buscando vídeos…</p>}
       {searchUnavailable && <p className="text-xs text-amber-200">A chave do YouTube ainda não foi configurada no servidor. O pedido manual funciona.</p>}
       {videos.length > 0 && <ul className="grid gap-3 sm:grid-cols-2">{videos.map((video) => <li key={video.videoId}>
         <button type="button" aria-pressed={selected?.videoId === video.videoId} onClick={() => setSelected(video)} className={`flex w-full gap-3 rounded-xl border p-2 text-left transition ${selected?.videoId === video.videoId ? 'border-accent-400 bg-accent-400/10' : 'border-white/10 bg-night-950/60 hover:border-white/20'}`}>
@@ -81,7 +99,7 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
           <span className="min-w-0"><span className="line-clamp-2 block text-sm font-medium text-white">{video.title}</span><span className="mt-1 block truncate text-xs text-zinc-400">{video.channel}</span></span>
         </button>
       </li>)}</ul>}
-      {selected && <button type="button" disabled={busy || !acceptedLegal} onClick={() => void send({ kind: 'youtube', video: selected })} className="min-h-11 w-full rounded-xl border border-accent-400/40 bg-accent-400/10 px-4 text-sm font-semibold text-accent-300 disabled:opacity-50">Enviar “{selected.title}”</button>}
+      {selected && <div className="space-y-2 rounded-xl border border-accent-400/20 bg-accent-400/5 p-3"><p className="text-sm text-zinc-200">Selecionada: <strong>{selected.title}</strong> · {selected.channel}</p><button type="button" disabled={busy || !acceptedLegal} onClick={() => void send({ kind: 'youtube', video: selected })} className="min-h-11 w-full rounded-xl border border-accent-400/40 bg-accent-400/10 px-4 text-sm font-semibold text-accent-300 disabled:opacity-50">Confirmar e enviar pedido</button></div>}
       <details className="rounded-xl border border-white/10 bg-night-950/40 p-4">
         <summary className="cursor-pointer text-sm font-medium text-zinc-200">Não encontrou? Faça um pedido manual</summary>
         <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); void send({ kind: 'manual', title, artist, url }) }}>

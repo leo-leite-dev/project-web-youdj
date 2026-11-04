@@ -208,7 +208,8 @@ abuso distribuído.
   A quota real deve ser conferida no Google Cloud; o limite local não amplia a concessão do Google.
 - Pedidos são validados e inseridos no servidor como `pending`, associados à sala e `dj_id`.
   Há limite de 5/IP/10 minutos; nenhuma tabela administrativa concede acesso direto a `anon` ou
-  `authenticated`. O backend não faz aprovação, fila nem reprodução.
+  `authenticated`. Na implementação inicial da Etapa 4A, o backend ainda não fazia aprovação,
+  fila nem reprodução; a moderação é descrita na Etapa 4B abaixo.
 - A tabela de limites guarda SHA-256 do IP recebido do Cloudflare, não o IP bruto. O hash é dado
   pseudonimizado. Migration local `20261106000000_add_guest_data_retention.sql` define a função
   `purge_expired_guest_data()` (pedidos >30 dias, limites >48h, cache vencido e orçamentos >31 dias).
@@ -239,6 +240,24 @@ abuso distribuído.
   O responsável informa que configurou as cinco variáveis em Cloudflare Production, mas o valor e
   funcionamento das bindings não foram verificados remotamente; runtime das Functions e busca real
   do YouTube ainda precisam de validação antes da publicação.
+
+### Etapa 4B — busca visual e moderação
+
+- A interface do convidado pesquisa após pausa de 900 ms (mínimo de três caracteres), mantém botão
+  de busca imediata, apresenta miniaturas/título/canal e exige seleção e confirmação antes do envio.
+  A função server-side e o cache/orçamento/rate limits da Etapa 4A permanecem a autoridade para
+  disponibilidade e cota; o comportamento publicado ainda depende de validação real.
+- O recibo privado continua sendo entregue uma vez ao convidado. A confirmação informa recebimento
+  pendente, sem prometer aprovação ou reprodução; `video_id` é preservado para futura integração.
+- `public.guest_requests` continua sem grants diretos. As RPCs `dj_list_guest_requests()` e
+  `dj_set_guest_request_status(uuid,text)` usam `auth.uid()`, rejeitam sessões anônimas e limitam
+  a consulta/alteração ao `dj_id` proprietário. A transição só aceita `pending` para `approved` ou
+  `rejected`; chamadas concorrentes ou pedidos de outro DJ não alteram linhas.
+- A lista do painel separa pendentes e aprovados. Aprovação não cria playlist, fila nem reprodução.
+  Realtime continua fora desta etapa e o painel atualiza ao recarregar/decidir.
+- Migration `20261107000000_add_dj_request_moderation.sql` e teste pgTAP ficam locais até revisão;
+  não foram aplicados ao Supabase remoto. Testes mockados de UI não comprovam RLS nem chamadas
+  autenticadas reais.
 
 ## 6. Integrações
 
@@ -304,7 +323,7 @@ configuração remota foi alterada nesta etapa.
   ativação/pausa e compartilhamento por link ou QR Code PNG gerado localmente pela biblioteca
   `qrcode`.
 - A atualização de status usa a permissão `UPDATE` já concedida para `status`, com a RLS existente
-  restringindo a operação às salas do DJ autenticado. Pedidos musicais continuam fora do escopo.
+  restringindo a operação às salas do DJ autenticado. A moderação dos pedidos é descrita na Etapa 4B.
 
 ### Consulta pública do convidado
 
@@ -394,9 +413,9 @@ Princípios que devem orientar as próximas etapas:
 - Conteúdo de terceiros (músicas, vídeos, imagens) usado somente com autorização.
 - Nenhuma simulação de pagamento ou autenticação apresentada como funcionalidade real.
 
-## 8. Fora do escopo da Etapa 4A
+## 8. Fora do escopo da Etapa 4B
 
-- Aprovação/rejeição, fila pública, Supabase Realtime e painel de gestão de pedidos.
+- Fila pública, Supabase Realtime, playlist e reprodução.
 - Identidades anônimas de convidados e rate limiting.
 - Pagamentos.
 - Player de música/vídeo.

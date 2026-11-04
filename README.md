@@ -24,8 +24,9 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > públicos, preferências musicais e pedidos da Etapa 4A foram aplicadas ao projeto remoto e
 > verificadas. As Pages Functions e a interface de busca/pedidos estão implementadas no
 > repositório; o responsável informa que configurou as variáveis no Cloudflare Production,
-> mas o runtime publicado ainda precisa de validação real. Aprovação, fila, pagamentos e
-> reprodução ainda **não** estão implementados.
+> mas o runtime publicado ainda precisa de validação real. A Etapa 4B adiciona busca visual com
+> debounce e moderação por RPC autenticada; sua migration está local e não foi aplicada. Fila,
+> pagamentos e reprodução ainda **não** estão implementados.
 > O login com Google foi validado com conta real; a validação manual completa dos fluxos
 > autenticados e de salas em produção segue pendente. O último bundle publicado foi verificado
 > com `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` presentes.
@@ -105,11 +106,12 @@ Itens verificados no código atual:
   localmente (sem serviços externos), com cópia do link e download de PNG no painel.
 - Página pública do convidado que consulta a sala por código (somente nome e estado), com
   estados de carregamento, não encontrada, indisponível e erro com nova tentativa.
-- Busca opcional de vídeos sob ação do convidado e envio de pedidos por busca ou formulário
-  manual, mediados por Cloudflare Pages Functions; pedidos pendentes criados por RPC restrita ao
+- Busca visual de vídeos do YouTube com debounce, seleção e confirmação pelo convidado, além do
+  envio de pedidos por formulário manual, mediados por Cloudflare Pages Functions; pedidos
+  pendentes criados por RPC restrita ao
   backend, sem acesso público direto à tabela.
-- Painel administrativo com Visão Geral resumida e página dedicada para gerenciar salas; a
-  identidade/perfil e as salas são reais; o painel ainda não oferece gestão de pedidos ou pagamentos.
+- Painel do DJ com pedidos pendentes, aprovação/rejeição pelo proprietário da sala e lista separada
+  de aprovados; aprovação não adiciona à playlist nem inicia reprodução.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
@@ -161,20 +163,18 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 | `/`               | Implementada | Página inicial e apresentação do produto.                              |
 | `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).                       |
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; pode exigir confirmação de e-mail ou usar Google.          |
-| `/dj/painel`      | Protegida    | Exige sessão de DJ e perfil carregado; mostra o resumo das salas. |
+| `/dj/painel`      | Protegida    | Resumo de salas e gestão de pedidos autorizada no backend. |
 | `/dj/painel/salas` | Protegida   | Cria, lista, ativa/pausa e compartilha salas via link e QR Code. |
-| `/sala/:roomCode` | Implementada | Consulta pública, pesquisa sob demanda e envio inicial de pedidos (requer backend configurado). |
+| `/sala/:roomCode` | Implementada | Busca visual com debounce e envio de pedidos (requer backend configurado). |
 | `/termos-de-uso` / `/privacidade` | Implementadas | Rascunhos informativos públicos; aprovação jurídica pendente. |
 | `*`               | Implementada | Página 404.                                                             |
 
 ### O que ainda não está implementado
 
 - Recuperação de senha e gestão de e-mail/senha.
-- Gestão/consulta de pedidos, filas, aprovação e histórico no painel. A gravação inicial está
-  implementada no backend; seu runtime de produção ainda precisa ser validado.
+- Atualizações em tempo real, fila, histórico e player.
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
-- Aprovação, rejeição, fila, histórico e atualizações em tempo real.
 - Identidades/sessões anônimas de convidados; convidados usam as Pages Functions sem conta.
 - Pagamentos e histórico financeiro.
 - Reprodução musical e integração com a YouTube IFrame Player API.
@@ -222,9 +222,12 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
   produção ainda não validado).
 - Persistência de pedidos pendentes vinculados à sala, com validação e rate limits no servidor
   (migration aplicada e banco verificado; suíte pgTAP de 154 asserções).
+- Etapa 4B: busca visual com debounce e confirmação pelo convidado; painel com pedidos pendentes,
+  aprovação/rejeição e pedidos aprovados separados. RPCs verificam o proprietário no banco. A
+  migration `20261107000000_add_dj_request_moderation.sql` está preparada localmente e não aplicada;
+  runtime das Functions segue sem validação de produção.
 - Termos de Uso e Política de Privacidade em rascunho, com aceite obrigatório no fluxo do convidado;
   precisam de revisão e aprovação antes da publicação.
-- Aprovação e rejeição.
 - Fila livre.
 - Reorganização de pedidos.
 - Atualizações em tempo real.
