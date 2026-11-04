@@ -9,6 +9,11 @@ export type GuestRequestInput =
   | { kind: 'youtube'; video: YoutubeVideo }
   | { kind: 'manual'; title: string; artist: string; url: string }
 
+export interface GuestRequestReceipt {
+  received: true
+  privateCode: string
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(path, {
     method: 'POST',
@@ -28,5 +33,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const searchGuestVideos = (roomCode: string, query: string) =>
   post<{ videos: YoutubeVideo[]; available: boolean }>('/api/youtube-search', { roomCode, query })
 
-export const submitGuestRequest = (roomCode: string, request: GuestRequestInput) =>
-  post<{ received: true }>('/api/guest-requests', { roomCode, request })
+export async function submitGuestRequest(
+  roomCode: string,
+  request: GuestRequestInput,
+  acceptedLegal: boolean,
+): Promise<GuestRequestReceipt> {
+  const payload = await post<unknown>('/api/guest-requests', { roomCode, request, acceptedLegal })
+  if (typeof payload !== 'object' || payload === null
+    || !('received' in payload) || payload.received !== true
+    || !('privateCode' in payload) || typeof payload.privateCode !== 'string'
+    || !/^[a-f0-9]{64}$/.test(payload.privateCode)) {
+    throw new Error('Não foi possível validar o comprovante do pedido.')
+  }
+  return { received: true, privateCode: payload.privateCode }
+}

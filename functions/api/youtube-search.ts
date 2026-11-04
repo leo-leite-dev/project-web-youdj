@@ -12,7 +12,7 @@ const normalize = (value: string) => value.normalize('NFKC').trim().replace(/\s+
 async function rpc(env: Env, name: string, args: Record<string, unknown>) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('backend_unconfigured')
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
-    method: 'POST', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify(args),
+    method: 'POST', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, 'content-type': 'application/json' }, body: JSON.stringify(args),
   })
   if (!response.ok) throw new Error('backend_unavailable')
   return response.json() as Promise<unknown>

@@ -140,7 +140,7 @@ O código público e a consulta limitada são definidos pela migration
 - A consulta pública usa uma RPC separada; não há grant de `SELECT` na tabela para `anon`.
 - `rooms_public_code.test.sql` contém 27 asserções sobre grants, geração/imutabilidade do código,
   reabilitação do trigger de timestamp e limites da RPC. Junto às suítes existentes, o workflow
-  executará 88 asserções pgTAP.
+  executa 154 asserções pgTAP no total, incluindo a Etapa 4A.
 
 ### Códigos e consulta pública de salas
 
@@ -165,14 +165,17 @@ no histórico e no schema do projeto YouDJ:
 - Os QR Codes são gerados localmente no navegador pela biblioteca `qrcode`, sem enviar links ou
   dados de sala a serviços de terceiros. O painel oferece cópia do link e download PNG.
 - A suíte `supabase/tests/rooms_public_code.test.sql` tem 27 asserções para grants, imutabilidade,
-  geração, unicidade, reabilitação do trigger de timestamp e escopo da RPC. Junto às suítes
-  existentes, os 88 testes pgTAP foram aprovados no workflow local de CI.
+  geração, unicidade, reabilitação do trigger de timestamp e escopo da RPC. As 88 asserções da
+  Etapa 3B foram aprovadas; com a Etapa 4A, o workflow executa 154 asserções no total (28 + 33 +
+  27 + 17 + 49).
 
 A tabela inicial de pedidos da Etapa 4A inclui `dj_id` e `room_id`, tem RLS habilitada e nenhum
 grant/policy direto para clientes ou `service_role`; somente RPCs específicas, executáveis por
-`service_role`, fazem operações validadas. Migração e testes ainda são locais, portanto sua
-execução e o comportamento real do banco permanecem sem validação. Outras tabelas de domínio
-deverão preservar o mesmo isolamento por proprietário.
+`service_role`, fazem operações validadas. A migration foi aplicada ao projeto remoto YouDJ e
+schema, grants, políticas e funções foram conferidos por consultas somente leitura. A suíte pgTAP
+com 154 asserções é executada em um Supabase local isolado no GitHub Actions, sem credenciais ou
+acesso ao projeto remoto. Outras tabelas de domínio deverão preservar o mesmo isolamento por
+proprietário.
 
 ### Convidados
 
@@ -186,9 +189,12 @@ abuso distribuído.
 - A SPA chama somente `POST /api/youtube-search` após submissão explícita e
   `POST /api/guest-requests` para enviar. Cloudflare Pages Functions ficam em `functions/api`;
   Vite não serve essas funções.
-- `YOUTUBE_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são secrets de runtime do Pages. O navegador
-  nunca recebe chave do YouTube nem credencial privilegiada. A service-role key chama RPCs
-  `SECURITY DEFINER` estritamente concedidas a `service_role`.
+- `YOUTUBE_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são bindings de runtime do Pages. O navegador
+  nunca recebe chave do YouTube nem credencial privilegiada. O binding Supabase aceita a chave
+  legada `service_role` ou a chave moderna `sb_secret_`; as Functions enviam a credencial apenas
+  pelo header `apikey`, pois as chaves modernas não são JWTs e não devem ser usadas como
+  `Authorization: Bearer`. A chave privilegiada chama RPCs `SECURITY DEFINER` estritamente
+  concedidas a `service_role`.
 - A RPC valida sala ativa, guarda cache normalizado por 6h, aplica 10 pesquisas/IP/hora e reserva
   atomicamente até 10 chamadas `search.list` sem cache por dia. A documentação atual informa
   padrão de 100 chamadas/dia, 1 unidade por chamada e reset à meia-noite do Pacífico; a configuração
@@ -203,17 +209,36 @@ abuso distribuído.
 - Pedidos são validados e inseridos no servidor como `pending`, associados à sala e `dj_id`.
   Há limite de 5/IP/10 minutos; nenhuma tabela administrativa concede acesso direto a `anon` ou
   `authenticated`. O backend não faz aprovação, fila nem reprodução.
-- A tabela de limites guarda somente SHA-256 do IP recebido do Cloudflare, com limpeza de eventos
-  após 24h; o IP bruto não é persistido pela aplicação.
+- A tabela de limites guarda SHA-256 do IP recebido do Cloudflare, não o IP bruto. O hash é dado
+  pseudonimizado. Migration local `20261106000000_add_guest_data_retention.sql` define a função
+  `purge_expired_guest_data()` (pedidos >30 dias, limites >48h, cache vencido e orçamentos >31 dias).
+  A migration separada `20261106000001_schedule_guest_data_retention.sql` configura cron horário
+  quando `pg_cron` está disponível; cache deixa de ser elegível após 6h, antes da remoção física.
+  Execução depende de scheduler e banco ativos: falhas ou pausa do projeto podem atrasar a limpeza.
+  O plano Free pode pausar projetos após uma semana sem atividade. Contas e salas não são removidas
+  pela rotina.
+- Migration local `20261106000002_add_private_guest_receipts_and_consent.sql` troca a RPC para
+  exigir código privado e aceite; apenas o hash SHA-256 do código é persistido. Versões dos
+  documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
+  retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
+  busca não é persistido; o registro de pedido guarda apenas a declaração enviada junto ao pedido.
 - Busca indisponível (chave ausente, cota ou API fora) não bloqueia pedido manual. Link manual é
   opcional e restrito a URLs HTTPS de domínios YouTube conhecidos.
 - `surprise_mode` e `show_guest_requests` são preservados; a interface não publica fila nem lista
   de pedidos. O recibo confirma apenas gravação, não aprovação ou reprodução.
-- A [política oficial para clientes YouTube](https://developers.google.com/youtube/terms/developer-policies)
-  exige, entre outros itens, Termos de Serviço e Política de Privacidade acessíveis, com divulgação
-  do uso da API. O repositório ainda não contém essas páginas; são pendência para publicação pública.
-- Migration `20261105000000_add_guest_requests_and_youtube_quota.sql` e teste pgTAP são locais;
-  não foram aplicados remotamente. Cloudflare settings/deploy são pendências explícitas.
+- As páginas `/termos-de-uso` e `/privacidade` descrevem o uso da YouTube Data API, dados tratados,
+  cache, retenção configurada e o código/aceite dos pedidos. A interface exige aceite antes de
+  buscar ou enviar; somente pedidos persistem versão e timestamp. Permanecem pendentes de revisão:
+  bases legais, regiões/transferências, política de logs de terceiros e procedimento/prazo de
+  atendimento a titulares. Referências: [políticas para clientes
+  YouTube](https://developers.google.com/youtube/terms/developer-policies) e [Termos de Serviço do
+  YouTube](https://www.youtube.com/t/terms).
+- Migration `20261105000000_add_guest_requests_and_youtube_quota.sql` foi aplicada remotamente;
+  migrations de retenção, agendamento e recibo/aceite (`20261106000000` a `20261106000002`) são
+  locais e ainda não aplicadas.
+  O responsável informa que configurou as cinco variáveis em Cloudflare Production, mas o valor e
+  funcionamento das bindings não foram verificados remotamente; runtime das Functions e busca real
+  do YouTube ainda precisam de validação antes da publicação.
 
 ## 6. Integrações
 
@@ -301,8 +326,9 @@ configuração remota foi alterada nesta etapa.
   `room_by_code` retorna apenas nome, código, estado e esses quatro booleanos; `anon` não recebe
   leitura direta da tabela.
 - A tela Salas oferece controles individuais e feedback após confirmação do Supabase. As flags são
-  configuração: playlist, player e gestão/visibilidade pública da fila ainda não existem; pedidos
-  iniciais estão no código local da Etapa 4A, com migration pendente. Quando integrados, Modo
+  configuração: playlist, player e gestão/visibilidade pública da fila ainda não existem; o envio
+  inicial de pedidos da Etapa 4A está integrado, mas gestão posterior continua pendente. Quando
+  integrados, Modo
   Surpresa deverá ocultar ordem futura/fila real; a preferência de playlist não concede nem mostra
   ordem de reprodução; pedidos de convidados não confirmam músicas pelo DJ; música atual só poderá
   ser exibida quando houver dado real.
@@ -312,17 +338,19 @@ configuração remota foi alterada nesta etapa.
 ### Publicação no Cloudflare Pages
 
 - O frontend é um SPA estático do Vite: build `npm run build`, saída `dist/`. A Etapa 4A adiciona
-  Pages Functions em `functions/api`; elas existem localmente, mas não foram configuradas nem
-  publicadas.
+  Pages Functions em `functions/api`. O responsável informa que configurou em Production as
+  variáveis públicas `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e as bindings de servidor
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `YOUTUBE_API_KEY`; não verificamos painel nem runtime.
 - `public/_redirects` reescreve qualquer caminho para `/index.html` com status 200, para que
-  `/dj`, `/dj/cadastro`, `/dj/painel`, `/dj/painel/salas` e `/sala/:roomCode` funcionem no acesso
-  direto e na atualização da página. Sem esse arquivo, o Pages responderia 404 nessas rotas.
+  `/dj`, `/dj/cadastro`, `/dj/painel`, `/dj/painel/salas`, `/sala/:roomCode`, `/termos-de-uso` e
+  `/privacidade` funcionem no acesso direto e na atualização da página. Sem esse arquivo, o Pages
+  responderia 404 nessas rotas.
 - `.nvmrc` fixa Node `22.16.0`: o build system do Pages não lê o campo `engines` do
   `package.json` e o Vite 8 exige Node `>=22.12` (o padrão do build system v2 seria 18.x).
-- Endereço de produção: `https://project-web-youdj.pages.dev`. As variáveis públicas
-  `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` já estão configuradas no Cloudflare. Para
-  as Functions, configure secrets runtime `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e,
-  opcionalmente, `YOUTUBE_API_KEY`; nunca prefixar secrets com `VITE_`.
+- Endereço de produção: `https://project-web-youdj.pages.dev`. Os nomes informados para as cinco
+  variáveis correspondem aos bindings usados: as duas `VITE_*` só atendem ao frontend; as três
+  sem prefixo são lidas pelas Functions em runtime. `SUPABASE_SERVICE_ROLE_KEY` aceita chave
+  legada ou `sb_secret_`, enviada em `apikey` e nunca incluída no bundle.
 - O retorno do OAuth usa a raiz do domínio atual, coberta pela allowlist
   `https://project-web-youdj.pages.dev/**`; como a raiz existe como arquivo estático, o
   retorno não depende do fallback de rotas.
@@ -337,10 +365,10 @@ configuração remota foi alterada nesta etapa.
 | Supabase Auth           | Identidades anônimas de convidados                             | Planejado |
 | Supabase PostgreSQL     | Perfil de DJ (`public.dj_profiles`)                            | Implementado; leitura/criação no login Google real |
 | Supabase PostgreSQL     | Salas (`public.rooms`)                                         | Migrations 3A/3B aplicadas; RLS e RPC verificados |
-| Supabase PostgreSQL     | Pedidos pendentes (Etapa 4A)                                   | Migration local; pendente de aplicação |
+| Supabase PostgreSQL     | Pedidos pendentes (Etapa 4A)                                   | Migration aplicada; schema/RLS/grants verificados |
 | Supabase PostgreSQL     | Pagamentos e histórico                                          | Planejado |
 | Supabase Realtime       | Atualização da fila e dos pedidos em tempo real               | Planejado   |
-| Cloudflare Pages        | SPA e Pages Functions                                          | SPA publicado; Functions locais pendentes de configuração |
+| Cloudflare Pages        | SPA e Pages Functions                                          | SPA publicado; variáveis Production informadas; runtime das Functions não validado |
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
 | YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
 

@@ -35,13 +35,14 @@ export function PublicLayout() {
           <div className="max-w-md space-y-3">
             <Brand />
             <p className="text-sm leading-6 text-zinc-500">
-              Autenticação de DJs ativa com Supabase Auth. Salas, pedidos, pagamentos e
-              integrações musicais serão adicionados em etapas futuras.
+              Pedidos musicais enviados pelo convidado ficam sujeitos à decisão do DJ.
             </p>
           </div>
-          <p className="text-xs text-zinc-600">
-            © {new Date().getFullYear()} DJ IA. Todos os direitos reservados.
-          </p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-zinc-500">
+            <Link to="/termos-de-uso" className="min-h-11 inline-flex items-center underline underline-offset-4 hover:text-white">Termos de Uso</Link>
+            <Link to="/privacidade" className="min-h-11 inline-flex items-center underline underline-offset-4 hover:text-white">Política de Privacidade</Link>
+            <span>© {new Date().getFullYear()} YouDJ</span>
+          </div>
         </div>
       </footer>
     </div>

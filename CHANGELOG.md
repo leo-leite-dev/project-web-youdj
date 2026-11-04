@@ -9,6 +9,8 @@ versionamento semântico.
 
 ### Adicionado
 
+- Páginas `/termos-de-uso` e `/privacidade`, links no rodapé e aceite explícito antes de buscas/envios de pedidos de convidados. Os textos são rascunhos aguardando validação do controlador, contato, retenção e revisão jurídica.
+- Privacidade da Etapa 4A: migrations locais para função SQL de expurgo, agendamento horário opcional por `pg_cron`, código privado (somente hash persistido), versões e timestamp de aceite nos pedidos. A interface exibe o código uma vez e orienta solicitação manual de exclusão por e-mail; buscas não registram aceite persistente.
 - Etapa 4A: pesquisa sob ação explícita via Cloudflare Pages Function e formulário manual na sala pública; pedidos são submetidos a uma função de servidor e recebem confirmação de recebimento sem promessa de aprovação ou reprodução.
 - Migration local `20261105000000_add_guest_requests_and_youtube_quota.sql`: pedidos pendentes vinculados à sala e ao DJ, tabelas privadas de cache, frequência e orçamento; RPCs executáveis somente por `service_role`. Teste pgTAP direcionado de privilégios.
 - Proteções de busca: normalização, cache server-side de 6 horas, até 5 resultados, limite de 10 buscas/IP/hora e orçamento PostgreSQL de até 10 chamadas novas por dia do Pacífico (configurável para baixo); pedidos limitados a 5/IP/10 minutos. A documentação atual informa padrão de 100 chamadas `search.list` por dia, a 1 unidade por chamada.
@@ -99,6 +101,11 @@ versionamento semântico.
   aprovados; typecheck executado.
 - 41 testes novos/afetados executados na etapa 3B (libs, stores, componentes, painel e página
   do convidado).
+
+### Corrigido
+
+- Pages Functions enviam credenciais Supabase somente no header `apikey`, compatível com a chave moderna `sb_secret_` (não JWT), sem tentar usá-la como `Authorization: Bearer`.
+- Estado registrado: migration `20261105000000_add_guest_requests_and_youtube_quota.sql` aplicada e conferida no Supabase remoto YouDJ; o responsável informa a configuração das variáveis em Cloudflare Production, mas o runtime ainda não foi validado.
 
 ### Alterado
 

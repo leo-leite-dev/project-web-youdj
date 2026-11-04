@@ -40,7 +40,8 @@ describe('GuestRoomPage', () => {
 
   it('sends a manual request only after explicit submission and confirms receipt', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"received":true}', { status: 201 }))
+    const privateCode = 'a'.repeat(64)
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ received: true, privateCode }), { status: 201 }))
     renderRoom('/sala/a1b2c3d4e5', store)
     await screen.findByRole('heading', { name: /peça uma música/i })
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -48,10 +49,33 @@ describe('GuestRoomPage', () => {
     fireEvent.click(screen.getByText(/faça um pedido manual/i))
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Canção de teste' } })
     fireEvent.change(screen.getByLabelText('Artista'), { target: { value: 'Artista teste' } })
+    fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido manual' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
+    expect(screen.getByText(privateCode)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Solicitar exclusão por e-mail' })).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(privateCode)))
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/guest-requests', expect.objectContaining({ method: 'POST' })))
+    const requestBody = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body)) as { acceptedLegal: boolean }
+    expect(requestBody.acceptedLegal).toBe(true)
+    fetchSpy.mockRestore()
+  })
+
+  it('requires acceptance of the terms and privacy policy before sending guest data', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    renderRoom('/sala/a1b2c3d4e5', store)
+    await screen.findByRole('heading', { name: /peça uma música/i })
+
+    expect(screen.getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos-de-uso')
+    expect(screen.getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute('href', '/privacidade')
+    fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'artista teste' } })
+    expect(screen.getByRole('button', { name: 'Buscar vídeos' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Enviar pedido manual' })).toBeDisabled()
+    expect(fetchSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: 'Buscar vídeos' })).toBeEnabled()
     fetchSpy.mockRestore()
   })
 
@@ -60,9 +84,10 @@ describe('GuestRoomPage', () => {
     const video = { videoId: 'abcdefghijk', title: 'Música exemplo', channel: 'Canal exemplo', thumbnail: 'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg' }
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({ available: true, videos: [video] }), { status: 200 }))
-      .mockResolvedValueOnce(new Response('{"received":true}', { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ received: true, privateCode: 'b'.repeat(64) }), { status: 201 }))
     renderRoom('/sala/a1b2c3d4e5', store)
     await screen.findByRole('heading', { name: /peça uma música/i })
+    fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: '  música   exemplo ' } })
     expect(fetchSpy).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Buscar vídeos' }))
