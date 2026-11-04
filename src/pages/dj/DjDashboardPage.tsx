@@ -9,6 +9,7 @@ import {
 } from '../../components/Icons'
 import { PlannedBadge } from '../../components/PlannedBadge'
 import { useAuth } from '../../features/auth/AuthContext'
+import { DjRequestsSection } from '../../features/guest/components/DjRequestsSection'
 import { useRooms } from '../../features/rooms/hooks/useRooms'
 import type { RoomStore } from '../../features/rooms/services/roomStore'
 
@@ -61,8 +62,7 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-500">
           Olá, {profile?.displayName ?? 'DJ'}. Sua conta está autenticada como{' '}
-          {user?.email ?? 'DJ'}. Acompanhe o resumo das suas salas; pedidos e pagamentos serão
-          liberados nas próximas etapas.
+          {user?.email ?? 'DJ'}. Acompanhe suas salas e gerencie os pedidos recebidos.
         </p>
       </div>
 
@@ -81,7 +81,7 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
             <code className="rounded bg-black/20 px-1 py-0.5 text-[10px] text-zinc-300">
               public.rooms
             </code>{' '}
-            com isolamento por RLS; nenhum pedido ou pagamento é criado nesta etapa.
+            com isolamento por RLS. Os pedidos são autorizados no banco pelo proprietário da sala; aprovação não controla reprodução.
           </p>
         </div>
       </div>
@@ -194,6 +194,8 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
           </ul>
         </section>
       </div>
+
+      <DjRequestsSection />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {[

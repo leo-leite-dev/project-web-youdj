@@ -30,8 +30,29 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return payload as T
 }
 
-export const searchGuestVideos = (roomCode: string, query: string) =>
-  post<{ videos: YoutubeVideo[]; available: boolean }>('/api/youtube-search', { roomCode, query })
+export async function searchGuestVideos(roomCode: string, query: string): Promise<{ videos: YoutubeVideo[]; available: boolean }> {
+  const payload: unknown = await post<unknown>('/api/youtube-search', { roomCode, query })
+  if (typeof payload !== 'object' || payload === null || !('available' in payload) || typeof payload.available !== 'boolean' || !('videos' in payload) || !Array.isArray(payload.videos) || payload.videos.length > 5) {
+    throw new Error('Não foi possível validar os resultados da pesquisa.')
+  }
+  const videos = payload.videos.map((item): YoutubeVideo => {
+    let trustedThumbnail = false
+    if (typeof item === 'object' && item !== null && 'thumbnail' in item && typeof item.thumbnail === 'string') {
+      try {
+        const thumbnailUrl = new URL(item.thumbnail)
+        trustedThumbnail = thumbnailUrl.protocol === 'https:' && ['i.ytimg.com', 'img.youtube.com'].includes(thumbnailUrl.hostname)
+      } catch { trustedThumbnail = false }
+    }
+    if (typeof item !== 'object' || item === null || !('videoId' in item) || typeof item.videoId !== 'string' || !/^[A-Za-z0-9_-]{11}$/.test(item.videoId)
+      || !('title' in item) || typeof item.title !== 'string' || !item.title.trim()
+      || !('channel' in item) || typeof item.channel !== 'string' || !item.channel.trim()
+      || !trustedThumbnail) {
+      throw new Error('Não foi possível validar os resultados da pesquisa.')
+    }
+    return { videoId: item.videoId, title: item.title, channel: item.channel, thumbnail: item.thumbnail }
+  })
+  return { available: payload.available, videos }
+}
 
 export async function submitGuestRequest(
   roomCode: string,

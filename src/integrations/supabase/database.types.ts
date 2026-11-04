@@ -48,6 +48,23 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      dj_list_guest_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          room_name: string
+          title: string
+          artist: string
+          video_id: string | null
+          submitted_url: string | null
+          status: 'pending' | 'approved' | 'rejected'
+          created_at: string
+        }[]
+      }
+      dj_set_guest_request_status: {
+        Args: { p_request_id: string; p_status: string }
+        Returns: boolean
+      }
       room_by_code: {
         Args: { p_code: string }
         Returns: {
