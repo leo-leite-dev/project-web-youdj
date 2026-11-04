@@ -9,6 +9,8 @@ import { DjRoomsPage } from '../pages/dj/DjRoomsPage'
 import { DjSignUpPage } from '../pages/dj/DjSignUpPage'
 import { GuestRoomPage } from '../pages/guest/GuestRoomPage'
 import { HomePage } from '../pages/HomePage'
+import { PrivacyPage } from '../pages/PrivacyPage'
+import { TermsPage } from '../pages/TermsPage'
 
 export function AppRoutes() {
   return (
@@ -18,6 +20,8 @@ export function AppRoutes() {
         <Route path="dj" element={<DjLoginPage />} />
         <Route path="dj/cadastro" element={<DjSignUpPage />} />
         <Route path="sala/:roomCode" element={<GuestRoomPage />} />
+        <Route path="termos-de-uso" element={<TermsPage />} />
+        <Route path="privacidade" element={<PrivacyPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
       <Route element={<RequireDjAuth />}>
