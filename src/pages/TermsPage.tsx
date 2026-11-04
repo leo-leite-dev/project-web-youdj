@@ -3,20 +3,48 @@ import { Link } from 'react-router-dom'
 export function TermsPage() {
   return (
     <article className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-16">
-      <Link to="/" className="inline-flex min-h-11 items-center text-sm text-accent-300 underline underline-offset-4">Voltar ao YouDJ</Link>
+      <Link to="/" className="inline-flex min-h-11 items-center text-sm text-accent-300 underline underline-offset-4">
+        Voltar ao YouDJ
+      </Link>
       <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">Termos de Uso</h1>
-      <p className="mt-3 text-sm text-zinc-400">Versão 2026-11-04. Estes termos ainda precisam da revisão e aprovação final de Leonardo dos Passos Leite antes da publicação.</p>
+      <p className="mt-3 text-sm text-zinc-400">Versão 2026-11-04 · Rascunho sujeito à aprovação de Leonardo dos Passos Leite antes de qualquer publicação.</p>
 
       <div className="mt-6 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100">
-        <strong>Revisão pendente:</strong> a aprovação final do responsável e eventuais condições comerciais específicas ainda precisam ser confirmadas antes da publicação.
+        <strong>Revisão pendente:</strong> este texto não é a versão jurídica final. Confirme o escopo do serviço, a relação com DJs e convidados e as condições comerciais antes de publicá-lo.
       </div>
 
       <div className="mt-8 space-y-8 text-sm leading-7 text-zinc-300">
-        <section><h2 className="text-lg font-semibold text-white">1. O serviço</h2><p className="mt-2">O YouDJ permite que DJs criem salas e que convidados enviem sugestões musicais por link ou QR Code. O envio confirma apenas o recebimento: não garante aprovação, inclusão em fila ou reprodução. A gestão de pedidos pelo DJ, pagamentos e reprodução de músicas não fazem parte do recurso de pedidos descrito aqui.</p></section>
-        <section><h2 className="text-lg font-semibold text-white">2. Uso permitido</h2><p className="mt-2">Use o serviço de forma lícita e respeitosa. Não tente contornar limites técnicos, prejudicar a disponibilidade, enviar conteúdo ilegal ou violar direitos de terceiros. O convidado deve enviar informações corretas e só incluir links que tenha direito de compartilhar. O DJ é responsável por decidir se atende às sugestões recebidas.</p></section>
-        <section><h2 className="text-lg font-semibold text-white">3. Pesquisa e conteúdo do YouTube</h2><p className="mt-2">Quando disponível, a busca usa a YouTube Data API para apresentar títulos, canais, identificadores de vídeo e miniaturas. Termos de busca são enviados ao Google/YouTube. O YouDJ não hospeda nem fornece o áudio ou a reprodução desses vídeos e não é afiliado, patrocinado ou endossado pelo YouTube ou pelo Google. O uso de serviços e conteúdo do YouTube também está sujeito aos <a className="text-accent-300 underline underline-offset-4" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">Termos de Serviço do YouTube</a> e às <a className="text-accent-300 underline underline-offset-4" href="https://developers.google.com/youtube/terms/developer-policies" target="_blank" rel="noreferrer">Políticas para Desenvolvedores do YouTube</a>.</p><p className="mt-2">Não use o YouDJ para baixar, extrair, copiar ou redistribuir conteúdo do YouTube, nem para contornar anúncios, controles ou restrições do provedor. Títulos, canais e miniaturas são dados fornecidos pelo YouTube e podem mudar ou deixar de estar disponíveis.</p></section>
-        <section><h2 className="text-lg font-semibold text-white">4. Limites, comprovante e disponibilidade</h2><p className="mt-2">A pesquisa está sujeita à cota efetivamente concedida pelo Google e a limites internos contra abuso: no momento, até 10 buscas por endereço IP em uma hora e um teto compartilhado de até 10 novas consultas ao dia, além de cache temporário. Pedidos têm limite de até 5 por endereço IP em 10 minutos. Ao enviar um pedido, o sistema gera um código privado aleatório e o exibe na confirmação; ele não poderá ser recuperado após sair ou atualizar a tela. Guarde-o: serve para identificar uma solicitação de exclusão enviada ao e-mail de contato. O YouDJ armazena somente o hash do código e não oferece consulta ou exclusão automática por esse código. Perder o código pode impedir a localização do pedido sem outras informações suficientes.</p><p className="mt-2">Esses limites podem impedir temporariamente pesquisas ou envios; o pedido manual não depende da busca do YouTube, mas também está sujeito ao limite de pedidos e à disponibilidade do backend.</p></section>
-        <section><h2 className="text-lg font-semibold text-white">5. Operação, mudanças e contato</h2><p className="mt-2">O YouDJ é operado atualmente por pessoa física. Responsável legal pela operação: Leonardo dos Passos Leite. CypherSoft é a marca utilizada na operação; não é apresentada nestes termos como pessoa jurídica formalmente constituída e não possui CNPJ.</p><p className="mt-2">O serviço pode ser alterado, interrompido ou limitado para manutenção, segurança ou cumprimento de obrigações. Dúvidas sobre estes termos podem ser encaminhadas para <a className="text-accent-300 underline underline-offset-4" href="mailto:leokerpassos.leite@gmail.com">leokerpassos.leite@gmail.com</a>.</p></section>
+        <section>
+          <h2 className="text-lg font-semibold text-white">1. O serviço descrito nesta versão</h2>
+          <p className="mt-2">O YouDJ é uma plataforma em desenvolvimento para DJs criarem perfis e salas e, na Etapa 4A, receberem sugestões musicais de convidados por link ou QR Code. O convidado pode pesquisar vídeos públicos pelo YouTube Data API, quando a busca estiver disponível, ou preencher uma sugestão manual. O pedido é encaminhado ao DJ responsável pela sala.</p>
+          <p className="mt-2">O comprovante confirma somente o recebimento técnico do pedido. Não confirma que o DJ o leu, aprovou, colocou em uma fila ou reproduziu a música. Aprovação, gestão de fila, pagamentos e reprodução musical não fazem parte do fluxo de pedidos descrito aqui.</p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-white">2. Uso da plataforma</h2>
+          <p className="mt-2">Use a plataforma de forma lícita e não tente contornar seus limites, prejudicar sua disponibilidade ou enviar conteúdo que viole direitos de terceiros. Ao fazer uma sugestão manual, informe título e artista e, se fornecer um link, use um endereço HTTPS de domínio YouTube aceito pelo formulário. O DJ decide se atende à sugestão.</p>
+          <p className="mt-2">Não inclua dados pessoais seus ou de terceiros no título, artista, busca ou link, salvo o mínimo necessário para a sugestão musical.</p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-white">3. Recursos e conteúdo do YouTube</h2>
+          <p className="mt-2">A pesquisa usa a YouTube Data API para solicitar e exibir resultados públicos, como título, canal, identificador de vídeo e miniatura. O convidado inicia a busca; os resultados são apresentados como resultados do YouTube e não são combinados com resultados de outros catálogos. O YouDJ não hospeda nem fornece o áudio dos vídeos e, nesta versão, não incorpora um player do YouTube.</p>
+          <p className="mt-2">Ao utilizar os recursos do YouTube, você também se sujeita aos <a className="text-accent-300 underline underline-offset-4" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">Termos de Serviço do YouTube</a> e às <a className="text-accent-300 underline underline-offset-4" href="https://developers.google.com/youtube/terms/developer-policies" target="_blank" rel="noreferrer">Políticas para Desenvolvedores do YouTube</a>. O YouDJ não é afiliado, patrocinado ou endossado pelo Google ou YouTube.</p>
+          <p className="mt-2">Não use a plataforma para baixar, extrair, copiar, armazenar ou redistribuir áudio ou vídeo do YouTube, nem para contornar anúncios, controles ou restrições do provedor. Títulos, canais, identificadores e miniaturas são fornecidos pelo YouTube e podem mudar ou deixar de estar disponíveis.</p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-white">4. Limites, cache e comprovante</h2>
+          <p className="mt-2">A implementação atual aplica limite de até 10 buscas por IP por hora, reserva um teto interno de até 10 novas consultas sem cache por dia do Pacífico e limita pedidos a 5 por IP em 10 minutos. Esses limites internos não representam nem ampliam a cota concedida pelo Google; a busca também depende de configuração e disponibilidade dos provedores. Os resultados de busca são armazenados em cache por até 6 horas.</p>
+          <p className="mt-2">Após o envio confirmado, é gerado um código privado aleatório, mostrado uma única vez. O banco guarda somente seu hash SHA-256. O código ajuda o responsável a localizar o pedido se você solicitar exclusão por e-mail, mas não é um recurso de consulta ou exclusão automática, nem uma comprovação de identidade. Ele não poderá ser recuperado depois que você sair ou atualizar a tela; perder o código pode dificultar a localização do pedido.</p>
+          <p className="mt-2">A solicitação e a resposta do servidor podem falhar ou sofrer atraso. Um pedido manual não depende da busca do YouTube, mas depende da disponibilidade do backend e dos limites de envio. O pedido recebido não garante análise em prazo específico por parte do DJ.</p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-white">5. Responsável e contato</h2>
+          <p className="mt-2">O YouDJ é operado por Leonardo dos Passos Leite, pessoa física. CypherSoft é a marca utilizada na operação e, conforme informado pelo responsável, ainda não possui CNPJ e não é apresentada nestes termos como pessoa jurídica constituída.</p>
+          <p className="mt-2">Dúvidas sobre estes termos podem ser enviadas a <a className="text-accent-300 underline underline-offset-4" href="mailto:leokerpassos.leite@gmail.com">leokerpassos.leite@gmail.com</a>. O canal e o procedimento para solicitações de titulares ainda precisam ser confirmados pelo responsável; consulte a <Link className="text-accent-300 underline underline-offset-4" to="/privacidade">Política de Privacidade (rascunho)</Link>.</p>
+        </section>
       </div>
     </article>
   )
