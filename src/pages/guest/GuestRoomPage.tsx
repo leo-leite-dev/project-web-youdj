@@ -28,7 +28,13 @@ function SynthwaveArtwork({ className = '' }: { className?: string }) {
   )
 }
 
-function GuestMusicRequests({ room }: { room: PublicRoom }) {
+function GuestMusicRequests({
+  room,
+  onSubmittingChange,
+}: {
+  room: PublicRoom
+  onSubmittingChange: (submitting: boolean) => void
+}) {
   const [query, setQuery] = useState('')
   const [videos, setVideos] = useState<YoutubeVideo[]>([])
   const [selected, setSelected] = useState<YoutubeVideo | null>(null)
@@ -74,6 +80,7 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
   async function send(input: GuestRequestInput) {
     if (busy || !acceptedLegal) return
     setBusy(true); setSearching(false); setMessage(''); setPrivateCode(null)
+    onSubmittingChange(true)
     try {
       const receipt = await submitGuestRequest(room.code, input, acceptedLegal)
       setPrivateCode(receipt.privateCode)
@@ -81,22 +88,21 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
       setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.')
-    } finally { setBusy(false) }
+    } finally { setBusy(false); onSubmittingChange(false) }
   }
 
   const stage = privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
 
   return (
     <div className="space-y-5">
-      <SynthwaveArtwork className="h-44 sm:h-56" />
       {stage === 'entry' && <>
         <div className="rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-4 shadow-[0_0_30px_rgba(217,70,239,0.1)] sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-fuchsia-300"><MusicIcon className="size-4" />Área do convidado</span>
             <span className="rounded-full border border-emerald-400/40 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{room.status === 'active' ? 'Ativa' : 'Pausada'}{room.status === 'active' && <span aria-hidden="true"> ●</span>}</span>
           </div>
-          <h1 className="mt-4 font-mono text-2xl font-black text-cyan-300 sm:text-3xl">Sala {room.code}</h1>
-          <p className="mt-1 text-xl font-bold text-white">{room.name}</p>
+          <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
+          <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
           <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
           {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Sala ativa. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
         </div>
@@ -166,13 +172,35 @@ interface GuestRoomPageProps {
   store?: PublicRoomStore
 }
 
-function HomeLink() {
+interface HomeLinkProps {
+  label?: string
+  onClick?: () => void
+  disabled?: boolean
+}
+
+function HomeLink({ label = 'Voltar ao início', onClick, disabled = false }: HomeLinkProps) {
+  const className = 'group mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 p-[2px] text-sm font-bold text-white shadow-[0_0_22px_rgba(217,70,239,0.18)] transition hover:shadow-[0_0_30px_rgba(34,211,238,0.28)] disabled:cursor-not-allowed disabled:opacity-60'
+  const content = (
+    <span className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#080914] px-4">
+      {label}
+      <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+    </span>
+  )
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className} disabled={disabled}>
+        {content}
+      </button>
+    )
+  }
+
   return (
     <Link
       to="/"
-      className="group mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 p-[2px] text-sm font-bold text-white shadow-[0_0_22px_rgba(217,70,239,0.18)] transition hover:shadow-[0_0_30px_rgba(34,211,238,0.28)]"
+      className={className}
     >
-      <span className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#080914] px-4">Voltar ao início<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" /></span>
+      {content}
     </Link>
   )
 }
@@ -195,6 +223,8 @@ export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
   })
   const [result, setResult] = useState<GuestResult | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [experienceVersion, setExperienceVersion] = useState(0)
+  const [requestSubmitting, setRequestSubmitting] = useState(false)
 
   useEffect(() => {
     if (!valid || !storeState.store) {
@@ -357,8 +387,9 @@ export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
     <section className="relative mx-auto min-h-[calc(100svh-8rem)] w-full max-w-xl overflow-hidden px-4 py-5 sm:px-8 sm:py-10">
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 34px, rgba(236,72,153,.45) 35px, transparent 36px), repeating-linear-gradient(0deg, transparent 0 22px, rgba(34,211,238,.28) 23px, transparent 24px), linear-gradient(to top, rgba(217,70,239,.2), transparent)' }} />
       <div className="relative mx-auto max-w-md rounded-[1.75rem] border border-cyan-300/20 bg-[#070914]/95 p-4 shadow-[0_0_40px_rgba(217,70,239,0.11)] sm:p-6">
-        {room.status === 'active' ? <GuestMusicRequests room={room} /> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><SynthwaveArtwork className="h-36" /><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
-        <HomeLink />
+         {room.status === 'active' ? <GuestMusicRequests key={experienceVersion} room={room} onSubmittingChange={setRequestSubmitting} /> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
+         <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />
+         <SynthwaveArtwork className="mt-4 h-44 sm:h-56" />
         <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>
       </div>
     </section>

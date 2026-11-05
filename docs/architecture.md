@@ -284,9 +284,10 @@ abuso distribuído.
 ### Identidade visual das salas
 
 - O tema Synthwave Neon é o padrão das rotas públicas de sala. O artwork aprovado é servido pelo
-  asset versionado `public/guest-room-artwork.png` e aparece no topo durante busca, resultados e
-  confirmação; a tela pausada também usa o mesmo asset. Isso não altera a lógica de pedidos nem de
-  moderação.
+  asset versionado `public/guest-room-artwork.png` abaixo do botão “Voltar à sala”, antes do rodapé,
+  tanto para salas ativas quanto pausadas. O cabeçalho identifica o nome e o código da sala, e não
+  oferece navegação administrativa pelo logotipo ou menu. “Voltar à sala” reinicia a experiência do
+  convidado na mesma sala sem afetar os pedidos existentes nem a moderação.
 
 ### Desenvolvimento local via Wrangler
 
