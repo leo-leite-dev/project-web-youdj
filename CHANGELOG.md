@@ -9,13 +9,15 @@ versionamento semântico.
 
 ### Adicionado
 
-- Etapa 4B: busca visual do YouTube com debounce, seleção e confirmação do convidado; seção de pedidos pendentes no painel, aprovação/rejeição por RPC autenticada e pedidos aprovados separados, sem playlist/reprodução. Migration e pgTAP novos estão locais, ainda sem aplicação remota.
+- Etapa 4B: busca visual do YouTube com debounce, seleção e confirmação do convidado; seção de pedidos pendentes no painel, aprovação/rejeição por RPC autenticada e pedidos aprovados separados, sem playlist/reprodução. Os 165 testes pgTAP passaram no GitHub Actions do PR #3; a migration de moderação continua sem confirmação de aplicação remota e requer validação operacional.
+- Diagnóstico da busca: Pages Function distingue falhas do Supabase, chave/API/cota do YouTube, rede/timeout e cache sem devolver segredos ou corpos upstream. A busca local real retornou HTTP 429 (`daily_budget`); a causa entre limite diário consumido e orçamento desativado segue pendente. Vite usa proxy local para Wrangler; `npm run dev:mobile` limita Functions ao loopback e gera QR de desenvolvimento para sala própria.
+- Identidade visual Synthwave Neon nas salas públicas, usando o artwork definitivo `public/guest-room-artwork.png` no topo dos estados de convidado.
 - Páginas `/termos-de-uso` e `/privacidade`, links no rodapé e aceite explícito antes de buscas/envios de pedidos de convidados. Os textos são rascunhos aguardando validação do controlador, contato, retenção e revisão jurídica.
-- Privacidade da Etapa 4A: migrations locais para função SQL de expurgo, agendamento horário opcional por `pg_cron`, código privado (somente hash persistido), versões e timestamp de aceite nos pedidos. A interface exibe o código uma vez e orienta solicitação manual de exclusão por e-mail; buscas não registram aceite persistente.
-- Etapa 4A: pesquisa sob ação explícita via Cloudflare Pages Function e formulário manual na sala pública; pedidos são submetidos a uma função de servidor e recebem confirmação de recebimento sem promessa de aprovação ou reprodução.
-- Migration local `20261105000000_add_guest_requests_and_youtube_quota.sql`: pedidos pendentes vinculados à sala e ao DJ, tabelas privadas de cache, frequência e orçamento; RPCs executáveis somente por `service_role`. Teste pgTAP direcionado de privilégios.
+- Privacidade da Etapa 4A: migrations para função SQL de expurgo, agendamento horário opcional por `pg_cron`, código privado (somente hash persistido), versões e timestamp de aceite nos pedidos. A interface exibe o código uma vez e orienta solicitação manual de exclusão por e-mail; buscas não registram aceite persistente.
+- Etapa 4A: pesquisa de vídeo via Cloudflare Pages Function e formulário manual na sala pública; pedidos são submetidos a uma função de servidor e recebem confirmação de recebimento sem promessa de aprovação ou reprodução.
+- Migration `20261105000000_add_guest_requests_and_youtube_quota.sql`: pedidos pendentes vinculados à sala e ao DJ, tabelas privadas de cache, frequência e orçamento; RPCs executáveis somente por `service_role`. Aplicada ao remoto e coberta pelos testes pgTAP.
 - Proteções de busca: normalização, cache server-side de 6 horas, até 5 resultados, limite de 10 buscas/IP/hora e orçamento PostgreSQL de até 10 chamadas novas por dia do Pacífico (configurável para baixo); pedidos limitados a 5/IP/10 minutos. A documentação atual informa padrão de 100 chamadas `search.list` por dia, a 1 unidade por chamada.
-- Busca permanece indisponível e sinalizada sem `YOUTUBE_API_KEY`; pedidos manuais independem da configuração do YouTube.
+- Sem `YOUTUBE_API_KEY`, busca retorna erro de configuração explícito e pedidos manuais continuam disponíveis.
 
 - Preferências musicais individuais por sala (Modo Surpresa, exibição de playlist, música atual
   e pedidos dos convidados), com defaults no banco, edição autenticada pelo proprietário e RPC

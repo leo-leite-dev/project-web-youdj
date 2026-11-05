@@ -60,6 +60,7 @@ describe('DjDashboardPage rooms', () => {
     renderDashboard(store)
 
     await screen.findByText('Festa Alpha')
+    expect(screen.getByText('Festa Alpha')).toHaveClass('text-yellow-400')
     expect(screen.getByText('Ativa')).toBeInTheDocument()
     expect(screen.getByText('Aniversário da Ana')).toBeInTheDocument()
     expect(screen.getByText('Pausada')).toBeInTheDocument()

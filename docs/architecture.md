@@ -186,9 +186,9 @@ abuso distribuído.
 
 ### Etapa 4A — pesquisa e pedidos
 
-- A SPA chama somente `POST /api/youtube-search` após submissão explícita e
-  `POST /api/guest-requests` para enviar. Cloudflare Pages Functions ficam em `functions/api`;
-  Vite não serve essas funções.
+- A SPA chama `POST /api/youtube-search` após 600 ms sem digitação e
+  `POST /api/guest-requests` após seleção/confirmação do convidado. Cloudflare Pages Functions
+  ficam em `functions/api`; Vite não as executa por conta própria.
 - `YOUTUBE_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são bindings de runtime do Pages. O navegador
   nunca recebe chave do YouTube nem credencial privilegiada. O binding Supabase aceita a chave
   legada `service_role` ou a chave moderna `sb_secret_`; as Functions enviam a credencial apenas
@@ -211,14 +211,14 @@ abuso distribuído.
   `authenticated`. Na implementação inicial da Etapa 4A, o backend ainda não fazia aprovação,
   fila nem reprodução; a moderação é descrita na Etapa 4B abaixo.
 - A tabela de limites guarda SHA-256 do IP recebido do Cloudflare, não o IP bruto. O hash é dado
-  pseudonimizado. Migration local `20261106000000_add_guest_data_retention.sql` define a função
+  pseudonimizado. A migration `20261106000000_add_guest_data_retention.sql` define a função
   `purge_expired_guest_data()` (pedidos >30 dias, limites >48h, cache vencido e orçamentos >31 dias).
   A migration separada `20261106000001_schedule_guest_data_retention.sql` configura cron horário
   quando `pg_cron` está disponível; cache deixa de ser elegível após 6h, antes da remoção física.
   Execução depende de scheduler e banco ativos: falhas ou pausa do projeto podem atrasar a limpeza.
   O plano Free pode pausar projetos após uma semana sem atividade. Contas e salas não são removidas
   pela rotina.
-- Migration local `20261106000002_add_private_guest_receipts_and_consent.sql` troca a RPC para
+- Migration `20261106000002_add_private_guest_receipts_and_consent.sql` troca a RPC para
   exigir código privado e aceite; apenas o hash SHA-256 do código é persistido. Versões dos
   documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
   retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
@@ -234,17 +234,26 @@ abuso distribuído.
   atendimento a titulares. Referências: [políticas para clientes
   YouTube](https://developers.google.com/youtube/terms/developer-policies) e [Termos de Serviço do
   YouTube](https://www.youtube.com/t/terms).
-- Migration `20261105000000_add_guest_requests_and_youtube_quota.sql` foi aplicada remotamente;
-  migrations de retenção, agendamento e recibo/aceite (`20261106000000` a `20261106000002`) são
-  locais e ainda não aplicadas.
-  O responsável informa que configurou as cinco variáveis em Cloudflare Production, mas o valor e
-  funcionamento das bindings não foram verificados remotamente; runtime das Functions e busca real
-  do YouTube ainda precisam de validação antes da publicação.
+- As migrations de pedidos, retenção, agendamento e recibo/aceite estão versionadas e foram
+  aplicadas ao Supabase remoto segundo a verificação anterior. A migration de moderação
+  (`20261107000000`) está no repositório, mas sua aplicação remota não está confirmada. Os 165
+  testes pgTAP passaram no GitHub Actions do PR #3; isso não comprova o estado remoto.
+- Diagnóstico local mais recente: inicialmente houve `ECONNREFUSED` no proxy Vite porque o Wrangler
+  não estava executando. Com a Function ativa, a busca real retornou HTTP 429 (`daily_budget`) do
+  gate Supabase. Leituras das tabelas privadas de orçamento retornaram HTTP 403; a requisição foi
+  bloqueada antes do YouTube. Ainda não é possível distinguir limite diário consumido de orçamento
+  desativado nem afirmar a validade da chave/cota externa do YouTube.
+- Não houve acesso aos segredos nem aos logs de runtime do Cloudflare. As Functions agora registram
+  somente categoria/status/código seguro (nunca URL com chave, credencial, corpo bruto ou stack com
+  dados externos) e retornam categorias de erro distinguindo chave YouTube inválida/restrita,
+  API desabilitada, cota, Supabase e timeout. A causa upstream específica ainda requer executar
+  essa versão local com as credenciais de servidor válidas ou consultar logs após publicação.
 
 ### Etapa 4B — busca visual e moderação
 
-- A interface do convidado pesquisa após pausa de 900 ms (mínimo de três caracteres), mantém botão
-  de busca imediata, apresenta miniaturas/título/canal e exige seleção e confirmação antes do envio.
+- A interface do convidado pesquisa automaticamente após 600 ms sem digitação (mínimo de três
+  caracteres), sem botão de busca; apresenta miniatura/título/canal e, após seleção, mostra
+  “Enviar pedido ao DJ”. O backend segue validando vídeo/cache antes de gravar o pedido.
   A função server-side e o cache/orçamento/rate limits da Etapa 4A permanecem a autoridade para
   disponibilidade e cota; o comportamento publicado ainda depende de validação real.
 - O recibo privado continua sendo entregue uma vez ao convidado. A confirmação informa recebimento
@@ -255,9 +264,36 @@ abuso distribuído.
   `rejected`; chamadas concorrentes ou pedidos de outro DJ não alteram linhas.
 - A lista do painel separa pendentes e aprovados. Aprovação não cria playlist, fila nem reprodução.
   Realtime continua fora desta etapa e o painel atualiza ao recarregar/decidir.
-- Migration `20261107000000_add_dj_request_moderation.sql` e teste pgTAP ficam locais até revisão;
-  não foram aplicados ao Supabase remoto. Testes mockados de UI não comprovam RLS nem chamadas
-  autenticadas reais.
+- Migration `20261107000000_add_dj_request_moderation.sql` está versionada e integrada em
+  `main`, mas sua aplicação no Supabase remoto não está confirmada. Os 165 testes pgTAP passaram
+  no GitHub Actions do PR #3; isso comprova a execução local do workflow, não o estado do banco
+  remoto. Nenhuma migration remota foi executada nesta publicação.
+- A busca local real por “Estação Fandangueira” retornou HTTP 429 com código `daily_budget` no
+  gate Supabase e não chegou à YouTube Data API. Leituras diretas das tabelas privadas de orçamento
+  foram negadas com HTTP 403, portanto o diagnóstico da cota permanece pendente. A busca real de
+  produção também deverá ser registrada com status/erro concreto, sem mascaramento.
+- A Function usa uma identidade de rate limit local estável somente quando `YOUDJ_LOCAL_DEV=true`;
+  em produção, o endereço observado pelo Cloudflare continua sendo a identidade de rate limit.
+
+### Identidade visual das salas
+
+- O tema Synthwave Neon é o padrão das rotas públicas de sala. O artwork aprovado é servido pelo
+  asset versionado `public/guest-room-artwork.png` e aparece no topo durante busca, resultados e
+  confirmação; a tela pausada também usa o mesmo asset. Isso não altera a lógica de pedidos nem de
+  moderação.
+
+### Desenvolvimento local via Wrangler
+
+- `npm run dev:mobile -- --room-code <código>` executa um build local inicial, serve a SPA por Vite
+  no IPv4 privado selecionado e usa proxy de `/api` para `wrangler pages dev` em `127.0.0.1:8788`.
+  O dev server da Function não fica exposto diretamente à LAN; não há deploy nem Preview.
+- `scripts/dev-mobile.mjs` exige `.env.local` com as duas variáveis públicas e `.dev.vars` ignorado
+  pelo Git com `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `YOUTUBE_API_KEY`. O projeto Supabase
+  deve ser o mesmo nas duas configurações.
+- O QR local aponta para `/sala/<código>` usando HTTP/IP privado e é gravado em `.tmp/`; não altera
+  nem substitui o QR de produção. Requests feitos no teste são persistidos. Usar exclusivamente
+  sala de teste ativa do próprio DJ, idealmente dedicada, para identificar esses pedidos e permitir
+  aprovação com a sessão real do proprietário.
 
 ## 6. Integrações
 
@@ -387,7 +423,7 @@ configuração remota foi alterada nesta etapa.
 | Supabase PostgreSQL     | Pedidos pendentes (Etapa 4A)                                   | Migration aplicada; schema/RLS/grants verificados |
 | Supabase PostgreSQL     | Pagamentos e histórico                                          | Planejado |
 | Supabase Realtime       | Atualização da fila e dos pedidos em tempo real               | Planejado   |
-| Cloudflare Pages        | SPA e Pages Functions                                          | SPA publicado; variáveis Production informadas; runtime das Functions não validado |
+| Cloudflare Pages        | SPA e Pages Functions                                          | Busca real respondeu HTTP 503 genérico; causa upstream não observável na versão publicada |
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
 | YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
 

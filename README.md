@@ -21,11 +21,10 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > **Aviso de escopo:** este repositório está em desenvolvimento. Cadastro/login de DJs,
 > proteção do painel, salas com código público, link compartilhável e QR Code estão
 > implementados no código com Supabase Auth e RLS. As migrations de perfis, salas, códigos
-> públicos, preferências musicais e pedidos da Etapa 4A foram aplicadas ao projeto remoto e
-> verificadas. As Pages Functions e a interface de busca/pedidos estão implementadas no
-> repositório; o responsável informa que configurou as variáveis no Cloudflare Production,
-> mas o runtime publicado ainda precisa de validação real. A Etapa 4B adiciona busca visual com
-> debounce e moderação por RPC autenticada; sua migration está local e não foi aplicada. Fila,
+> públicos, preferências musicais e pedidos da Etapa 4A foram aplicadas ao projeto remoto segundo
+> a verificação existente. A migration de moderação da Etapa 4B está versionada, mas a aplicação
+> remota não está confirmada. A busca local real retornou HTTP 429 (`daily_budget`) no gate do
+> Supabase, antes da chamada ao YouTube; a causa exata do orçamento ainda está pendente. Fila,
 > pagamentos e reprodução ainda **não** estão implementados.
 > O login com Google foi validado com conta real; a validação manual completa dos fluxos
 > autenticados e de salas em produção segue pendente. O último bundle publicado foi verificado
@@ -112,6 +111,10 @@ Itens verificados no código atual:
   backend, sem acesso público direto à tabela.
 - Painel do DJ com pedidos pendentes, aprovação/rejeição pelo proprietário da sala e lista separada
   de aprovados; aprovação não adiciona à playlist nem inicia reprodução.
+- Tema Synthwave Neon padrão nas salas públicas, com artwork definitivo em
+  `public/guest-room-artwork.png`.
+- A busca local real respondeu HTTP 429 (`daily_budget`). O RPC Supabase bloqueou antes da chamada
+  ao YouTube; ainda não foi possível distinguir orçamento diário consumido de busca desativada.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
@@ -216,16 +219,19 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 - Acesso público do convidado ao nome e ao estado da sala, sem cadastro (implementado).
 - Convidados não precisam de sessão; pedidos são mediados pelas Functions, com limites por IP.
 
-### Fase 4 — Pedidos musicais · Em andamento (Etapa 4A implementada)
+### Fase 4 — Pedidos musicais · Em andamento (Etapa 4B implementada)
 
-- Pesquisa de vídeos no YouTube e pedido manual via Pages Functions (implementados; runtime de
-  produção ainda não validado).
+- Pesquisa de vídeos no YouTube e pedido manual via Pages Functions; a busca local real respondeu
+  HTTP 429 (`daily_budget`) no gate Supabase, antes do YouTube. A distinção entre limite consumido
+  e orçamento desativado segue pendente; a busca real de produção também precisa ser revalidada.
 - Persistência de pedidos pendentes vinculados à sala, com validação e rate limits no servidor
   (migration aplicada e banco verificado; suíte pgTAP de 154 asserções).
 - Etapa 4B: busca visual com debounce e confirmação pelo convidado; painel com pedidos pendentes,
-  aprovação/rejeição e pedidos aprovados separados. RPCs verificam o proprietário no banco. A
-  migration `20261107000000_add_dj_request_moderation.sql` está preparada localmente e não aplicada;
-  runtime das Functions segue sem validação de produção.
+  aprovação/rejeição e pedidos aprovados separados. RPCs verificam o proprietário no banco. Os 165
+  testes pgTAP passaram no GitHub Actions do PR #3. A migration
+  `20261107000000_add_dj_request_moderation.sql` consta no repositório, mas sua aplicação remota
+  não está confirmada; não foi aplicada nesta tarefa. Esta versão classifica erros da Function
+  para diagnóstico mais específico sem revelar credenciais ou corpos do provedor.
 - Termos de Uso e Política de Privacidade em rascunho, com aceite obrigatório no fluxo do convidado;
   precisam de revisão e aprovação antes da publicação.
 - Fila livre.
@@ -313,9 +319,10 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 O SDK `@supabase/supabase-js` está instalado e o cliente é criado sob demanda em
 `src/integrations/supabase/client.ts`, com tipos de `dj_profiles` e `rooms` e validação das
 variáveis públicas. Autenticação, perfil e criação/listagem de salas são usados em runtime. A
-consulta pública usa a RPC `room_by_code`; a Etapa 4A adiciona migration aplicada e Pages Functions
-no repositório. O responsável informa que as variáveis Production estão configuradas, mas o
-runtime das Functions e a busca real ainda não foram validados.
+consulta pública usa a RPC `room_by_code`; as Pages Functions chamam Supabase e YouTube no servidor.
+Uma busca real publicada respondeu HTTP 503 genérico; a versão anterior não permitiu confirmar a
+causa upstream. O código local agora expõe categorias seguras de diagnóstico, ainda sem validação
+com credenciais reais.
 
 ## Arquitetura
 
@@ -464,10 +471,13 @@ npm install
   `sb_secret_` não é JWT e não deve ser enviado como `Authorization: Bearer`. Essa credencial é
   privilegiada e deve existir somente no servidor. `VITE_SUPABASE_URL` e
   `VITE_SUPABASE_PUBLISHABLE_KEY` são públicas e destinadas ao bundle.
-- A migration `20261105000000_add_guest_requests_and_youtube_quota.sql` foi aplicada e verificada
-  no Supabase remoto do YouDJ. O responsável informa que as cinco variáveis foram configuradas no
-  ambiente Production do Cloudflare; não validamos o conteúdo nem o runtime dessas configurações.
-- Sem `YOUTUBE_API_KEY`, a interface sinaliza a configuração pendente e permite pedido manual.
+- A migration de pedidos foi aplicada e verificada no Supabase remoto segundo os registros
+  existentes; a migration de moderação (`20261107000000`) segue versionada, sem confirmação de
+  aplicação remota. No deployment publicado antes desta branch, uma busca em sala ativa respondeu
+  HTTP 503 genérico; esse resultado não identifica a causa upstream. A busca local mais recente
+  respondeu HTTP 429 (`daily_budget`) no gate Supabase e não chegou ao YouTube. A versão local atual
+  retorna categorias de erro seguras; a produção precisa ser testada após o deploy desta alteração.
+- Sem `YOUTUBE_API_KEY`, a versão local atual informa erro de configuração e preserva pedido manual.
   Limites no banco: no máximo 10 novas chamadas `search.list` por dia do Pacífico, 10 buscas/IP/hora,
   cache por 6h e até 5 pedidos/IP/10 min. A documentação do YouTube informa padrão de 100 chamadas
   `search.list`/dia, 1 unidade por chamada e reset à meia-noite do Pacífico; o limite global é
@@ -477,6 +487,27 @@ npm install
   mesmo se a API falhar. Cache hits não gastam cota de busca. Todas as deployments que compartilham
   a mesma chave do YouTube devem compartilhar este banco/orçamento; bancos isolados têm contadores
   separados e não formam, juntos, um limite global do projeto Google.
+
+### Teste local pelo celular (Vite + Wrangler)
+
+- `npm install` instala Wrangler como dependência de desenvolvimento. `npm run dev:mobile --
+  --room-code CODIGO` compila a SPA, inicia Pages Functions localmente em `127.0.0.1:8788` e Vite
+  somente no IP privado escolhido da LAN, na porta `5173`; o proxy `/api` leva as chamadas reais
+  do navegador ao Wrangler. Não publica nem configura Preview/Production.
+- Configure `.env.local` com as variáveis públicas `VITE_SUPABASE_URL` e
+  `VITE_SUPABASE_PUBLISHABLE_KEY`. Copie `.dev.vars.example` para `.dev.vars` (ignorado pelo Git)
+  e preencha `SUPABASE_URL` do mesmo projeto, `SUPABASE_SERVICE_ROLE_KEY` e `YOUTUBE_API_KEY`.
+  Nunca coloque as duas chaves de servidor em `VITE_*`, não as cole em conversas e não versione
+  `.dev.vars`.
+- Use somente uma sala ativa de teste pertencente à sua conta de DJ (idealmente uma sala dedicada,
+  por exemplo “Teste celular”). O fluxo de convidado grava pedidos reais nessa sala e o painel
+  autenticado do mesmo DJ permite aprovar/rejeitar; os pedidos de teste ficam identificados pela
+  sala dedicada. Não use sala de outro DJ. A busca usa o cache/orçamento reais do Supabase e a chave
+  real do YouTube; cada consulta inédita pode reservar 1 unidade da cota mesmo se o upstream falhar.
+- O script seleciona um IPv4 privado da máquina, gera QR/PNG em `.tmp/youdj-dev-room-qr.png` e
+  não altera o QR de produção. A porta das Functions é loopback; a SPA só é acessível na LAN.
+  Celular e Windows devem estar na mesma Wi-Fi; mantenha o Windows Defender Firewall restrito à
+  rede privada e não configure port-forwarding. Se houver mais de uma interface, passe `--ip`.
 - A migration local de retenção define exclusão de pedidos após 30 dias, limites após 48 horas,
   cache fisicamente expirado e contadores após 31 dias. O cache deixa de ser elegível após 6h; a
   limpeza física é agendada de hora em hora via pg_cron quando a extensão está disponível. A rotina

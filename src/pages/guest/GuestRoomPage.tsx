@@ -8,7 +8,6 @@ import {
 } from '../../components/Icons'
 import { isValidRoomCode, normalizeRoomCode } from '../../features/guest/lib/roomCode'
 import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
-import { ROOM_STATUS_STYLES } from '../../features/rooms/lib/roomStatus'
 import type { PublicRoom } from '../../features/rooms/roomTypes'
 import { searchGuestVideos, submitGuestRequest, type GuestRequestInput, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
 import {
@@ -17,6 +16,17 @@ import {
 } from '../../features/rooms/services/publicRoomStore'
 
 const LOAD_FALLBACK = 'Não foi possível carregar a sala. Verifique sua conexão e tente novamente.'
+
+function SynthwaveArtwork({ className = '' }: { className?: string }) {
+  return (
+    <img
+      src="/guest-room-artwork.png"
+      alt=""
+      aria-hidden="true"
+      className={`w-full rounded-2xl border border-fuchsia-400/20 object-cover ${className}`}
+    />
+  )
+}
 
 function GuestMusicRequests({ room }: { room: PublicRoom }) {
   const [query, setQuery] = useState('')
@@ -28,7 +38,6 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [searching, setSearching] = useState(false)
-  const [searchUnavailable, setSearchUnavailable] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [privateCode, setPrivateCode] = useState<string | null>(null)
   const searchSequence = useRef(0)
@@ -45,7 +54,6 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
       try {
         const result = await searchGuestVideos(room.code, normalized)
         if (sequence !== searchSequence.current) return
-        setSearchUnavailable(!result.available)
         setVideos(result.videos)
         setMessage(result.available ? (result.videos.length ? '' : 'Nenhum vídeo encontrado.') : 'Busca no YouTube ainda não configurada. Você pode enviar um pedido manual.')
       } catch (error) {
@@ -59,7 +67,7 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
   useEffect(() => {
     const normalized = query.trim().replace(/\s+/g, ' ')
     if (!acceptedLegal || normalized.length < 3) return
-    searchTimer.current = window.setTimeout(() => { void searchRef.current(normalized) }, 900)
+    searchTimer.current = window.setTimeout(() => { void searchRef.current(normalized) }, 600)
     return () => { if (searchTimer.current !== null) window.clearTimeout(searchTimer.current) }
   }, [query, acceptedLegal])
 
@@ -76,41 +84,70 @@ function GuestMusicRequests({ room }: { room: PublicRoom }) {
     } finally { setBusy(false) }
   }
 
+  const stage = privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
+
   return (
-    <div className="mt-6 space-y-5 border-t border-white/10 pt-6">
-      <div>
-        <h2 className="text-lg font-semibold text-white">Peça uma música</h2>
-        <p className="mt-1 text-xs leading-5 text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
-      </div>
-      <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/60 p-3 text-sm leading-6 text-zinc-300">
-        <input type="checkbox" checked={acceptedLegal} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setSelected(null); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-violet-400" />
-        <span>Li e aceito os <Link to="/termos-de-uso" className="font-medium text-accent-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-medium text-accent-300 underline underline-offset-2">Política de Privacidade</Link>.</span>
-      </label>
-      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); void searchRef.current(query) }}>
-        <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label>
-        <input id="music-search" value={query} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setMessage(''); setQuery(event.target.value); setSelected(null) }} maxLength={100} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-night-950 px-3 text-sm text-white outline-none focus:border-accent-400" />
-        <button type="submit" disabled={busy || !acceptedLegal || query.trim().length < 3} className="min-h-11 rounded-xl bg-accent-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Aguarde…' : 'Buscar agora'}</button>
-      </form>
-      {searching && <p role="status" aria-live="polite" className="text-xs text-zinc-400">Buscando vídeos…</p>}
-      {searchUnavailable && <p className="text-xs text-amber-200">A chave do YouTube ainda não foi configurada no servidor. O pedido manual funciona.</p>}
-      {videos.length > 0 && <ul className="grid gap-3 sm:grid-cols-2">{videos.map((video) => <li key={video.videoId}>
-        <button type="button" aria-pressed={selected?.videoId === video.videoId} onClick={() => setSelected(video)} className={`flex w-full gap-3 rounded-xl border p-2 text-left transition ${selected?.videoId === video.videoId ? 'border-accent-400 bg-accent-400/10' : 'border-white/10 bg-night-950/60 hover:border-white/20'}`}>
-          <img src={video.thumbnail} alt="" loading="lazy" className="aspect-video w-28 shrink-0 rounded-lg object-cover" />
-          <span className="min-w-0"><span className="line-clamp-2 block text-sm font-medium text-white">{video.title}</span><span className="mt-1 block truncate text-xs text-zinc-400">{video.channel}</span></span>
-        </button>
-      </li>)}</ul>}
-      {selected && <div className="space-y-2 rounded-xl border border-accent-400/20 bg-accent-400/5 p-3"><p className="text-sm text-zinc-200">Selecionada: <strong>{selected.title}</strong> · {selected.channel}</p><button type="button" disabled={busy || !acceptedLegal} onClick={() => void send({ kind: 'youtube', video: selected })} className="min-h-11 w-full rounded-xl border border-accent-400/40 bg-accent-400/10 px-4 text-sm font-semibold text-accent-300 disabled:opacity-50">Confirmar e enviar pedido</button></div>}
-      <details className="rounded-xl border border-white/10 bg-night-950/40 p-4">
-        <summary className="cursor-pointer text-sm font-medium text-zinc-200">Não encontrou? Faça um pedido manual</summary>
+    <div className="space-y-5">
+      <SynthwaveArtwork className="h-44 sm:h-56" />
+      {stage === 'entry' && <>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-4 shadow-[0_0_30px_rgba(217,70,239,0.1)] sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-fuchsia-300"><MusicIcon className="size-4" />Área do convidado</span>
+            <span className="rounded-full border border-emerald-400/40 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{room.status === 'active' ? 'Ativa' : 'Pausada'}{room.status === 'active' && <span aria-hidden="true"> ●</span>}</span>
+          </div>
+          <h1 className="mt-4 font-mono text-2xl font-black text-cyan-300 sm:text-3xl">Sala {room.code}</h1>
+          <p className="mt-1 text-xl font-bold text-white">{room.name}</p>
+          <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
+          {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Sala ativa. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
+        </div>
+      </>}
+
+      {stage === 'results' && <div className="flex items-start justify-between gap-3 px-1 pt-2">
+        <div><button type="button" onClick={() => { setVideos([]); setSelected(null); setMessage('') }} className="mb-3 inline-flex size-9 items-center justify-center rounded-full border border-cyan-300/50 text-cyan-200" aria-label="Voltar para a busca">←</button><h1 className="text-xl font-black text-white">Resultados da busca</h1><p className="mt-1 text-sm text-zinc-300">“{query.trim()}”</p></div>
+        <div aria-hidden="true" className="mt-6 flex h-8 items-end gap-1">{[8, 18, 11, 26, 15, 22, 12].map((h, i) => <span key={i} className="w-1.5 bg-fuchsia-500" style={{ height: h }} />)}</div>
+      </div>}
+
+      {stage === 'selection' && selected && <div className="space-y-4">
+        <button type="button" onClick={() => setSelected(null)} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-cyan-200">← Voltar aos resultados</button>
+        <h1 className="text-xl font-black text-white">Confirme seu pedido</h1>
+        <article className="overflow-hidden rounded-2xl border border-fuchsia-400/40 bg-[#090b18] shadow-[0_0_25px_rgba(217,70,239,0.12)]">
+          <img src={selected.thumbnail} alt="" className="aspect-video max-h-52 w-full object-cover" />
+          <div className="p-4"><p className="font-bold leading-5 text-white">{selected.title}</p><p className="mt-1 text-sm text-zinc-400">{selected.channel}</p><button type="button" disabled={busy || !acceptedLegal} onClick={() => void send({ kind: 'youtube', video: selected })} className="mt-4 min-h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 px-4 text-sm font-black text-[#080914] disabled:opacity-50">{busy ? 'Enviando pedido…' : 'Enviar pedido ao DJ'}</button><p className="mt-3 text-center text-xs text-zinc-400">O pedido fica sujeito à decisão do DJ.</p></div>
+        </article>
+      </div>}
+
+      {stage === 'receipt' && <section className="space-y-4 rounded-2xl border border-emerald-300/30 bg-[#090b18]/95 p-5 text-center">
+        <span aria-hidden="true" className="mx-auto grid size-12 place-items-center rounded-full border border-emerald-300 text-2xl text-emerald-300">✓</span>
+        <h1 className="text-xl font-black text-white">Pedido enviado ao DJ</h1>
+        <p role="status" aria-live="polite" className="text-sm leading-6 text-emerald-200">{message}</p>
+        <div className="break-all rounded-xl border border-cyan-300/20 bg-night-950 p-3 text-left"><p className="text-xs text-zinc-400">Comprovante privado — salve agora; ele não poderá ser recuperado depois.</p><code className="mt-2 block select-all font-mono text-xs text-cyan-200">{privateCode}</code><a className="mt-3 inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>
+        <p className="text-xs text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
+      </section>}
+
+      {stage === 'entry' && <section className="space-y-4 border-t border-cyan-300/20 pt-5">
+        <div><h2 className="flex items-center gap-2 text-lg font-black text-white"><MusicIcon className="size-5 text-fuchsia-400" />Peça uma música</h2><p className="mt-1 text-xs leading-5 text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p></div>
+        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/70 p-3 text-sm leading-6 text-zinc-300"><input type="checkbox" checked={acceptedLegal} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setSelected(null); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-fuchsia-400" /><span>Li e aceito os <Link to="/termos-de-uso" className="font-semibold text-cyan-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-semibold text-cyan-300 underline underline-offset-2">Política de Privacidade</Link>.</span></label>
+        <form className="flex gap-2 rounded-full border border-cyan-300/50 bg-night-950 p-1.5 focus-within:border-fuchsia-400" onSubmit={(event) => { event.preventDefault(); if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); void searchRef.current(query) }}>
+          <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label><input id="music-search" value={query} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setMessage(''); setQuery(event.target.value); setSelected(null) }} maxLength={100} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-zinc-400" />
+          <button type="submit" aria-label="Buscar músicas" disabled={busy || !acceptedLegal || query.trim().length < 3} className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-lg font-black text-night-950 disabled:opacity-40">⌕</button>
+        </form>
+        {searching && <p role="status" aria-live="polite" className="text-xs text-zinc-400">Buscando vídeos…</p>}
+        {message && !privateCode && <p role="status" aria-live="polite" className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-3 text-sm text-amber-100">{message}</p>}
+      </section>}
+
+      {stage === 'results' && <ul className="space-y-2">{videos.map((video) => <li key={video.videoId}><button type="button" aria-pressed={selected?.videoId === video.videoId} onClick={() => setSelected(video)} className="flex min-h-[94px] w-full items-center gap-3 rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-2 text-left transition hover:border-fuchsia-400/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fuchsia-400">
+        <img src={video.thumbnail} alt="" loading="lazy" className="size-[76px] shrink-0 rounded-xl object-cover" /><span className="min-w-0 flex-1"><span className="line-clamp-2 block text-sm font-semibold leading-5 text-white">{video.title}</span><span className="mt-1 block truncate text-xs text-zinc-400">{video.channel}</span></span><span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-fuchsia-400 text-sm text-fuchsia-300">▶</span>
+      </button></li>)}</ul>}
+
+      {(stage === 'entry' || stage === 'results') && <details className="rounded-2xl border border-cyan-300/25 bg-night-950/80 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-zinc-100">▶ &nbsp;Não encontrou? Faça um pedido manual</summary>
         <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); void send({ kind: 'manual', title, artist, url }) }}>
           <label className="block text-xs text-zinc-300">Título<input required maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <label className="block text-xs text-zinc-300">Artista<input required maxLength={120} value={artist} onChange={(event) => setArtist(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <label className="block text-xs text-zinc-300">Link do YouTube (opcional)<input type="url" maxLength={500} value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://youtu.be/..." className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
-          <button disabled={busy || !acceptedLegal} className="min-h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-night-950 disabled:opacity-50">Enviar pedido manual</button>
+          <button disabled={busy || !acceptedLegal} className="min-h-11 w-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 text-sm font-bold text-night-950 disabled:opacity-50">Enviar pedido manual</button>
         </form>
-      </details>
-      {message && <p role="status" aria-live="polite" className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-zinc-200">{message}</p>}
-      {privateCode && <div className="break-all rounded-xl border border-accent-400/20 bg-night-950/70 p-3 text-sm"><p className="text-xs text-zinc-400">Comprovante privado — não será recuperável após sair ou atualizar esta tela. Salve-o agora:</p><code className="mt-2 block select-all font-mono text-xs text-accent-200">{privateCode}</code><a className="mt-3 inline-block min-h-11 py-3 text-xs text-accent-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>}
+      </details>}
     </div>
   )
 }
@@ -133,10 +170,9 @@ function HomeLink() {
   return (
     <Link
       to="/"
-      className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-night-950 transition hover:bg-accent-300"
+      className="group mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 p-[2px] text-sm font-bold text-white shadow-[0_0_22px_rgba(217,70,239,0.18)] transition hover:shadow-[0_0_30px_rgba(34,211,238,0.28)]"
     >
-      Voltar ao início
-      <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+      <span className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#080914] px-4">Voltar ao início<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" /></span>
     </Link>
   )
 }
@@ -317,49 +353,13 @@ export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
   }
 
   const { room } = current
-  const style = ROOM_STATUS_STYLES[room.status]
-
   return (
-    <section className="mx-auto flex min-h-[calc(100svh-10rem)] w-full max-w-xl flex-col justify-center px-5 py-12 sm:px-8 sm:py-16">
-      <div className="rounded-3xl border border-white/10 bg-night-900/70 p-6 shadow-2xl shadow-black/30 sm:p-8">
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-            <MusicIcon className="size-3.5 text-accent-300" />
-            Área do convidado
-          </span>
-          <span
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] ${style.className}`}
-          >
-            {style.label}
-          </span>
-        </div>
-
-        <h1 className="mt-6 break-all font-mono text-2xl font-bold tracking-[0.18em] text-white sm:text-3xl">
-          Sala {room.code}
-        </h1>
-        <p className="mt-4 text-xl font-semibold text-white sm:text-2xl">{room.name}</p>
-
-        {room.status === 'active' ? (
-          <div className="mt-5 rounded-xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3">
-            <p className="text-xs leading-5 text-emerald-200/90">
-              Sala ativa. Envie uma sugestão musical para o DJ.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-5 rounded-xl border border-amber-400/15 bg-amber-400/5 px-4 py-3">
-            <p className="text-xs leading-5 text-amber-200/80">
-              Sala indisponível: este evento está pausado no momento. Tente novamente mais
-              tarde.
-            </p>
-          </div>
-        )}
-
-        {room.status === 'active' && <GuestMusicRequests room={room} />}
-
+    <section className="relative mx-auto min-h-[calc(100svh-8rem)] w-full max-w-xl overflow-hidden px-4 py-5 sm:px-8 sm:py-10">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 34px, rgba(236,72,153,.45) 35px, transparent 36px), repeating-linear-gradient(0deg, transparent 0 22px, rgba(34,211,238,.28) 23px, transparent 24px), linear-gradient(to top, rgba(217,70,239,.2), transparent)' }} />
+      <div className="relative mx-auto max-w-md rounded-[1.75rem] border border-cyan-300/20 bg-[#070914]/95 p-4 shadow-[0_0_40px_rgba(217,70,239,0.11)] sm:p-6">
+        {room.status === 'active' ? <GuestMusicRequests room={room} /> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><SynthwaveArtwork className="h-36" /><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
         <HomeLink />
-        <p className="mt-3 text-center text-[11px] text-zinc-600">
-          Peça ao DJ o link atualizado da sala.
-        </p>
+        <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>
       </div>
     </section>
   )
