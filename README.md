@@ -24,7 +24,9 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > públicos, preferências musicais e pedidos da Etapa 4A foram aplicadas ao projeto remoto segundo
 > a verificação existente. A migration de moderação da Etapa 4B está versionada, mas a aplicação
 > remota não está confirmada. A busca local real retornou HTTP 429 (`daily_budget`) no gate do
-> Supabase, antes da chamada ao YouTube; a causa exata do orçamento ainda está pendente. Fila,
+> Supabase, antes da chamada ao YouTube; a causa exata do orçamento ainda está pendente. O endpoint
+> público atualmente publicado também respondeu HTTP 429 genérico ao teste real; a versão anterior
+> não permite identificar o upstream nem comprova resultado do YouTube. Fila,
 > pagamentos e reprodução ainda **não** estão implementados.
 > O login com Google foi validado com conta real; a validação manual completa dos fluxos
 > autenticados e de salas em produção segue pendente. O último bundle publicado foi verificado
@@ -475,8 +477,9 @@ npm install
   existentes; a migration de moderação (`20261107000000`) segue versionada, sem confirmação de
   aplicação remota. No deployment publicado antes desta branch, uma busca em sala ativa respondeu
   HTTP 503 genérico; esse resultado não identifica a causa upstream. A busca local mais recente
-  respondeu HTTP 429 (`daily_budget`) no gate Supabase e não chegou ao YouTube. A versão local atual
-  retorna categorias de erro seguras; a produção precisa ser testada após o deploy desta alteração.
+  respondeu HTTP 429 (`daily_budget`) no gate Supabase e não chegou ao YouTube. O endpoint da
+  produção atual também respondeu HTTP 429 genérico; a versão anterior não expõe causa suficiente
+  para identificar o upstream. A produção precisa ser revalidada após o deploy desta alteração.
 - Sem `YOUTUBE_API_KEY`, a versão local atual informa erro de configuração e preserva pedido manual.
   Limites no banco: no máximo 10 novas chamadas `search.list` por dia do Pacífico, 10 buscas/IP/hora,
   cache por 6h e até 5 pedidos/IP/10 min. A documentação do YouTube informa padrão de 100 chamadas

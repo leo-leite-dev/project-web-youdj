@@ -243,6 +243,10 @@ abuso distribuído.
   gate Supabase. Leituras das tabelas privadas de orçamento retornaram HTTP 403; a requisição foi
   bloqueada antes do YouTube. Ainda não é possível distinguir limite diário consumido de orçamento
   desativado nem afirmar a validade da chave/cota externa do YouTube.
+- O endpoint de busca do deployment público atual respondeu HTTP 429 com a mensagem genérica da
+  versão anterior da Function. Essa resposta não identifica se o bloqueio foi sala, rate limit ou
+  orçamento e não comprova se a YouTube Data API foi chamada; a busca precisa ser repetida após
+  publicar esta branch para obter o código de diagnóstico seguro atualizado.
 - Não houve acesso aos segredos nem aos logs de runtime do Cloudflare. As Functions agora registram
   somente categoria/status/código seguro (nunca URL com chave, credencial, corpo bruto ou stack com
   dados externos) e retornam categorias de erro distinguindo chave YouTube inválida/restrita,
@@ -270,8 +274,10 @@ abuso distribuído.
   remoto. Nenhuma migration remota foi executada nesta publicação.
 - A busca local real por “Estação Fandangueira” retornou HTTP 429 com código `daily_budget` no
   gate Supabase e não chegou à YouTube Data API. Leituras diretas das tabelas privadas de orçamento
-  foram negadas com HTTP 403, portanto o diagnóstico da cota permanece pendente. A busca real de
-  produção também deverá ser registrada com status/erro concreto, sem mascaramento.
+  foram negadas com HTTP 403, portanto o diagnóstico da cota permanece pendente. A busca real no
+  deployment público atual respondeu HTTP 429 genérico, sem diagnóstico suficiente nesta versão.
+  A busca real de produção precisa ser repetida após o deploy atualizado, registrando status/erro
+  concreto, sem mascaramento.
 - A Function usa uma identidade de rate limit local estável somente quando `YOUDJ_LOCAL_DEV=true`;
   em produção, o endereço observado pelo Cloudflare continua sendo a identidade de rate limit.
 
