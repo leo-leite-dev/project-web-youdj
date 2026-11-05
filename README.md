@@ -102,24 +102,34 @@ Itens verificados no código atual:
 - Criação idempotente e leitura do próprio perfil em `public.dj_profiles`, com RLS como controle
   de acesso no banco.
 - Gerenciamento das salas do DJ em `public.rooms` (criação, listagem e ativação/pausa) na rota
-  protegida `/dj/painel/salas`, com RLS de proprietário e estados de carregamento/vazio/erro. Cada
-  sala tem “Entrar na sala” e uma página protegida `/dj/painel/salas/:roomId`; a Visão Geral mostra
-  somente indicadores agregados de pedidos.
+  protegida `/dj/painel/salas`, com nome vindo de `dj_profiles.display_name`, CTA “Gerenciar sala”
+  e página por sala `/dj/painel/salas/:roomId`. Proprietários e moderadores atribuídos podem abrir
+  o gerenciamento; a autorização das operações é feita pelas RPCs e RLS, não pela UI.
 - Código público único de 10 caracteres por sala (~52 bits de entropia, gerado no banco e
   imutável pela API), com backfill das salas existentes, link compartilhável `/sala/:codigo` e QR Code gerado
   localmente (sem serviços externos), com cópia do link e download de PNG no painel.
-- Página pública do convidado que consulta a sala por código (somente nome e estado), com
-  estados de carregamento, não encontrada, indisponível e erro com nova tentativa.
+- Página pública que consulta sala por código via RPC limitada, exibe `DJ: [nome]` e informa papel
+  owner/moderator/guest; contas autenticadas sem vínculo recebem estado sem permissão, não apelido
+  de convidado. O UUID interno só é retornado a membros autenticados da sala.
 - Busca visual de vídeos do YouTube iniciada explicitamente pela lupa (digitar não consulta a API),
   com resultados em cache, seleção e confirmação pelo convidado. A seleção e o envio reutilizam o
   resultado já obtido; o pedido manual e o link YouTube opcional continuam disponíveis. Cloudflare
   Pages Functions e RPCs server-side mantêm a tabela inacessível diretamente ao público.
-- Painel do DJ com pedidos pendentes, aprovação/rejeição pelo proprietário da sala e lista separada
-  de aprovados e rejeitados por sala, com o apelido associado a cada pedido; aprovação não adiciona
-  à playlist nem inicia reprodução. A lista de participantes online também é restrita ao proprietário.
+- Gerenciamento por sala com presença e pedidos para proprietário e moderador atribuído; ambos podem
+  aprovar/rejeitar pedidos. Somente o proprietário lista, convida e revoga moderadores; convites
+  exigem conta Supabase não anônima, confirmada e com perfil. Configurações continuam owner-only.
+  Aprovação não adiciona à playlist nem inicia reprodução.
+- Painel do DJ com pedidos pendentes, aprovação/rejeição e lista separada
+  de aprovados e rejeitados por sala, com o apelido associado a cada pedido.
 - Convidado informa nome ou apelido no primeiro acesso. Um identificador aleatório é reutilizado
   somente no mesmo navegador; não há conta, e-mail ou senha, e o apelido não é identidade verificada.
   Heartbeats mantêm presença por sala, expirada após 90 segundos sem atividade.
+- A migration local `20261112000000_room_moderators_and_permissions.sql` adiciona membership
+  privado por sala e RPCs com verificação server-side owner/moderator. Requer a migration
+  `20261111000000_guest_identity_presence_room_management.sql` e ainda não foi aplicada nem
+  validada em backend remoto. Para compatibilidade transitória, a migration 11 mantém a RPC legada
+  `submit_guest_request` aceitando pedidos sem identidade verificada; a migration 12 preserva
+  `room_by_code` e adiciona `room_by_code_with_membership` para a interface nova.
 - Tema Synthwave Neon padrão nas salas públicas, com artwork definitivo em
   `public/guest-room-artwork.png`, abaixo da ação de retorno da sala. O cabeçalho exibe o nome da
   sala e seu código, sem atalhos administrativos na experiência de convidado.
@@ -233,9 +243,10 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 - Links exclusivos e QR Codes por sala (implementado; migration dos códigos aplicada ao remoto).
 - Acesso público do convidado ao nome e ao estado da sala; primeiro acesso pede nome/apelido, sem
   conta. A presença usa heartbeats de 30 segundos e expira após 90 segundos de inatividade.
-- A listagem de participantes e pedidos é por sala e autorizada no banco ao DJ proprietário. A
-  migration local `20261111000000_guest_identity_presence_room_management.sql` ainda não foi
-  aplicada remotamente.
+- A listagem de participantes e pedidos é por sala; a migration local `20261111000000_guest_identity_presence_room_management.sql` ainda não foi aplicada remotamente.
+- Papéis owner/moderator por sala, convites e revogações owner-only, e autorização server-side estão
+  preparados na migration local `20261112000000_room_moderators_and_permissions.sql`; requerem a
+  migration `20261111000000` aplicada em sequência antes da validação do fluxo real.
 
 ### Fase 4 — Pedidos musicais · Em andamento (Etapa 4B implementada)
 
@@ -338,7 +349,8 @@ Versões verificadas nos arquivos instalados em `node_modules` e declaradas em
 O SDK `@supabase/supabase-js` está instalado e o cliente é criado sob demanda em
 `src/integrations/supabase/client.ts`, com tipos de `dj_profiles` e `rooms` e validação das
 variáveis públicas. Autenticação, perfil e criação/listagem de salas são usados em runtime. A
-consulta pública usa a RPC `room_by_code`; as Pages Functions chamam Supabase e YouTube no servidor.
+consulta pública da interface nova usa `room_by_code_with_membership`; a RPC legada `room_by_code`
+mantém seu contrato para o frontend publicado. As Pages Functions chamam Supabase e YouTube no servidor.
 Uma busca real publicada respondeu HTTP 503 genérico; a versão anterior não permitiu confirmar a
 causa upstream. O código local agora expõe categorias seguras de diagnóstico, ainda sem validação
 com credenciais reais.

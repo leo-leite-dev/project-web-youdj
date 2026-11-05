@@ -57,6 +57,41 @@ afterEach(() => {
 })
 
 describe('GuestRoomPage', () => {
+  it('recognizes the authenticated room owner and does not request a guest nickname', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({
+      code: 'A1B2C3D4E5', djName: 'DJ Ana', roomId: 'room-owner-a', viewerRole: 'owner',
+    })] })
+    renderRoom('/sala/a1b2c3d4e5', store, { identity: null })
+
+    expect(await screen.findByText('DJ: DJ Ana')).toBeInTheDocument()
+    expect(screen.getByText('Proprietário')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir gerenciamento da sala' })).toHaveAttribute('href', '/dj/painel/salas/room-owner-a')
+    expect(readGuestIdentity()).toBeNull()
+  })
+
+  it('recognizes a moderator without treating them as a public guest', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({
+      code: 'A1B2C3D4E5', djName: 'DJ Ana', roomId: 'room-owner-a', viewerRole: 'moderator',
+    })] })
+    renderRoom('/sala/a1b2c3d4e5', store, { identity: null })
+
+    expect(await screen.findByText('Moderador')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
+    expect(readGuestIdentity()).toBeNull()
+  })
+
+  it('does not prompt a registered non-member to use an unregistered guest nickname', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({
+      code: 'A1B2C3D4E5', djName: 'DJ Ana', viewerRole: 'unauthorized',
+    })] })
+    renderRoom('/sala/a1b2c3d4e5', store, { identity: null })
+
+    expect(await screen.findByRole('heading', { name: 'Acesso de DJ não atribuído' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
+    expect(readGuestIdentity()).toBeNull()
+  })
+
   it('asks for a nickname before entry and reuses that browser identity on the next visit', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
     const presenceStore: GuestPresenceStore = { heartbeat: vi.fn().mockResolvedValue(undefined) }

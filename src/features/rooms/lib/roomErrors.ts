@@ -32,7 +32,11 @@ export function getRoomErrorMessage(error: unknown, fallback: string): string {
   const code = getErrorCode(error)
 
   if (code === '42501') {
-    return 'Sua sessão não tem permissão para gerenciar salas. Entre novamente.'
+    return 'Sua conta não tem permissão para esta sala. Confirme se você é o proprietário ou moderador convidado.'
+  }
+
+  if (code === 'PGRST202' || code === '42883') {
+    return 'A API de salas ainda não está disponível neste backend. Confira as migrations locais de presença e permissões e a atualização do schema do Supabase.'
   }
 
   if (code === '23514') {

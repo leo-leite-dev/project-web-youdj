@@ -11,9 +11,9 @@ ou criação idempotente do perfil autenticado em `public.dj_profiles`, salas em
 códigos públicos, links compartilháveis, QR Codes e consulta pública limitada da sala no código.
 As migrations de perfil, salas e códigos públicos foram aplicadas ao Supabase remoto. A Etapa 3B
 foi verificada por consultas somente de leitura, e os 88 testes pgTAP foram aprovados no GitHub
-Actions. A interface autenticada agora possui uma página dedicada ao gerenciamento das salas. O
-login com Google foi validado com conta real; os fluxos autenticados completos em produção seguem
-aguardando validação manual.
+Actions. A interface autenticada possui gerenciamento de salas e uma página de gerenciamento por
+sala. Papéis owner/moderator e convites de moderadores foram preparados em migrations locais; esses
+novos fluxos não foram aplicados ou validados no Supabase remoto.
 
 ## 2. Tecnologias atuais
 
@@ -75,8 +75,9 @@ testáveis ficam em `features/*/lib`.
 | `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).       |
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; confirmação de e-mail ou Google.        |
 | `/dj/painel`      | Protegida   | Exige sessão não anônima e perfil carregado; resume as salas. |
-| `/dj/painel/salas` | Protegida  | Cria, lista, ativa/pausa e compartilha salas via link e QR Code. |
-| `/sala/:roomCode` | Implementada | Consulta pública por código via RPC `room_by_code`. |
+| `/dj/painel/salas` | Protegida  | Cria, lista, ativa/pausa e compartilha salas; exibe o DJ associado pelo perfil. |
+| `/dj/painel/salas/:roomId` | Protegida | RPC restringe ao owner/moderator; presença/pedidos para ambos, moderadores owner-only. Migration `20261112000000` local. |
+| `/sala/:roomCode` | Implementada | Consulta limitada via `room_by_code_with_membership`; nome público do DJ, UUID/papel administrativo somente para membro autenticado. |
 | `*`               | Implementada | Página 404.                                            |
 
 A validação do código de sala em `features/guest/lib/roomCode.ts` normaliza o valor e exige
@@ -93,6 +94,18 @@ O modelo planejado é de **schema compartilhado com isolamento por linha**:
 - Row Level Security (RLS) no PostgreSQL permitirá leitura e escrita apenas quando o usuário
   autenticado corresponder ao dono do recurso.
 - Chaves com privilégio de serviço nunca serão usadas no cliente.
+
+### Papéis por sala (implementação local pendente de validação remota)
+
+- `rooms.dj_id` determina o owner; `public.room_moderators` concede papel moderador por sala.
+- A tabela de membership não possui grants para papéis de API; RPCs `SECURITY DEFINER` validam
+  `auth.uid()`, rejeitam sessões anônimas para operações administrativas e não recebem ator/role
+  do cliente.
+- Owner pode convidar/revogar conta existente, confirmada, não anônima e com perfil. Moderador pode
+  listar pedidos/presença e alterar status somente na sala atribuída; não altera configurações,
+  membership ou ownership.
+- `20261112000000_room_moderators_and_permissions.sql` depende de
+  `20261111000000_guest_identity_presence_room_management.sql`; aplicação remota não realizada.
 - A camada de interface nunca será considerada a única barreira de autorização.
 
 A primeira tabela, `public.dj_profiles`, foi aplicada ao banco remoto:
@@ -160,7 +173,7 @@ no histórico e no schema do projeto YouDJ:
   único e retorna `code`, `name`, `status` e os quatro booleanos públicos de apresentação
   (adicionados na Etapa 3C) — nunca `dj_id`, IDs internos ou timestamps; assim não há leitura ou
   listagem pública direta da tabela.
-- `PublicRoomStore` chama a RPC; a página `/sala/:roomCode` distingue código inválido, sala não
+- `PublicRoomStore` chama `room_by_code_with_membership`; a página `/sala/:roomCode` distingue código inválido, sala não
   encontrada, sala pausada e falha de rede. Não requer sessão de convidado.
 - Os QR Codes são gerados localmente no navegador pela biblioteca `qrcode`, sem enviar links ou
   dados de sala a serviços de terceiros. O painel oferece cópia do link e download PNG.
@@ -374,7 +387,7 @@ configuração remota foi alterada nesta etapa.
 
 ### Consulta pública do convidado
 
-- `PublicRoomStore` chama `supabase.rpc('room_by_code', { p_code })`; a tabela não concede
+- `PublicRoomStore` chama `supabase.rpc('room_by_code_with_membership', { p_code })`; a tabela não concede
   `SELECT` ao papel `anon`.
 - A rota `/sala/:roomCode` mantém validação local dos 10 caracteres e busca o código no servidor.
   Exibe apenas nome e estado, com estados distintos para carregamento, código inválido, sala

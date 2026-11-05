@@ -45,6 +45,31 @@ describe('DjRequestsSection', () => {
     expect(screen.getByText('Pedido novo')).toBeInTheDocument()
   })
 
+  it('does not present an empty list when loading requests fails', async () => {
+    const store: DjRequestStore = {
+      listByRoom: vi.fn().mockRejectedValue({ code: 'PGRST202' }),
+      summary: vi.fn().mockResolvedValue({ pending: 0, approved: 0, rejected: 0 }),
+      setStatus: vi.fn(),
+    }
+    render(<DjRequestsSection roomId="room-a" store={store} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('migrations locais')
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument()
+    expect(screen.queryByText('Nenhum pedido nesta seção.')).not.toBeInTheDocument()
+  })
+
+  it('shows the empty state only after a successful empty response', async () => {
+    const store: DjRequestStore = {
+      listByRoom: vi.fn().mockResolvedValue([]),
+      summary: vi.fn().mockResolvedValue({ pending: 0, approved: 0, rejected: 0 }),
+      setStatus: vi.fn(),
+    }
+    render(<DjRequestsSection roomId="room-a" store={store} />)
+
+    expect(await screen.findAllByText('Nenhum pedido nesta seção.')).toHaveLength(3)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('confirms rejection and removes the request from the pending list', async () => {
     const store: DjRequestStore = {
       listByRoom: vi.fn().mockResolvedValue([

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { makeRoom } from '../../../test/roomTestDoubles'
 import type { Room, RoomStatus } from '../roomTypes'
 import { createRoomQrDataUrl } from '../lib/roomQr'
@@ -16,17 +17,18 @@ function renderSection(
   updateRoomStatus: (roomId: string, status: RoomStatus) => Promise<Room> = async (roomId, status) =>
     makeRoom({ id: roomId, status }),
 ) {
-  return render(
+  return render(<MemoryRouter>
     <RoomsSection
       createRoom={vi.fn()}
+      djName="Ana DJ"
       error={null}
       onRetry={vi.fn()}
       rooms={rooms}
       status="ready"
       updateRoomStatus={updateRoomStatus}
       updateRoomMusicPreferences={vi.fn(async (id, musicPreferences) => makeRoom({ id, musicPreferences }))}
-    />,
-  )
+    />
+  </MemoryRouter>)
 }
 
 describe('RoomsSection sharing actions', () => {
@@ -44,6 +46,9 @@ describe('RoomsSection sharing actions', () => {
 
     const input = screen.getByLabelText('Link público da sala Festa Teste')
     expect(input).toHaveValue(link)
+    expect(screen.getByText('DJ: Ana DJ')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gerenciar sala Festa Teste' })).toHaveAttribute('href', '/dj/painel/salas/aaaaaaaa-1111-4111-8111-111111111111')
+    expect(screen.queryByRole('link', { name: 'Entrar na sala Festa Teste' })).not.toBeInTheDocument()
   })
 
   it('copies the public link to the clipboard', async () => {
@@ -106,7 +111,7 @@ describe('RoomsSection sharing actions', () => {
 
   it('saves an individual music preference with success feedback', async () => {
     const update = vi.fn(async (id: string, musicPreferences: Room['musicPreferences']) => makeRoom({ id, musicPreferences }))
-    render(<RoomsSection createRoom={vi.fn()} error={null} onRetry={vi.fn()} rooms={[makeRoom()]} status="ready" updateRoomStatus={vi.fn()} updateRoomMusicPreferences={update} />)
+    render(<MemoryRouter><RoomsSection createRoom={vi.fn()} djName="Ana DJ" error={null} onRetry={vi.fn()} rooms={[makeRoom()]} status="ready" updateRoomStatus={vi.fn()} updateRoomMusicPreferences={update} /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'Configurações musicais' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Exibir playlist' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Preferência salva.')
@@ -115,7 +120,7 @@ describe('RoomsSection sharing actions', () => {
 
   it('reports preference persistence failure without showing success', async () => {
     const update = vi.fn().mockRejectedValue(new Error('offline'))
-    render(<RoomsSection createRoom={vi.fn()} error={null} onRetry={vi.fn()} rooms={[makeRoom()]} status="ready" updateRoomStatus={vi.fn()} updateRoomMusicPreferences={update} />)
+    render(<MemoryRouter><RoomsSection createRoom={vi.fn()} djName="Ana DJ" error={null} onRetry={vi.fn()} rooms={[makeRoom()]} status="ready" updateRoomStatus={vi.fn()} updateRoomMusicPreferences={update} /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'Configurações musicais' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Exibir playlist' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar. Tente novamente.')

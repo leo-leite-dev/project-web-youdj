@@ -36,6 +36,7 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
 
       <RoomsSection
         createRoom={createRoom}
+        djName={profile?.displayName ?? 'DJ'}
         error={error}
         onRetry={reload}
         rooms={rooms}

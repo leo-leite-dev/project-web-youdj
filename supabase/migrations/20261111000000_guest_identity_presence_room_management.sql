@@ -75,28 +75,6 @@ revoke all on function public.register_guest_presence(text, uuid, text)
 grant execute on function public.register_guest_presence(text, uuid, text)
   to service_role;
 
--- Keep the old RPC signature for compatibility, but do not permit unidentified
--- requests to bypass the new guest-to-request association.
-create or replace function public.submit_guest_request(
-  p_code text,
-  p_ip text,
-  p_request jsonb,
-  p_private_code text,
-  p_terms_version text,
-  p_privacy_version text
-)
-returns jsonb
-language sql
-security definer
-set search_path = ''
-as $$
-  select jsonb_build_object('error', 'guest_identity_required');
-$$;
-revoke all on function public.submit_guest_request(text, text, jsonb, text, text, text)
-  from public, anon, authenticated;
-grant execute on function public.submit_guest_request(text, text, jsonb, text, text, text)
-  to service_role;
-
 create or replace function public.submit_guest_request_with_identity(
   p_code text,
   p_ip text,
@@ -124,8 +102,9 @@ declare
 begin
   if p_private_code is null or p_private_code !~ '^[a-f0-9]{64}$'
     or p_terms_version is null or char_length(p_terms_version) > 40
+    or char_length(p_terms_version) = 0
     or p_privacy_version is null or char_length(p_privacy_version) > 40
-    or p_guest_id is null then
+    or char_length(p_privacy_version) = 0 then
     return jsonb_build_object('error', 'invalid_request');
   end if;
 
@@ -133,12 +112,14 @@ begin
     where code = upper(btrim(p_code)) and status = 'active';
   if not found then return jsonb_build_object('error', 'room_unavailable'); end if;
 
-  select presence.guest_name into guest_name_value
-    from public.guest_presence as presence
-    where presence.room_id = room_row.id and presence.guest_id = p_guest_id
-      and presence.last_seen_at > now() - interval '90 seconds';
-  if guest_name_value is null then
-    return jsonb_build_object('error', 'guest_presence_required');
+  if p_guest_id is not null then
+    select presence.guest_name into guest_name_value
+      from public.guest_presence as presence
+      where presence.room_id = room_row.id and presence.guest_id = p_guest_id
+        and presence.last_seen_at > now() - interval '90 seconds';
+    if guest_name_value is null then
+      return jsonb_build_object('error', 'guest_presence_required');
+    end if;
   end if;
 
   ip_fingerprint := encode(extensions.digest(coalesce(p_ip, 'unknown'), 'sha256'), 'hex');
@@ -201,6 +182,32 @@ $$;
 revoke all on function public.submit_guest_request_with_identity(text, text, jsonb, text, text, text, uuid)
   from public, anon, authenticated;
 grant execute on function public.submit_guest_request_with_identity(text, text, jsonb, text, text, text, uuid)
+  to service_role;
+
+-- Preserve the six-argument contract used by the production Pages Function
+-- until it is replaced by a deployment that sends guest_id. Legacy requests
+-- remain valid but intentionally have no verified nickname association.
+create or replace function public.submit_guest_request(
+  p_code text,
+  p_ip text,
+  p_request jsonb,
+  p_private_code text,
+  p_terms_version text,
+  p_privacy_version text
+)
+returns jsonb
+language sql
+security definer
+set search_path = ''
+as $$
+  select public.submit_guest_request_with_identity(
+    p_code, p_ip, p_request, p_private_code,
+    p_terms_version, p_privacy_version, null
+  );
+$$;
+revoke all on function public.submit_guest_request(text, text, jsonb, text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.submit_guest_request(text, text, jsonb, text, text, text)
   to service_role;
 
 create or replace function public.dj_list_room_guest_requests(p_room_id uuid)
