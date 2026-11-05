@@ -43,7 +43,7 @@ select ok(
   ]::text[]
   from information_schema.parameters
   where specific_schema = 'public'
-    and specific_name like 'room_by_code%'
+    and routine_name = 'room_by_code'
     and parameter_mode = 'OUT'),
   'lookup exposes exactly the approved public room fields, with no administrative columns'
 );

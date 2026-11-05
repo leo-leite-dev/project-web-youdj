@@ -43,10 +43,10 @@ select ok(has_function_privilege('service_role', 'public.submit_guest_request(te
 select ok(has_function_privilege('service_role', 'public.guest_search_gate(text,text,text)', 'EXECUTE'), 'backend can call the quota gate');
 select ok(has_function_privilege('service_role', 'public.youtube_search_usage_snapshot(boolean)', 'EXECUTE'), 'backend alone can read and record global usage');
 create temporary table legacy_request_result as
-  select public.submit_guest_request('GUEST00001', 'legacy-request-ip', '{"kind":"manual","title":"Song","artist":"Artist","url":""}'::jsonb, repeat('a', 64), '2026-11-04', '2026-11-04') as result;
+  select public.submit_guest_request('GUEST00001', 'legacy-request-ip', '{"kind":"manual","title":"Song","artist":"Artist","url":""}'::jsonb, repeat('9', 64), '2026-11-04', '2026-11-04') as result;
 select is((select result->>'received' from legacy_request_result), 'true', 'published six-argument request RPC remains compatible');
-select is((select result->>'private_code' from legacy_request_result), repeat('a', 64), 'legacy RPC still returns the private receipt to the trusted server');
-select ok(exists (select 1 from public.guest_requests where title = 'Song' and guest_id is null and guest_name is null and private_code_hash = encode(extensions.digest(repeat('a', 64), 'sha256'), 'hex')), 'legacy requests preserve private receipt handling without inventing guest identity');
+select is((select result->>'private_code' from legacy_request_result), repeat('9', 64), 'legacy RPC still returns the private receipt to the trusted server');
+select ok(exists (select 1 from public.guest_requests where title = 'Song' and guest_id is null and guest_name is null and private_code_hash = encode(extensions.digest(repeat('9', 64), 'sha256'), 'hex')), 'legacy requests preserve private receipt handling without inventing guest identity');
 select ok(not exists (
   select 1
   from (values ('anon'), ('authenticated'), ('service_role')) as roles(role_name)

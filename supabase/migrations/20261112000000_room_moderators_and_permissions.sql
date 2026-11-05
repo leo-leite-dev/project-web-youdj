@@ -105,7 +105,7 @@ begin
   end if;
 
   return query
-    select moderator.moderator_id, account.email,
+    select moderator.moderator_id, account.email::text,
       coalesce(profile.display_name, 'DJ'), moderator.created_at
     from public.room_moderators as moderator
     join auth.users as account on account.id = moderator.moderator_id
