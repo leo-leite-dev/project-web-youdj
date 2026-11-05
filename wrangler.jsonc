@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "youdj-local-pages",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-11-04",
+  "dev": {
+    "ip": "127.0.0.1",
+    "port": 8788
+  }
+}

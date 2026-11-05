@@ -123,7 +123,7 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
             <ul className="mt-5 divide-y divide-white/6">
               {rooms.slice(0, 3).map((room) => (
                 <li key={room.id} className="flex items-center justify-between gap-3 py-3">
-                  <span className="truncate text-sm text-zinc-200">{room.name}</span>
+                  <span className="truncate text-sm text-yellow-400">{room.name}</span>
                   <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     {room.status === 'active' ? 'Ativa' : 'Pausada'}
                   </span>
