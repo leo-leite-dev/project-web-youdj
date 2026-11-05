@@ -114,7 +114,8 @@ Itens verificados no código atual:
 - Painel do DJ com pedidos pendentes, aprovação/rejeição pelo proprietário da sala e lista separada
   de aprovados; aprovação não adiciona à playlist nem inicia reprodução.
 - Tema Synthwave Neon padrão nas salas públicas, com artwork definitivo em
-  `public/guest-room-artwork.png`.
+  `public/guest-room-artwork.png`, abaixo da ação de retorno da sala. O cabeçalho exibe o nome da
+  sala e seu código, sem atalhos administrativos na experiência de convidado.
 - A busca local real respondeu HTTP 429 (`daily_budget`). O RPC Supabase bloqueou antes da chamada
   ao YouTube; ainda não foi possível distinguir orçamento diário consumido de busca desativada.
 - Tela de link inválido para códigos de sala malformados.

@@ -9,8 +9,8 @@ export function PublicLayout() {
     <div className="flex min-h-svh flex-col">
       <header className={`sticky top-0 z-40 border-b backdrop-blur-xl ${isGuestRoom ? 'border-fuchsia-400/20 bg-[#07060c]/95 shadow-[0_4px_24px_rgba(217,70,239,0.08)]' : 'border-white/8 bg-night-950/80'}`}>
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-          <Brand />
-          <nav className="flex items-center gap-2 sm:gap-5" aria-label="Navegação principal">
+          <Brand disabled={isGuestRoom} />
+          {!isGuestRoom && <nav className="flex items-center gap-2 sm:gap-5" aria-label="Navegação principal">
             <a
               href="/#como-funciona"
               className="hidden rounded-lg px-2 py-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white sm:block"
@@ -27,7 +27,7 @@ export function PublicLayout() {
                 ? <span className="inline-flex items-center gap-2 rounded-full bg-night-950 px-3 py-2">Área do DJ<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" /></span>
                 : <>Área do DJ<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" /></>}
             </Link>
-          </nav>
+          </nav>}
         </div>
       </header>
 
@@ -37,12 +37,12 @@ export function PublicLayout() {
 
       <footer className="border-t border-white/8 bg-night-900/40">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-md space-y-3">
+          {!isGuestRoom && <div className="max-w-md space-y-3">
             <Brand />
             <p className="text-sm leading-6 text-zinc-500">
               Pedidos musicais enviados pelo convidado ficam sujeitos à decisão do DJ.
             </p>
-          </div>
+          </div>}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-zinc-500">
             <Link to="/termos-de-uso" className="min-h-11 inline-flex items-center underline underline-offset-4 hover:text-white">Termos de Uso</Link>
             <Link to="/privacidade" className="min-h-11 inline-flex items-center underline underline-offset-4 hover:text-white">Política de Privacidade</Link>

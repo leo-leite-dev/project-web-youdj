@@ -14,6 +14,14 @@ function renderRoom(path: string, store: FakePublicRoomStore) {
   )
 }
 
+function expectArtworkImmediatelyBelowReturnButton() {
+  const returnButton = screen.getByRole('button', { name: 'Voltar à sala' })
+  const artwork = document.querySelector('img[src="/guest-room-artwork.png"]')
+
+  expect(artwork).not.toBeNull()
+  expect(returnButton.nextElementSibling).toBe(artwork)
+}
+
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
@@ -37,11 +45,13 @@ describe('GuestRoomPage', () => {
 
     expect(await screen.findByText('Festa da Ana')).toBeInTheDocument()
     expect(store.findCalls).toEqual(['A1B2C3D4E5'])
-    expect(screen.getByRole('heading', { name: 'Sala A1B2C3D4E5' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sala Festa da Ana' })).toBeInTheDocument()
+    expect(screen.getByText(/Código:/)).toBeInTheDocument()
+    expect(screen.getByText('A1B2C3D4E5')).toBeInTheDocument()
     expect(screen.getByText('Ativa')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.getByText(/somente o recebimento/i)).toBeInTheDocument()
-    expect(document.querySelector('img[src="/guest-room-artwork.png"]')).toBeInTheDocument()
+    expectArtworkImmediatelyBelowReturnButton()
   })
 
   it('sends a manual request only after explicit submission and confirms receipt', async () => {
@@ -64,6 +74,10 @@ describe('GuestRoomPage', () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/guest-requests', expect.objectContaining({ method: 'POST' })))
     const requestBody = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body)) as { acceptedLegal: boolean }
     expect(requestBody.acceptedLegal).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar à sala' }))
+    expect(screen.getByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
+    expect(screen.getByLabelText('Pesquisar no YouTube')).toHaveValue('')
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
     fetchSpy.mockRestore()
   })
 
@@ -166,6 +180,7 @@ describe('GuestRoomPage', () => {
 
     expect(await screen.findByText(/pausado no momento/i)).toBeInTheDocument()
     expect(screen.getByText('Pausada')).toBeInTheDocument()
+    expectArtworkImmediatelyBelowReturnButton()
   })
 
   it('retries after a load error and then shows the room', async () => {
