@@ -32,7 +32,7 @@ describe('YouTube Pages Function', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('returns real YouTube videos and stores them in the existing shared cache', async () => {
+  it('parses YouTube results and stores them in the existing shared cache', async () => {
     const video = {
       id: { videoId: 'abcdefghijk' },
       snippet: {
@@ -44,6 +44,7 @@ describe('YouTube Pages Function', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(supabaseResponse({ cached: false }))
       .mockResolvedValueOnce(supabaseResponse({ items: [video] }))
+      .mockResolvedValueOnce(supabaseResponse({ callsToday: 1 }))
       .mockResolvedValueOnce(supabaseResponse(true))
 
     const response = await onRequestPost({ request: request(), env })
@@ -59,8 +60,11 @@ describe('YouTube Pages Function', () => {
         thumbnail: 'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg',
       }],
     })
-    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    expect(fetchSpy).toHaveBeenCalledTimes(4)
     expect(String(fetchSpy.mock.calls[1]?.[0])).toContain('youtube/v3/search')
+    expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('youtube/v3/search'))).toHaveLength(1)
+    expect(String(fetchSpy.mock.calls[2]?.[0])).toContain('/rpc/youtube_search_usage_snapshot')
+    expect(JSON.parse(String(fetchSpy.mock.calls[2]?.[1]?.body))).toEqual({ p_record_call: true })
     expect(JSON.stringify(payload)).not.toContain(env.YOUTUBE_API_KEY)
     expect(JSON.stringify(payload)).not.toContain(env.SUPABASE_SERVICE_ROLE_KEY)
   })
@@ -70,6 +74,7 @@ describe('YouTube Pages Function', () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(supabaseResponse({ cached: false }))
       .mockResolvedValueOnce(supabaseResponse({ error: { errors: [{ reason: 'keyInvalid' }] } }, 400))
+      .mockResolvedValueOnce(supabaseResponse({ callsToday: 1 }))
 
     const response = await onRequestPost({ request: request(), env })
     const payload = await response.json()
@@ -81,15 +86,18 @@ describe('YouTube Pages Function', () => {
 
   it('distinguishes YouTube quota exhaustion from an invalid key', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(globalThis, 'fetch')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(supabaseResponse({ cached: false }))
       .mockResolvedValueOnce(supabaseResponse({ error: { errors: [{ reason: 'quotaExceeded' }] } }, 403))
+      .mockResolvedValueOnce(supabaseResponse({ callsToday: 1 }))
 
     const response = await onRequestPost({ request: request(), env })
     const payload = await response.json()
 
     expect(response.status).toBe(429)
     expect(payload).toMatchObject({ code: 'youtube_quota_exceeded' })
+    expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('youtube/v3/search'))).toHaveLength(1)
+    expect(fetchSpy.mock.calls.some(([url]) => String(url).includes('/rpc/youtube_search_usage_snapshot'))).toBe(true)
   })
 
   it('reports Supabase authentication failure separately from YouTube failure', async () => {
@@ -103,37 +111,45 @@ describe('YouTube Pages Function', () => {
     expect(payload).toMatchObject({ code: 'backend_auth_failed' })
   })
 
-  it('keeps search throttling and pending-search responses distinct', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(supabaseResponse({ error: 'rate_limited' }))
-    const throttled = await onRequestPost({ request: request(), env })
-    expect(throttled.status).toBe(429)
-    expect(await throttled.json()).toMatchObject({ code: 'search_rate_limited' })
-
-    fetchSpy.mockResolvedValueOnce(supabaseResponse({ error: 'daily_budget' }))
-    const dailyBudget = await onRequestPost({ request: request(), env })
-    expect(dailyBudget.status).toBe(429)
-    expect(await dailyBudget.json()).toMatchObject({ code: 'search_daily_budget' })
-
-    fetchSpy.mockResolvedValueOnce(supabaseResponse({ pending: true }))
+  it('keeps duplicate in-flight query protection without a local daily quota response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(supabaseResponse({ pending: true }))
     const pending = await onRequestPost({ request: request(), env })
     expect(pending.status).toBe(429)
     expect(await pending.json()).toMatchObject({ code: 'search_in_progress' })
   })
 
-  it('uses a local-only rate-limit identity instead of Wrangler loopback IP', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(supabaseResponse({ error: 'daily_budget' }))
+  it('does not send a per-user search identity to the global gate', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(supabaseResponse({ pending: true }))
     const response = await onRequestPost({
       request: new Request('https://localhost/api/youtube-search', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'CF-Connecting-IP': '127.0.0.1' },
         body: JSON.stringify({ roomCode: 'A1B2C3D4E5', query: 'artista teste' }),
       }),
-      env: { ...env, YOUDJ_LOCAL_DEV: 'true' },
+      env,
     })
     const rpcBody = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body)) as { p_ip: string }
 
     expect(response.status).toBe(429)
-    expect(rpcBody.p_ip).toBe('127.0.0.2')
+    expect(rpcBody.p_ip).toBe('not-tracked')
+  })
+
+  it('uses the shared result cache without another YouTube search.list call', async () => {
+    const videos = [{
+      videoId: 'abcdefghijk',
+      title: 'Cached song',
+      channel: 'Cached artist',
+      thumbnail: 'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg',
+    }]
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      supabaseResponse({ cached: true, videos }),
+    )
+
+    const response = await onRequestPost({ request: request('same cached query'), env })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ available: true, videos })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/rpc/guest_search_gate')
   })
 })

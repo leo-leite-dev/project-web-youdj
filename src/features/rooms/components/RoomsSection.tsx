@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangleIcon, QrCodeIcon } from '../../../components/Icons'
 import { AuthField } from '../../auth/components/AuthField'
 import type { RoomsStatus } from '../hooks/useRooms'
@@ -219,6 +220,22 @@ export function RoomsSection({
                     />
 
                     <div className="mt-2 flex flex-wrap gap-2">
+                      <Link
+                        to={`/sala/${room.code}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Entrar na sala ${room.name}`}
+                        className="inline-flex min-h-10 items-center rounded-lg bg-accent-500/15 px-3 py-2 text-[11px] font-semibold text-accent-200 transition hover:bg-accent-500/25"
+                      >
+                        Entrar na sala
+                      </Link>
+                      <Link
+                        to={`/dj/painel/salas/${room.id}`}
+                        aria-label={`Gerenciar sala ${room.name}`}
+                        className="inline-flex min-h-10 items-center rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-2 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-300/10"
+                      >
+                        Gerenciar
+                      </Link>
                       <button type="button" aria-expanded={settingsRoomId === room.id}
                         onClick={() => setSettingsRoomId(settingsRoomId === room.id ? null : room.id)}
                         className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10">

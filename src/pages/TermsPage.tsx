@@ -7,7 +7,7 @@ export function TermsPage() {
         Voltar ao YouDJ
       </Link>
       <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">Termos de Uso</h1>
-      <p className="mt-3 text-sm text-zinc-400">Versão 2026-11-04 · Rascunho sujeito à aprovação de Leonardo dos Passos Leite antes de qualquer publicação.</p>
+      <p className="mt-3 text-sm text-zinc-400">Versão 2026-11-05 · Rascunho sujeito à aprovação de Leonardo dos Passos Leite antes de qualquer publicação.</p>
 
       <div className="mt-6 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100">
         <strong>Revisão pendente:</strong> este texto não é a versão jurídica final. Confirme o escopo do serviço, a relação com DJs e convidados e as condições comerciais antes de publicá-lo.
@@ -23,7 +23,7 @@ export function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-white">2. Uso da plataforma</h2>
           <p className="mt-2">Use a plataforma de forma lícita e não tente contornar seus limites, prejudicar sua disponibilidade ou enviar conteúdo que viole direitos de terceiros. Ao fazer uma sugestão manual, informe título e artista e, se fornecer um link, use um endereço HTTPS de domínio YouTube aceito pelo formulário. O DJ decide se atende à sugestão.</p>
-          <p className="mt-2">Não inclua dados pessoais seus ou de terceiros no título, artista, busca ou link, salvo o mínimo necessário para a sugestão musical.</p>
+          <p className="mt-2">Ao entrar na sala, informe um nome ou apelido para o DJ reconhecer seus pedidos e para a sala estimar quem está online. Não é necessário criar conta, informar e-mail ou senha. O apelido não é verificado e não comprova identidade; não inclua outros dados pessoais seus ou de terceiros no título, artista, busca ou link.</p>
         </section>
 
         <section>
@@ -35,9 +35,10 @@ export function TermsPage() {
 
         <section>
           <h2 className="text-lg font-semibold text-white">4. Limites, cache e comprovante</h2>
-          <p className="mt-2">A implementação atual aplica limite de até 10 buscas por IP por hora, reserva um teto interno de até 10 novas consultas sem cache por dia do Pacífico e limita pedidos a 5 por IP em 10 minutos. Esses limites internos não representam nem ampliam a cota concedida pelo Google; a busca também depende de configuração e disponibilidade dos provedores. Os resultados de busca são armazenados em cache por até 6 horas.</p>
+          <p className="mt-2">O apelido e um identificador aleatório são reutilizados pelo mesmo navegador. O apelido é associado ao pedido e à sala, não é verificado e não deve ser tratado como identidade real. A presença usa atualizações periódicas e deixa de contar após 90 segundos sem atividade; registros de presença são removidos após 24 horas. Pedidos e apelidos associados são retidos por até 30 dias conforme a rotina de limpeza configurada. O ID e o apelido locais permanecem no navegador até que seus dados do site sejam limpos.</p>
+          <p className="mt-2">A busca é enviada somente quando o convidado aciona a lupa; digitar não chama a YouTube Data API. O cache dura até 6 horas e pedidos são limitados a 5 por IP em 10 minutos; não há bloqueio diário local nem limite individual de pesquisas por IP/usuário. O contador exibido registra chamadas `search.list` iniciadas pelo YouDJ, usa a quota configurada (inicialmente 100) como referência e reinicia à meia-noite do Pacífico. Cache hits e envio de pedidos não aumentam o total. É uma estimativa interna, não medição oficial do Google, que controla a quota real; a quota efetiva do projeto deve ser confirmada no Google Cloud.</p>
           <p className="mt-2">Após o envio confirmado, é gerado um código privado aleatório, mostrado uma única vez. O banco guarda somente seu hash SHA-256. O código ajuda o responsável a localizar o pedido se você solicitar exclusão por e-mail, mas não é um recurso de consulta ou exclusão automática, nem uma comprovação de identidade. Ele não poderá ser recuperado depois que você sair ou atualizar a tela; perder o código pode dificultar a localização do pedido.</p>
-          <p className="mt-2">A solicitação e a resposta do servidor podem falhar ou sofrer atraso. Um pedido manual não depende da busca do YouTube, mas depende da disponibilidade do backend e dos limites de envio. O pedido recebido não garante análise em prazo específico por parte do DJ.</p>
+          <p className="mt-2">Se a quota do YouTube se esgotar ou o serviço ficar indisponível, a interface informa o erro e mantém o pedido manual e por link disponíveis. A solicitação e a resposta do servidor ainda podem falhar ou sofrer atraso. O pedido recebido não garante análise em prazo específico por parte do DJ.</p>
         </section>
 
         <section>

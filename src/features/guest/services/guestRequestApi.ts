@@ -14,6 +14,21 @@ export interface GuestRequestReceipt {
   privateCode: string
 }
 
+export interface YoutubeSearchUsage {
+  callsToday: number
+  dailyQuota: number
+  quotaDay: string
+  nextResetAt: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(path, {
     method: 'POST',
@@ -54,12 +69,39 @@ export async function searchGuestVideos(roomCode: string, query: string): Promis
   return { available: payload.available, videos }
 }
 
+export async function getYoutubeSearchUsage(): Promise<YoutubeSearchUsage> {
+  let response: Response
+  try {
+    response = await fetch('/api/youtube-search-usage', { cache: 'no-store' })
+  } catch {
+    throw new Error('O contador de pesquisas está temporariamente indisponível.')
+  }
+
+  if (!response.ok) throw new Error('O contador de pesquisas está temporariamente indisponível.')
+  const payload: unknown = await response.json().catch(() => null)
+  if (!isRecord(payload)
+    || !isNonNegativeSafeInteger(payload.callsToday)
+    || !isNonNegativeSafeInteger(payload.dailyQuota)
+    || typeof payload.quotaDay !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(payload.quotaDay)
+    || typeof payload.nextResetAt !== 'string' || !Number.isFinite(Date.parse(payload.nextResetAt))) {
+    throw new Error('O contador de pesquisas está temporariamente indisponível.')
+  }
+
+  return {
+    callsToday: payload.callsToday,
+    dailyQuota: payload.dailyQuota,
+    quotaDay: payload.quotaDay,
+    nextResetAt: payload.nextResetAt,
+  }
+}
+
 export async function submitGuestRequest(
   roomCode: string,
   request: GuestRequestInput,
   acceptedLegal: boolean,
+  guestId: string,
 ): Promise<GuestRequestReceipt> {
-  const payload = await post<unknown>('/api/guest-requests', { roomCode, request, acceptedLegal })
+  const payload = await post<unknown>('/api/guest-requests', { roomCode, request, acceptedLegal, guestId })
   if (typeof payload !== 'object' || payload === null
     || !('received' in payload) || payload.received !== true
     || !('privateCode' in payload) || typeof payload.privateCode !== 'string'

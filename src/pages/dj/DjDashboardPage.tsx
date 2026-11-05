@@ -9,7 +9,8 @@ import {
 } from '../../components/Icons'
 import { PlannedBadge } from '../../components/PlannedBadge'
 import { useAuth } from '../../features/auth/AuthContext'
-import { DjRequestsSection } from '../../features/guest/components/DjRequestsSection'
+import { DjRequestSummarySection } from '../../features/guest/components/DjRequestSummarySection'
+import type { DjRequestStore } from '../../features/guest/services/djRequestStore'
 import { useRooms } from '../../features/rooms/hooks/useRooms'
 import type { RoomStore } from '../../features/rooms/services/roomStore'
 
@@ -25,9 +26,10 @@ const milestones = [
 
 interface DjDashboardPageProps {
   roomStore?: RoomStore
+  requestStore?: DjRequestStore
 }
 
-export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
+export function DjDashboardPage({ roomStore, requestStore }: DjDashboardPageProps) {
   const { profile, user } = useAuth()
   const djId = profile?.id ?? null
   const { error: roomsError, reload, rooms, status: roomsStatus } = useRooms(djId, roomStore)
@@ -195,7 +197,7 @@ export function DjDashboardPage({ roomStore }: DjDashboardPageProps) {
         </section>
       </div>
 
-      <DjRequestsSection />
+      <DjRequestSummarySection store={requestStore} />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {[

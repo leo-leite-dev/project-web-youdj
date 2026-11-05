@@ -2,7 +2,6 @@ interface Env {
   YOUTUBE_API_KEY?: string
   SUPABASE_URL?: string
   SUPABASE_SERVICE_ROLE_KEY?: string
-  YOUDJ_LOCAL_DEV?: string
 }
 
 type PagesFunction<E> = (context: { request: Request; env: E }) => Response | Promise<Response>
@@ -20,8 +19,6 @@ type FailureCode =
   | 'youtube_unavailable'
   | 'youtube_timeout'
   | 'youtube_invalid_response'
-  | 'search_rate_limited'
-  | 'search_daily_budget'
   | 'search_in_progress'
   | 'room_unavailable'
   | 'search_cache_unavailable'
@@ -66,8 +63,6 @@ const failureResponses: Record<FailureCode, FailureResponse> = {
   youtube_unavailable: { status: 503, message: 'O YouTube está temporariamente indisponível. O pedido manual continua disponível.' },
   youtube_timeout: { status: 504, message: 'A pesquisa no YouTube demorou demais. Tente novamente ou faça um pedido manual.' },
   youtube_invalid_response: { status: 502, message: 'O YouTube retornou dados inválidos. Tente novamente ou faça um pedido manual.' },
-  search_rate_limited: { status: 429, message: 'Muitas pesquisas em sequência. Aguarde um pouco ou faça um pedido manual.' },
-  search_daily_budget: { status: 429, message: 'O limite diário de pesquisas foi atingido. O pedido manual continua disponível.' },
   search_in_progress: { status: 429, message: 'Esta pesquisa já está em andamento. Aguarde um instante.' },
   room_unavailable: { status: 404, message: 'Esta sala não está disponível para pesquisa.' },
   search_cache_unavailable: { status: 503, message: 'Não foi possível preparar os resultados para envio. Tente novamente ou faça um pedido manual.' },
@@ -164,21 +159,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   try {
     const normalizedQuery = normalize(query)
-    const ip = env.YOUDJ_LOCAL_DEV === 'true'
-      ? '127.0.0.2'
-      : request.headers.get('CF-Connecting-IP') ?? 'unknown'
     const gate = await rpc(env, 'guest_search_gate', {
       p_code: roomCode,
       p_query: normalizedQuery,
-      p_ip: ip,
+      p_ip: 'not-tracked',
     })
 
     if (isRecord(gate) && typeof gate.error === 'string') {
       const gateError = gate.error
       if (gateError === 'room_unavailable') return fail('room_unavailable')
-      if (gateError === 'rate_limited') return fail('search_rate_limited')
-      if (gateError === 'daily_budget') return fail('search_daily_budget')
-      if (gateError === 'budget_not_configured') return fail('backend_not_configured')
       console.error('[youtube-search] search_gate_rejected', { reason: 'other' })
       return fail('backend_unavailable')
     }
@@ -200,9 +189,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       key: env.YOUTUBE_API_KEY,
     }).toString()
 
+    let youtubeRequest: Promise<Response>
+    try {
+      youtubeRequest = fetch(url, { signal: AbortSignal.timeout(8000) })
+    } catch (error) {
+      const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+      console.error('[youtube-search] youtube_network_failure', { timeout: isTimeout })
+      return fail(isTimeout ? 'youtube_timeout' : 'youtube_unavailable')
+    }
+
+    // The outbound request has started. Register it independently of its HTTP
+    // result; this estimate does not enforce quota and is not Google's meter.
+    try {
+      const usage = await rpc(env, 'youtube_search_usage_snapshot', { p_record_call: true })
+      if (!isRecord(usage) || typeof usage.callsToday !== 'number' || !Number.isSafeInteger(usage.callsToday)) {
+        throw new Error('Invalid usage snapshot')
+      }
+    } catch {
+      console.error('[youtube-search] usage_record_failure')
+    }
+
     let youtubeResponse: Response
     try {
-      youtubeResponse = await fetch(url, { signal: AbortSignal.timeout(8000) })
+      youtubeResponse = await youtubeRequest
     } catch (error) {
       const isTimeout = error instanceof Error && error.name === 'TimeoutError'
       console.error('[youtube-search] youtube_network_failure', { timeout: isTimeout })

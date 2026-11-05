@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../features/auth/AuthContext'
 import type { AuthContextValue } from '../../features/auth/authTypes'
+import type { DjRequestStore } from '../../features/guest/services/djRequestStore'
 import { makeAuthUser, makeDjProfile } from '../../test/authTestDoubles'
 import { FakeRoomStore, makeRoom } from '../../test/roomTestDoubles'
 import { DjDashboardPage } from './DjDashboardPage'
@@ -24,11 +25,19 @@ function makeAuthValue(): AuthContextValue {
   }
 }
 
-function renderDashboard(store: FakeRoomStore) {
+function makeRequestStore(): DjRequestStore {
+  return {
+    listByRoom: vi.fn().mockResolvedValue([]),
+    summary: vi.fn().mockResolvedValue({ pending: 2, approved: 3, rejected: 1 }),
+    setStatus: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
+function renderDashboard(store: FakeRoomStore, requestStore = makeRequestStore()) {
   return render(
     <AuthContext.Provider value={makeAuthValue()}>
       <MemoryRouter>
-        <DjDashboardPage roomStore={store} />
+        <DjDashboardPage roomStore={store} requestStore={requestStore} />
       </MemoryRouter>
     </AuthContext.Provider>,
   )
@@ -65,7 +74,18 @@ describe('DjDashboardPage rooms', () => {
     expect(screen.getByText('Aniversário da Ana')).toBeInTheDocument()
     expect(screen.getByText('Pausada')).toBeInTheDocument()
     expect(screen.getByText('2 salas cadastradas')).toBeInTheDocument()
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getAllByText('1')).toHaveLength(2)
+  })
+
+  it('shows request counts only, without the detailed request list', async () => {
+    renderDashboard(new FakeRoomStore())
+
+    expect(await screen.findByText('Resumo de pedidos')).toBeInTheDocument()
+    expect(screen.getByText('Pendentes')).toBeInTheDocument()
+    expect(screen.getByText('Aprovados')).toBeInTheDocument()
+    expect(screen.getByText('Rejeitados')).toBeInTheDocument()
+    expect(await screen.findByText('2')).toBeInTheDocument()
+    expect(screen.queryByText('Nenhum pedido nesta seção.')).not.toBeInTheDocument()
   })
 
   it('shows a load error with retry and recovers', async () => {

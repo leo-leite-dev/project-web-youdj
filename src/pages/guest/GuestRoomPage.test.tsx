@@ -1,14 +1,33 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { GuestIdentity } from '../../features/guest/services/guestIdentity'
+import { readGuestIdentity, saveGuestIdentity } from '../../features/guest/services/guestIdentity'
+import type { GuestPresenceStore } from '../../features/guest/services/guestPresenceStore'
 import { FakePublicRoomStore, makePublicRoom } from '../../test/roomTestDoubles'
 import { GuestRoomPage } from './GuestRoomPage'
 
-function renderRoom(path: string, store: FakePublicRoomStore) {
-  render(
+const DEFAULT_IDENTITY: GuestIdentity = {
+  guestId: 'a1111111-1111-4111-8111-111111111111',
+  nickname: 'Convidado de teste',
+}
+const DEFAULT_PRESENCE_STORE: GuestPresenceStore = { heartbeat: async () => {} }
+
+function renderRoom(
+  path: string,
+  store: FakePublicRoomStore,
+  options: { identity?: GuestIdentity | null; presenceStore?: GuestPresenceStore; seedIdentity?: boolean } = {},
+) {
+  const identity = options.identity === undefined ? DEFAULT_IDENTITY : options.identity
+  if (options.seedIdentity !== false) {
+    if (identity) saveGuestIdentity(identity)
+    else localStorage.clear()
+  }
+
+  return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/sala/:roomCode" element={<GuestRoomPage store={store} />} />
+        <Route path="/sala/:roomCode" element={<GuestRoomPage store={store} presenceStore={options.presenceStore ?? DEFAULT_PRESENCE_STORE} />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -22,12 +41,49 @@ function expectArtworkImmediatelyBelowReturnButton() {
   expect(returnButton.nextElementSibling).toBe(artwork)
 }
 
+function searchUsageResponse(callsToday: number, nextResetAt = new Date(Date.now() + 60_000).toISOString()) {
+  return Response.json({
+    callsToday,
+    dailyQuota: 100,
+    quotaDay: '2026-11-05',
+    nextResetAt,
+  })
+}
+
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+  localStorage.clear()
 })
 
 describe('GuestRoomPage', () => {
+  it('asks for a nickname before entry and reuses that browser identity on the next visit', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    const presenceStore: GuestPresenceStore = { heartbeat: vi.fn().mockResolvedValue(undefined) }
+    const firstVisit = renderRoom('/sala/a1b2c3d4e5', store, { identity: null, presenceStore })
+
+    expect(await screen.findByRole('heading', { name: 'Como podemos chamar você?' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nome ou apelido')).toBeRequired()
+    expect(screen.queryByLabelText(/e-mail/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/senha/i)).not.toBeInTheDocument()
+    expect(presenceStore.heartbeat).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Nome ou apelido'), { target: { value: '  Ana   DJ  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar na sala' }))
+
+    expect(await screen.findByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
+    const identity = readGuestIdentity()
+    expect(identity).toMatchObject({ nickname: 'Ana DJ' })
+    expect(identity?.guestId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(presenceStore.heartbeat).toHaveBeenCalledWith('A1B2C3D4E5', identity)
+
+    firstVisit.unmount()
+    renderRoom('/sala/a1b2c3d4e5', store, { seedIdentity: false, presenceStore })
+    expect(await screen.findByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
+    expect(presenceStore.heartbeat).toHaveBeenCalledTimes(2)
+  })
+
   it('shows an invalid link message for malformed room codes without querying', () => {
     const store = new FakePublicRoomStore()
     renderRoom('/sala/abc', store)
@@ -57,10 +113,15 @@ describe('GuestRoomPage', () => {
   it('sends a manual request only after explicit submission and confirms receipt', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
     const privateCode = 'a'.repeat(64)
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ received: true, privateCode }), { status: 201 }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input) === '/api/youtube-search-usage') return searchUsageResponse(0)
+      if (String(input) === '/api/guest-requests') return new Response(JSON.stringify({ received: true, privateCode }), { status: 201 })
+      throw new Error(`Unexpected request: ${String(input)}`)
+    })
     renderRoom('/sala/a1b2c3d4e5', store)
     await screen.findByRole('heading', { name: /peça uma música/i })
-    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(await screen.findByText('Pesquisas ao YouTube hoje: 0/100')).toBeInTheDocument()
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
 
     fireEvent.click(screen.getByText(/faça um pedido manual/i))
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Canção de teste' } })
@@ -72,8 +133,10 @@ describe('GuestRoomPage', () => {
     expect(screen.getByText(privateCode)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Solicitar exclusão por e-mail' })).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(privateCode)))
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/guest-requests', expect.objectContaining({ method: 'POST' })))
-    const requestBody = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body)) as { acceptedLegal: boolean }
+    const requestCall = fetchSpy.mock.calls.find(([url]) => url === '/api/guest-requests')
+    const requestBody = JSON.parse(String(requestCall?.[1]?.body)) as { acceptedLegal: boolean; guestId: string }
     expect(requestBody.acceptedLegal).toBe(true)
+    expect(requestBody.guestId).toBe(DEFAULT_IDENTITY.guestId)
     fireEvent.click(screen.getByRole('button', { name: 'Voltar à sala' }))
     expect(screen.getByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.getByLabelText('Pesquisar no YouTube')).toHaveValue('')
@@ -91,78 +154,91 @@ describe('GuestRoomPage', () => {
     expect(screen.getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute('href', '/privacidade')
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'artista teste' } })
     expect(screen.getByRole('button', { name: 'Enviar pedido manual' })).toBeDisabled()
-    expect(screen.queryByRole('button', { name: /buscar agora/i })).not.toBeInTheDocument()
-    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Buscar músicas' })).toBeDisabled()
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
 
     fireEvent.click(screen.getByRole('checkbox'))
     fetchSpy.mockRestore()
   })
 
-  it('searches automatically after a pause, displays YouTube results, and submits the selected video', async () => {
+  it('does not search while typing; the lupa searches once and selection/request do not repeat it', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
     const video = { videoId: 'abcdefghijk', title: 'Música exemplo', channel: 'Canal exemplo', thumbnail: 'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg' }
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ available: true, videos: [video] }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ received: true, privateCode: 'b'.repeat(64) }), { status: 201 }))
+    let usageRefreshCount = 0
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const path = String(input)
+      if (path === '/api/youtube-search-usage') return searchUsageResponse(usageRefreshCount++)
+      if (path === '/api/youtube-search') return Response.json({ available: true, videos: [video] })
+      if (path === '/api/guest-requests') return new Response(JSON.stringify({ received: true, privateCode: 'b'.repeat(64) }), { status: 201 })
+      throw new Error(`Unexpected request: ${path}`)
+    })
     renderRoom('/sala/a1b2c3d4e5', store)
     await screen.findByRole('heading', { name: /peça uma música/i })
     fireEvent.click(screen.getByRole('checkbox'))
+    expect(await screen.findByText('Pesquisas ao YouTube hoje: 0/100')).toBeInTheDocument()
+    expect(fetchSpy.mock.calls.some(([url]) => url === '/api/youtube-search')).toBe(false)
+    vi.useFakeTimers()
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: '  música   exemplo ' } })
-    expect(fetchSpy).not.toHaveBeenCalled()
-    expect(screen.queryByRole('button', { name: /buscar agora/i })).not.toBeInTheDocument()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Buscar músicas' })).toBeEnabled()
+    vi.useRealTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar músicas' }))
     expect(await screen.findByText('Música exemplo')).toBeInTheDocument()
+    expect(await screen.findByText('Pesquisas ao YouTube hoje: 1/100')).toBeInTheDocument()
     expect(screen.getByText('Canal exemplo')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enviar pedido ao DJ' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /música exemplo/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido ao DJ' }))
     expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/youtube-search', expect.any(Object))
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/guest-requests', expect.any(Object))
-    const submittedBody = JSON.parse(String(fetchSpy.mock.calls[1]?.[1]?.body)) as { request: { video: { videoId: string } } }
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(1)
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search-usage')).toHaveLength(2)
+    const requestCall = fetchSpy.mock.calls.find(([url]) => url === '/api/guest-requests')
+    const submittedBody = JSON.parse(String(requestCall?.[1]?.body)) as { guestId: string; request: { video: { videoId: string } } }
     expect(submittedBody.request.video.videoId).toBe(video.videoId)
+    expect(submittedBody.guestId).toBe(DEFAULT_IDENTITY.guestId)
   })
 
   it('shows the server search error while keeping the manual request fallback available', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
-      code: 'youtube_key_invalid',
-      error: 'A chave do YouTube está inválida. O pedido manual continua disponível.',
-    }), { status: 503 }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input) === '/api/youtube-search-usage') return searchUsageResponse(0)
+      return new Response(JSON.stringify({
+        code: 'youtube_quota_exceeded',
+        error: 'A cota diária do YouTube foi atingida. O pedido manual continua disponível.',
+      }), { status: 429 })
+    })
     renderRoom('/sala/a1b2c3d4e5', store)
     await screen.findByRole('heading', { name: /peça uma música/i })
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'música teste' } })
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar músicas' }))
 
-    expect(await screen.findByText(/chave do youtube está inválida/i)).toBeInTheDocument()
-    expect(screen.getByText(/faça um pedido manual/i)).toBeInTheDocument()
+    expect(await screen.findByText(/cota diária do youtube foi atingida/i)).toBeInTheDocument()
+    expect(screen.getByText(/Não encontrou\? Faça um pedido manual/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enviar pedido ao DJ' })).not.toBeInTheDocument()
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(1)
   })
 
-  it('debounces typing before querying the search API', async () => {
+  it('refreshes usage at the next Pacific quota-day boundary without querying YouTube', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
-    const video = { videoId: 'abcdefghijk', title: 'Resultado', channel: 'Canal', thumbnail: 'https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg' }
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ available: true, videos: [video] }), { status: 200 }))
+    let reads = 0
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input) !== '/api/youtube-search-usage') throw new Error(`Unexpected request: ${String(input)}`)
+      reads += 1
+      const resetAt = new Date(Date.now() + (reads === 1 ? 20 : 60_000)).toISOString()
+      return searchUsageResponse(reads === 1 ? 37 : 0, resetAt)
+    })
+
     renderRoom('/sala/a1b2c3d4e5', store)
-    await screen.findByRole('heading', { name: /peça uma música/i })
-    fireEvent.click(screen.getByRole('checkbox'))
-    vi.useFakeTimers()
-    try {
-      fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'Estação Fandangueira' } })
-      await act(async () => { await vi.advanceTimersByTimeAsync(599) })
-      expect(fetchSpy).not.toHaveBeenCalled()
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(1)
-        await Promise.resolve()
-        await Promise.resolve()
-      })
-      expect(fetchSpy).toHaveBeenCalledTimes(1)
-      expect(screen.getByText('Resultado')).toBeInTheDocument()
-    } finally {
-      vi.useRealTimers()
-      fetchSpy.mockRestore()
-    }
+
+    expect(await screen.findByText('Pesquisas ao YouTube hoje: 37/100')).toBeInTheDocument()
+    expect(await screen.findByText('Pesquisas ao YouTube hoje: 0/100')).toBeInTheDocument()
+    expect(reads).toBeGreaterThanOrEqual(2)
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
   })
+
 
   it('shows when the room does not exist', async () => {
     const store = new FakePublicRoomStore()

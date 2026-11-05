@@ -19,6 +19,7 @@ describe('Supabase server key compatibility', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           roomCode: 'A1B2C3D4E5',
+          guestId: 'a1111111-1111-4111-8111-111111111111',
           request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
           acceptedLegal: true,
         }),
@@ -34,9 +35,11 @@ describe('Supabase server key compatibility', () => {
     expect(headers.get('apikey')).toBe(secretKey)
     expect(headers.has('authorization')).toBe(false)
     const rpcBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/rpc/submit_guest_request_with_identity')
+    expect(rpcBody.p_guest_id).toBe('a1111111-1111-4111-8111-111111111111')
     expect(rpcBody.p_private_code).toMatch(/^[a-f0-9]{64}$/)
-    expect(rpcBody.p_terms_version).toBe('2026-11-04')
-    expect(rpcBody.p_privacy_version).toBe('2026-11-04')
+    expect(rpcBody.p_terms_version).toBe('2026-11-05')
+    expect(rpcBody.p_privacy_version).toBe('2026-11-05')
   })
 
   it('rejects guest requests without explicit legal acceptance before calling the backend', async () => {
@@ -47,6 +50,7 @@ describe('Supabase server key compatibility', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           roomCode: 'A1B2C3D4E5',
+          guestId: 'a1111111-1111-4111-8111-111111111111',
           request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
         }),
       }),
