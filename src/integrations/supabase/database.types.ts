@@ -1,3 +1,5 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
 export type Database = {
   public: {
     Tables: {
@@ -59,11 +61,21 @@ export type Database = {
           submitted_url: string | null
           status: 'pending' | 'approved' | 'rejected'
           created_at: string
+          request_source: 'musicbrainz' | 'youtube' | 'manual'
+          recording_mbid: string | null
         }[]
       }
       dj_set_guest_request_status: {
         Args: { p_request_id: string; p_status: string }
         Returns: boolean
+      }
+      guest_music_catalog_search: {
+        Args: { p_code: string; p_query: string; p_ip: string; p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
+      music_catalog_import_batch: {
+        Args: { p_artist_mbid: string; p_records: Json; p_offset?: number }
+        Returns: Json
       }
       room_by_code: {
         Args: { p_code: string }

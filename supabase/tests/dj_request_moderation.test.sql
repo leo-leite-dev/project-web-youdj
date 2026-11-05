@@ -13,11 +13,11 @@ insert into public.dj_profiles (id, display_name) values
 insert into public.rooms (dj_id, name, code, status) values
   ('31111111-1111-1111-1111-111111111111', 'Room A', 'MODERA0001', 'active'),
   ('32222222-2222-2222-2222-222222222222', 'Room B', 'MODERB0001', 'active');
-insert into public.guest_requests (id, room_id, dj_id, request_kind, title, artist, video_id)
-select '41111111-1111-1111-1111-111111111111', id, dj_id, 'youtube', 'Song A', 'Channel A', 'abcdefghijk'
+insert into public.guest_requests (id, room_id, dj_id, request_kind, title, artist, video_id, request_source)
+select '41111111-1111-1111-1111-111111111111', id, dj_id, 'youtube', 'Song A', 'Channel A', 'abcdefghijk', 'youtube'
 from public.rooms where code = 'MODERA0001';
-insert into public.guest_requests (id, room_id, dj_id, request_kind, title, artist, video_id)
-select '42222222-2222-2222-2222-222222222222', id, dj_id, 'youtube', 'Song B', 'Channel B', 'abcdefghijl'
+insert into public.guest_requests (id, room_id, dj_id, request_kind, title, artist, video_id, request_source)
+select '42222222-2222-2222-2222-222222222222', id, dj_id, 'youtube', 'Song B', 'Channel B', 'abcdefghijl', 'youtube'
 from public.rooms where code = 'MODERB0001';
 
 select ok(has_function_privilege('authenticated', 'public.dj_list_guest_requests()', 'EXECUTE'), 'authenticated can call scoped listing RPC');

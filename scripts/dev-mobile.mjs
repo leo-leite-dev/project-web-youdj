@@ -47,7 +47,7 @@ const devVarsPath = path.join(root, '.dev.vars')
 const envPath = path.join(root, '.env.local')
 const serverEnv = readEnvFile(devVarsPath)
 const clientEnv = readEnvFile(envPath)
-const missingSecrets = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'YOUTUBE_API_KEY']
+const missingSecrets = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
   .filter((name) => !serverEnv[name] || serverEnv[name].startsWith('replace_with_') || serverEnv[name].includes('your-project-ref'))
 
 if (missingSecrets.length) {

@@ -1,0 +1,1204 @@
+{
+  "source": "MusicBrainz Core",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "sourceUrl": "https://musicbrainz.org/doc/MusicBrainz_API",
+  "userAgent": "YouDJ/0.1.0 (https://github.com/leo-leite-dev/project-web-youdj)",
+  "artists": [
+    {
+      "mbid": "c3cceeed-3332-4cf0-8c4c-bbde425147b6",
+      "name": "Scorpions",
+      "country": "DE"
+    },
+    {
+      "mbid": "5dcdb5eb-cb72-4e6e-9e63-b7bace604965",
+      "name": "Bon Jovi",
+      "country": "US"
+    },
+    {
+      "mbid": "47685be0-926f-4be9-b1ae-e32da47a3b99",
+      "name": "Legião Urbana",
+      "country": "BR"
+    },
+    {
+      "mbid": "29b550f2-04a3-4733-b6f5-4e347fac7e11",
+      "name": "Charlie Brown Jr.",
+      "country": "BR"
+    },
+    {
+      "mbid": "25db5fde-2384-4baf-8e3d-d8299b4c99ef",
+      "name": "Skank",
+      "country": "BR"
+    },
+    {
+      "mbid": "c1a669b9-30f4-4171-a2a9-a15d9461ca04",
+      "name": "Titãs",
+      "country": "BR"
+    },
+    {
+      "mbid": "19499124-36d4-4ccc-b28d-04dde3d2076f",
+      "name": "Jorge Ben Jor",
+      "country": "BR"
+    }
+  ],
+  "pages": {
+    "c3cceeed-3332-4cf0-8c4c-bbde425147b6": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    },
+    "5dcdb5eb-cb72-4e6e-9e63-b7bace604965": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    },
+    "47685be0-926f-4be9-b1ae-e32da47a3b99": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    },
+    "29b550f2-04a3-4733-b6f5-4e347fac7e11": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    },
+    "25db5fde-2384-4baf-8e3d-d8299b4c99ef": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    },
+    "c1a669b9-30f4-4171-a2a9-a15d9461ca04": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    },
+    "19499124-36d4-4ccc-b28d-04dde3d2076f": {
+      "nextOffset": 20,
+      "complete": false,
+      "importedPageCount": 1
+    }
+  },
+  "retrievedAt": "2026-11-05T07:50:01.218Z",
+  "records": [
+    {
+      "mbid": "e3837f09-3e61-4369-90da-31b74bc30f19",
+      "title": "Alagados",
+      "artist_credit": "Barão Vermelho & Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "f816eb95-1be4-42e8-a610-ecb2fc453ffb",
+      "title": "(It’s Hard) Letting You Go",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "a82e9384-e707-4eed-acbb-1c7c2d589115",
+      "title": "(You Want to) Make a Memory",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "6fd2a9cd-5568-4382-894a-9945bf062aeb",
+      "title": "Bad Medicine",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "e5813105-ed3f-4396-bcb8-ec1168d8dc08",
+      "title": "Bad Medicine",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "f981b4bf-b114-4e9a-a06f-9033ddf9a832",
+      "title": "Diamond Ring (electric version)",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "c193f0ec-ba0d-40a3-93c7-aa3eae13beae",
+      "title": "Hallelujah",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "3ce3b820-5738-4a1e-8816-6d07cffabb15",
+      "title": "Hearts Breaking Even",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "6fd48b9a-1bc4-4e58-8860-54b10af05c8b",
+      "title": "Homebound Train",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "d34c36f0-47b0-4fc4-95a4-cf952a96d5d5",
+      "title": "Homebound Train",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "5c024715-ff7a-4f49-8bf0-bd3d9773ff7c",
+      "title": "It's My Life",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "26576a66-781f-456f-b0bb-139bddc889a7",
+      "title": "Let's Make it Baby",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "1d2883f1-35ba-4497-ae20-8acd211e9690",
+      "title": "Livin’ on a Prayer",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "6af43f03-1db6-4141-aef7-8c1e9331e0f7",
+      "title": "Livin’ on a Prayer",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "ef831c8f-670b-40f8-8799-fa08a247b7f6",
+      "title": "Living in Sin",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "9fa4a521-cccc-487b-a8de-608c2a40e66d",
+      "title": "Mr. Bluesman",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "bb955dd7-eee1-4ac2-b64d-4ecd1ff24891",
+      "title": "Rosie",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "efb6805e-4746-46af-b643-08c782344700",
+      "title": "Rosie",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "e02f9ed7-f660-450c-b585-c52287ed8d13",
+      "title": "Stick to Your Guns",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "90d42a4e-2614-451c-9928-d0cf291f901f",
+      "title": "Superman Tonight (live from the BBC Radio Theatre, 2009)",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "42981b64-26c4-4877-9586-fca95cdadf8a",
+      "title": "You Give Love a Bad Name",
+      "artist_credit": "Bon Jovi",
+      "matched_artist_mbids": [
+        "5dcdb5eb-cb72-4e6e-9e63-b7bace604965"
+      ]
+    },
+    {
+      "mbid": "f130cb14-bf7a-4b72-989c-e8a9ac74778c",
+      "title": "333",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "25055012-821c-4b7b-a98e-13d297e29f44",
+      "title": "Aquele velho carteado e algumas manobrinhas",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "607657c9-d9a4-46ab-87b1-b29b67f6ee7b",
+      "title": "Champanhe e água benta",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "35426767-d816-49e1-b948-9225ae5b3175",
+      "title": "Charlie Brown Jr.",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "aea75840-d594-4c43-ab80-dd19ef6f91d0",
+      "title": "Cidade grande",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "5912d238-69b7-4d77-be0c-209fdba3549f",
+      "title": "Hei ! Arreia... (vinheta)",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "99c78e35-4480-4b72-9b97-d5a05b77ca15",
+      "title": "Longe de você",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "b08edf13-a87b-4f8b-bea8-de59c6f45f10",
+      "title": "Não deixe o mar te engolir",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "d8f48a6c-a164-4a88-bf12-1184f18e12a2",
+      "title": "No desafio, Ibiraboys / A união prevalece",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "eb8c5aa5-0974-4923-89d2-650f447d074f",
+      "title": "O errado que deu certo",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "f3799f37-e7d9-43d5-ab40-5e430c64539a",
+      "title": "Proibida pra mim (Grazon)",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "2f62156b-0e64-40e7-afbb-e730024dcb75",
+      "title": "Quebra-mar",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "fb4527ac-e044-4c7f-bef1-11d6f2652248",
+      "title": "Rubao",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "59780932-15eb-40af-9b3e-79ca073c1111",
+      "title": "Skate Vibration",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "57a3e2d3-07c2-4a4e-936a-8502e2a079b9",
+      "title": "Só por uma noite",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "3c06e17d-091a-453d-826a-ab8b5b403e9e",
+      "title": "Somos poucos mas somos loucos",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "94ee7445-1747-4bab-876c-49008c0214d0",
+      "title": "Too Fast to Live Too Young to Die",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "ef83b6e0-5066-4ddc-9053-b888648663c9",
+      "title": "Tributo ao frango da Malásia (intro)",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "44f74fe2-7834-4288-a844-79120da5b0b3",
+      "title": "Vinheta Beat Box II / Como tudo deve ser",
+      "artist_credit": "Charlie Brown Jr.",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "d7593f2a-007b-4db5-b793-92adcc851422",
+      "title": "Não é sério",
+      "artist_credit": "Charlie Brown Jr. com Negra Li",
+      "matched_artist_mbids": [
+        "29b550f2-04a3-4733-b6f5-4e347fac7e11"
+      ]
+    },
+    {
+      "mbid": "8a521849-0a0b-4be9-9e5b-6622b984fb81",
+      "title": "Camisa 10 da Gávea",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "b28f2f39-f2be-4b9f-9b9e-c249ffd847f3",
+      "title": "Capoeira",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "0e9c58f6-3e59-4056-8e10-702ab31c678d",
+      "title": "Carnaval triste",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "07237ce1-4411-43c4-82e5-a5bc5046f689",
+      "title": "Jeitão de preto velho",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "6c0a7d59-b3ec-452c-af67-7d1782043323",
+      "title": "Nena nanã",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "a55f5de6-38b1-4693-9e52-350c4c614720",
+      "title": "O telefone tocou novamente",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "4cf4150f-f142-44b4-9d1f-29adca359713",
+      "title": "País tropical / Fio maravilha / Taj Mahal",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "e24f4107-a533-4da7-8a0d-077cf015be2d",
+      "title": "Ponta de lança africano",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "6b8942ca-f3f7-412a-8c97-6feccafb6a18",
+      "title": "Por causa de você, menina / Chove chuva / Mais nada",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "43f15d5b-71ba-41de-95f3-cf2968c44871",
+      "title": "Pula baú",
+      "artist_credit": "Jorge Ben",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "e0df556d-6035-47b5-9272-90f65cc4de87",
+      "title": "Bicho do mato",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "65ff8575-3b42-46eb-8e88-34beb83a762b",
+      "title": "Bumbo da mangueira",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "fee43fad-263f-428e-85cc-a6969029d60d",
+      "title": "Chove Chuva",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "4400df10-7754-44e7-a755-34da6b762b13",
+      "title": "Força bruta",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "4a2c571e-ad6a-433a-8c2b-3954447ebcca",
+      "title": "Jorge de Capadócia",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "978f4fc0-0b3d-4ca1-a26f-101604f67400",
+      "title": "Lalari-Olala",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "991a57a2-7773-4ae1-b4d7-e1c3a79b7bf6",
+      "title": "Princesa",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "3fedbd13-4bc5-48eb-806f-9ec06c726514",
+      "title": "Que pena (Ela já não gosta mais de mim)",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "9111d08d-f634-46de-b6af-6e90a3d1cedc",
+      "title": "Se Segura, Malandro",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "94374de8-8277-4283-a319-b5086bac6844",
+      "title": "Take It Easy My Brother Charles",
+      "artist_credit": "Jorge Ben Jor",
+      "matched_artist_mbids": [
+        "19499124-36d4-4ccc-b28d-04dde3d2076f"
+      ]
+    },
+    {
+      "mbid": "5d222be8-4f01-4eaa-8edd-de3bc6ed484c",
+      "title": "Angra dos Reis",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "41616b1f-0055-4571-92c7-e96fc147cc98",
+      "title": "Clarisse",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "e6c8f88b-f821-47b2-8f3f-6b41610c5ce2",
+      "title": "Depois do Começo",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "c74d9bf3-216d-440c-9a2a-8ecb33cd85b0",
+      "title": "Faroeste caboclo",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "b2cd3d29-3968-467c-bda7-23a58d43d268",
+      "title": "Faroeste Caboclo - Renato Russo (Rádio Brasília)",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "fcfc8e00-a518-446b-b261-a9edbc16b3a0",
+      "title": "Gente Humilde - Renato Russo",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "892719d9-9f71-4f8c-ba5a-30f6ad728a47",
+      "title": "Índios",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "4cc91e78-d424-4f04-9e7b-828f60e92bc9",
+      "title": "Índios / Faroeste caboclo",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "2839deb3-c8a4-4b42-9c0e-7a64606e1d8b",
+      "title": "Mais do Mesmo",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "80fbd6ca-c0b4-48c7-a8cb-4ee29c5aad6c",
+      "title": "Nada Por Min - Renato Russo & Herbert Viana",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "3b0ee0fb-874c-4483-9030-174d960de693",
+      "title": "O reggae",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "d2102373-456c-482c-8346-dbc9b1aa159d",
+      "title": "Os anjos",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "d4858d86-f0f6-419f-9e94-d4e574a8d07c",
+      "title": "Pais E Filhos",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "4f77c719-877f-4ce1-a532-bbb3b7dcfbe5",
+      "title": "Pressão Social - Renato Russo & Plebe Rude",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "ffb5d845-9296-4973-a027-333a8fce14e4",
+      "title": "Que pais é este",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "159de867-802d-42fb-85b1-3538f5c021b7",
+      "title": "Química",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "f930c0c0-7f52-46b1-88a8-4900437c8f3f",
+      "title": "Riding Song",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "9514ea8c-b060-4ce5-bf45-9861c60c5aa0",
+      "title": "Se fiquei esperando meu amor passar",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "f66d61b6-f18f-4614-b103-634fc8aefc6e",
+      "title": "Tédio (Com Um T Bem Grande Pra Você)",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "dfcff8ce-9743-4b74-9b12-ba9bd7fdd179",
+      "title": "Vinte e nove",
+      "artist_credit": "Legião Urbana",
+      "matched_artist_mbids": [
+        "47685be0-926f-4be9-b1ae-e32da47a3b99"
+      ]
+    },
+    {
+      "mbid": "905b6d6e-a275-438a-9561-52364714dfd7",
+      "title": "Big City Nights",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "34a1d287-b821-4cf9-bdf8-78f4be4f6c18",
+      "title": "Born to Touch Your Feelings",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "17dcc462-6fd6-42b0-bbe7-4ace591d86f0",
+      "title": "Born to Touch Your Feelings (remix)",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "cab1fb6c-c2ca-4d6f-954a-554870477278",
+      "title": "Coast to Coast",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "c0a2f583-20d6-4b3a-a713-9bfafebaca08",
+      "title": "Dark Lady",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "c8558aef-4678-437a-9f08-6e0e123a52c4",
+      "title": "Edge of Time",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "0ed55150-8295-44cb-ab8a-3daa70b74885",
+      "title": "Holiday",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "b06df995-5157-4270-bcfe-5dd7cc878a58",
+      "title": "Moment of Glory (radio edit)",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "da1c1eca-54d0-4929-9076-3fd6d4ec3d8d",
+      "title": "Oh Girl (I Wanna Be With You) (live)",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "6b140fc1-a868-4c5d-9578-f97873d208f2",
+      "title": "Send Me an Angel (radio edit)",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "18bb315e-19d0-403b-a024-7e1ac6d639d5",
+      "title": "Still Loving You",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "56cf7d50-7ecd-41d5-9dd1-138c90b4f6bb",
+      "title": "Still Loving You",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "5d9a9b22-d3d1-4c7b-95ae-1e8b4271552a",
+      "title": "Still Loving You",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "23f755cc-ebc6-431d-aab2-d16d46eb70c1",
+      "title": "Still Loving You (live)",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "3dd9cbc2-c9f7-4a9b-a2d0-b06c687b3083",
+      "title": "Through My Eyes",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "75700692-f8f8-4667-88cf-804d1636b023",
+      "title": "Unholy Alliance",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "82b94e03-2fc2-4dfd-9805-5bd9403e44af",
+      "title": "Walking on the Edge",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "57281e29-27aa-4e44-8adc-69cb3ad680f6",
+      "title": "When You Came Into My Life",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "c96226cd-42e7-41c5-a1f2-e32c2a067257",
+      "title": "Wild Child",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "d9ac7ead-4326-4f1e-8649-b4723a968c03",
+      "title": "荒城の月 (Kojo No Tsuki)",
+      "artist_credit": "Scorpions",
+      "matched_artist_mbids": [
+        "c3cceeed-3332-4cf0-8c4c-bbde425147b6"
+      ]
+    },
+    {
+      "mbid": "00b88e4f-6700-4adb-a52d-d70343c44fd0",
+      "title": "Ainda gosto dela",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "a8d69d05-9b95-4465-9fb4-5c3f913b8093",
+      "title": "Autobahn 303",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "10cce39f-db5e-4a3f-9873-daba93197f58",
+      "title": "Balada pra João e Joana",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "88ab7c49-647d-4879-b958-9963cc37c38e",
+      "title": "É Uma Partida de Futebol",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "4eb80639-f1cc-4fff-916e-469764bc6a51",
+      "title": "Eu e a felicidade",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "5eb1e153-8da1-430d-894d-fcb2a8e25025",
+      "title": "Fotos na estante (studio version)",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "1c14eb01-ab68-4397-b7ee-3bb1731a615d",
+      "title": "Garota nacional",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "8372a818-4e92-4356-86e8-fc483ca2341a",
+      "title": "Mil acasos",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "e868453f-f67b-408e-811c-70463dc719d5",
+      "title": "No meio do mar",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "41c03667-2ffa-4ef6-92eb-abf2c5be3e71",
+      "title": "Pacato cidadão",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "d93a6db0-7f78-43b2-ac65-47011f84c56a",
+      "title": "Respuesta (Resposta)",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "6c5d905f-82af-4639-90ee-569bb8c4c7fd",
+      "title": "Romance noir",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "e2458136-60c4-494a-a316-d1764432ec0e",
+      "title": "Salto do asfalto",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "86c1af99-a6aa-4cb6-a3dd-72d32ef9be51",
+      "title": "Sambatron",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "347e648a-0da4-4a0e-99f0-4f0630049cc6",
+      "title": "Supernova",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "1f0e8f51-e3b3-464e-8eca-625edbf332d4",
+      "title": "Três lados",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "a9550534-4fda-478b-b7f3-3f6d860af477",
+      "title": "Um gesto qualquer",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "84b39cc0-4c6f-4be4-a605-8caddabdbc9e",
+      "title": "Um segundo",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "c03e0a3e-9a23-40b0-b5e4-e82b70fac226",
+      "title": "Uma canção é pra isso",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "e58a78f1-3519-4436-aa43-a2fe871e8c89",
+      "title": "Vou Deixar",
+      "artist_credit": "Skank",
+      "matched_artist_mbids": [
+        "25db5fde-2384-4baf-8e3d-d8299b4c99ef"
+      ]
+    },
+    {
+      "mbid": "5d5bc785-222b-41e2-9cf2-cc901bc48afb",
+      "title": "A verdadeira Mary Poppins",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "50dee93c-09be-4ff5-89df-50814e20f70b",
+      "title": "Aluga-se",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "dbeb1026-8e05-43e2-96a1-5edcccad6452",
+      "title": "Cabeça dinossauro",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "4747f2a1-b724-4532-aee0-ab74733467df",
+      "title": "Circo de feras",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "7837047e-4ba0-4140-9196-e6c1b929ccca",
+      "title": "Ciúme",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "bddc6078-936d-4de4-8c4e-97db5716559b",
+      "title": "Diversão",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "5c268952-714f-4de3-b6cd-313810bcaa72",
+      "title": "Enquanto Houver Sol",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "7ebe168c-2cbf-4e0b-a543-641472cfeebf",
+      "title": "Esperando para atravessar a rua",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "701fc047-b205-4c69-80ec-841a6d3187e8",
+      "title": "Go Back",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "85d4684b-523c-47b0-8cc9-9bcc38107a39",
+      "title": "Livres para escolher",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "a624c68e-97b4-4343-99ca-37d11f39346f",
+      "title": "Marvin",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "4441b60a-da90-4799-b95f-c911f52aee9d",
+      "title": "Os cegos do castelo",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "0e0abc74-4b70-4cfb-99a5-d1ba9c06f7a2",
+      "title": "Pra dizer adeus",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "0cb98b18-1d53-493e-b1d7-cbf1f3526b46",
+      "title": "Saia de mim",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "dfc39350-cc3a-4ed6-a4f3-bcf7529644d2",
+      "title": "Sete cidades",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "40f459e4-c057-4002-a6a4-992b4cd461e4",
+      "title": "Sonífera ilha",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "683fddd0-904d-4a19-8c5d-7ba7236fc8b0",
+      "title": "Taxidermia",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "85c0138d-e961-4e31-883d-1c4b6d2607e6",
+      "title": "Um certo alguém",
+      "artist_credit": "Titãs",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    },
+    {
+      "mbid": "a82039af-74f4-4897-8055-6b1833a63989",
+      "title": "O pulso",
+      "artist_credit": "Titãs feat. Arnaldo Antunes",
+      "matched_artist_mbids": [
+        "c1a669b9-30f4-4171-a2a9-a15d9461ca04"
+      ]
+    }
+  ]
+}

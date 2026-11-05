@@ -7,8 +7,8 @@ describe('DjRequestsSection', () => {
   it('separates pending and approved requests and confirms owner decisions', async () => {
     const store: DjRequestStore = {
       list: vi.fn().mockResolvedValue([
-        { id: 'pending-1', roomName: 'Festa', title: 'Pedido novo', artist: 'Canal', videoId: 'abcdefghijk', submittedUrl: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
-        { id: 'approved-1', roomName: 'Festa', title: 'Pedido aprovado', artist: 'Canal', videoId: 'abcdefghijl', submittedUrl: null, status: 'approved', createdAt: '2026-11-04T11:00:00Z' },
+        { id: 'pending-1', roomName: 'Festa', title: 'Pedido novo', artist: 'Canal', videoId: 'abcdefghijk', submittedUrl: null, requestSource: 'youtube', recordingMbid: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
+        { id: 'approved-1', roomName: 'Festa', title: 'Pedido aprovado', artist: 'Canal', videoId: 'abcdefghijl', submittedUrl: null, requestSource: 'youtube', recordingMbid: null, status: 'approved', createdAt: '2026-11-04T11:00:00Z' },
       ]),
       setStatus: vi.fn().mockResolvedValue(undefined),
     }
@@ -27,7 +27,7 @@ describe('DjRequestsSection', () => {
   it('reports backend errors rather than claiming a status change', async () => {
     const store: DjRequestStore = {
       list: vi.fn().mockResolvedValue([
-        { id: 'pending-1', roomName: 'Festa', title: 'Pedido novo', artist: 'Canal', videoId: null, submittedUrl: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
+        { id: 'pending-1', roomName: 'Festa', title: 'Pedido novo', artist: 'Canal', videoId: null, submittedUrl: null, requestSource: 'manual', recordingMbid: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
       ]),
       setStatus: vi.fn().mockRejectedValue(new Error('Sem autorização')),
     }
@@ -40,7 +40,7 @@ describe('DjRequestsSection', () => {
   it('confirms rejection and removes the request from the pending list', async () => {
     const store: DjRequestStore = {
       list: vi.fn().mockResolvedValue([
-        { id: 'pending-1', roomName: 'Festa', title: 'Pedido novo', artist: 'Canal', videoId: null, submittedUrl: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
+        { id: 'pending-1', roomName: 'Festa', title: 'Pedido novo', artist: 'Canal', videoId: null, submittedUrl: null, requestSource: 'manual', recordingMbid: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
       ]),
       setStatus: vi.fn().mockResolvedValue(undefined),
     }
@@ -49,5 +49,28 @@ describe('DjRequestsSection', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Pedido rejeitado.')
     expect(store.setStatus).toHaveBeenCalledWith('pending-1', 'rejected')
     expect(screen.queryByText('Pedido novo')).not.toBeInTheDocument()
+  })
+
+  it('shows catalog origin and metadata reference without implying audio playback', async () => {
+    const recordingMbid = '5a6b7c8d-1234-4abc-8def-0123456789ab'
+    const store: DjRequestStore = {
+      list: vi.fn().mockResolvedValue([
+        {
+          id: 'catalog-1', roomName: 'Festa', title: 'Livin’ on a Prayer', artist: 'Bon Jovi',
+          videoId: null, submittedUrl: null, requestSource: 'musicbrainz', recordingMbid,
+          status: 'pending', createdAt: '2026-11-05T12:00:00Z',
+        },
+      ]),
+      setStatus: vi.fn().mockResolvedValue(undefined),
+    }
+    render(<DjRequestsSection store={store} />)
+
+    expect(await screen.findByText('Catálogo MusicBrainz')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Metadados MusicBrainz (sem áudio)' })).toHaveAttribute(
+      'href',
+      `https://musicbrainz.org/recording/${recordingMbid}`,
+    )
+    expect(document.querySelector('iframe, audio, video')).toBeNull()
+    expect(screen.getByText('Pedidos pendentes')).toBeInTheDocument()
   })
 })

@@ -9,6 +9,8 @@ export interface DjRequest {
   artist: string
   videoId: string | null
   submittedUrl: string | null
+  requestSource: 'musicbrainz' | 'youtube' | 'manual'
+  recordingMbid: string | null
   status: 'pending' | 'approved' | 'rejected'
   createdAt: string
 }
@@ -35,6 +37,8 @@ class SupabaseDjRequestStore implements DjRequestStore {
       artist: row.artist,
       videoId: row.video_id,
       submittedUrl: row.submitted_url,
+      requestSource: row.request_source,
+      recordingMbid: row.recording_mbid,
       status: row.status,
       createdAt: row.created_at,
     }))

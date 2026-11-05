@@ -20,8 +20,9 @@ major_version = 17
 enabled = true
 
 [db.seed]
-# A suíte pgTAP cria os próprios fixtures e faz rollback ao final.
-enabled = false
+# Local resets load a small CC0 MusicBrainz catalog; production migrations never run this seed.
+enabled = true
+sql_paths = ["./seed.sql"]
 
 [realtime]
 enabled = false
