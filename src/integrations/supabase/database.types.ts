@@ -61,6 +61,28 @@ export type Database = {
           created_at: string
         }[]
       }
+      dj_list_room_guest_requests: {
+        Args: { p_room_id: string }
+        Returns: {
+          id: string
+          room_name: string
+          title: string
+          artist: string
+          video_id: string | null
+          submitted_url: string | null
+          guest_name: string
+          status: 'pending' | 'approved' | 'rejected'
+          created_at: string
+        }[]
+      }
+      dj_guest_request_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: { pending_count: number; approved_count: number; rejected_count: number }[]
+      }
+      dj_room_online_guests: {
+        Args: { p_room_id: string }
+        Returns: { online_count: number; guest_name: string | null; last_seen_at: string | null }[]
+      }
       dj_set_guest_request_status: {
         Args: { p_request_id: string; p_status: string }
         Returns: boolean

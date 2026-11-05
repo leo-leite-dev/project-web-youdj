@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { AuthContext } from '../../features/auth/AuthContext'
 import type { AuthContextValue } from '../../features/auth/authTypes'
@@ -26,7 +27,7 @@ function makeAuthValue(): AuthContextValue {
 function renderRoomsPage(store: FakeRoomStore) {
   return render(
     <AuthContext.Provider value={makeAuthValue()}>
-      <DjRoomsPage roomStore={store} />
+      <MemoryRouter><DjRoomsPage roomStore={store} /></MemoryRouter>
     </AuthContext.Provider>,
   )
 }
@@ -41,6 +42,8 @@ describe('DjRoomsPage', () => {
     expect(screen.getByLabelText('Link público da sala Festa Teste')).toHaveValue(
       `${window.location.origin}/sala/${room.code}`,
     )
+    expect(screen.getByRole('link', { name: 'Entrar na sala Festa Teste' })).toHaveAttribute('href', `/sala/${room.code}`)
+    expect(screen.getByRole('link', { name: 'Gerenciar sala Festa Teste' })).toHaveAttribute('href', `/dj/painel/salas/${room.id}`)
 
     fireEvent.click(screen.getByRole('button', { name: 'Pausar sala' }))
 

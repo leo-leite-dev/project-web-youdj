@@ -2,29 +2,31 @@ import { useCallback, useEffect, useState } from 'react'
 import { createDjRequestStore, type DjRequest, type DjRequestStore } from '../services/djRequestStore'
 
 interface DjRequestsSectionProps {
+  roomId: string
   store?: DjRequestStore
 }
 
 interface RequestListProps {
   items: DjRequest[]
   busyId: string | null
-  actions: boolean
   onStatusChange: (requestId: string, status: 'approved' | 'rejected') => void
 }
 
-function RequestList({ items, actions, busyId, onStatusChange }: RequestListProps) {
+function RequestList({ items, busyId, onStatusChange }: RequestListProps) {
   if (items.length === 0) return <p className="mt-4 text-sm text-zinc-500">Nenhum pedido nesta seção.</p>
   return <ul className="mt-4 space-y-3">{items.map((request) => <li key={request.id} className="flex flex-col gap-3 rounded-xl border border-white/8 bg-night-950/60 p-3 sm:flex-row sm:items-center">
     {request.videoId && <img src={`https://i.ytimg.com/vi/${request.videoId}/mqdefault.jpg`} alt="" loading="lazy" className="aspect-video w-full rounded-lg object-cover sm:w-32" />}
-    <div className="min-w-0 flex-1"><p className="font-medium text-white">{request.title}</p><p className="mt-1 text-xs text-zinc-400">{request.artist} · {request.roomName}</p>
+    <div className="min-w-0 flex-1"><p className="font-medium text-white">{request.title}</p><p className="mt-1 text-xs text-fuchsia-200">Convidado: {request.guestName}</p><p className="mt-1 text-xs text-zinc-400">{request.artist} · {request.roomName}</p>
       {request.videoId && <a href={`https://www.youtube.com/watch?v=${request.videoId}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent-300 underline">Abrir vídeo no YouTube</a>}
       {!request.videoId && request.submittedUrl && <a href={request.submittedUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent-300 underline">Link enviado pelo convidado</a>}
     </div>
-    {actions ? <div className="flex shrink-0 gap-2"><button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'approved')} className="min-h-11 flex-1 rounded-lg bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-200 disabled:opacity-50">Aprovar</button><button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'rejected')} className="min-h-11 flex-1 rounded-lg bg-red-400/10 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Rejeitar</button></div> : <span className="shrink-0 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">Aprovado · fora da playlist</span>}
+    {request.status === 'pending'
+      ? <div className="flex shrink-0 gap-2"><button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'approved')} className="min-h-11 flex-1 rounded-lg bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-200 disabled:opacity-50">Aprovar</button><button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'rejected')} className="min-h-11 flex-1 rounded-lg bg-red-400/10 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Rejeitar</button></div>
+      : <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'approved' ? 'bg-emerald-400/10 text-emerald-200' : 'bg-red-400/10 text-red-200'}`}>{request.status === 'approved' ? 'Aprovado · fora da playlist' : 'Rejeitado'}</span>}
   </li>)}</ul>
 }
 
-export function DjRequestsSection({ store: storeOverride }: DjRequestsSectionProps) {
+export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSectionProps) {
   const [store] = useState(() => storeOverride ?? createDjRequestStore())
   const [requests, setRequests] = useState<DjRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,10 +37,10 @@ export function DjRequestsSection({ store: storeOverride }: DjRequestsSectionPro
   const reload = useCallback(async () => {
     setLoading(true)
     setError(null)
-    try { setRequests(await store.list()) }
+    try { setRequests(await store.listByRoom(roomId)) }
     catch { setError('Não foi possível carregar os pedidos. Verifique sua conexão e tente novamente.') }
     finally { setLoading(false) }
-  }, [store])
+  }, [roomId, store])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void reload() }, 0)
@@ -61,14 +63,16 @@ export function DjRequestsSection({ store: storeOverride }: DjRequestsSectionPro
 
   const pending = requests.filter((request) => request.status === 'pending')
   const approved = requests.filter((request) => request.status === 'approved')
+  const rejected = requests.filter((request) => request.status === 'rejected')
 
   return <section aria-labelledby="requests-title" className="mt-6 rounded-2xl border border-white/8 bg-night-900/50 p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="requests-title" className="font-semibold text-white">Pedidos</h2><p className="mt-1 text-xs text-zinc-500">Aprovar um pedido não adiciona à playlist nem inicia reprodução.</p></div><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button></div>
     {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
     {message && <p role="status" className="mt-3 text-sm text-emerald-200">{message}</p>}
     {loading ? <p role="status" className="mt-4 text-sm text-zinc-400">Carregando pedidos…</p> : <>
-      <h3 className="mt-5 text-sm font-semibold text-white">Pedidos pendentes <span className="text-accent-300">({pending.length})</span></h3><RequestList items={pending} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} actions />
-      <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Aprovados <span className="text-emerald-200">({approved.length})</span></h3><RequestList items={approved} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} actions={false} />
+      <h3 className="mt-5 text-sm font-semibold text-white">Pedidos pendentes <span className="text-accent-300">({pending.length})</span></h3><RequestList items={pending} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
+      <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Aprovados <span className="text-emerald-200">({approved.length})</span></h3><RequestList items={approved} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
+      <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Rejeitados <span className="text-red-200">({rejected.length})</span></h3><RequestList items={rejected} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
     </>}
   </section>
 }

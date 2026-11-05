@@ -5,6 +5,7 @@ import type { Database } from '../../../integrations/supabase/database.types'
 export interface DjRequest {
   id: string
   roomName: string
+  guestName: string
   title: string
   artist: string
   videoId: string | null
@@ -13,8 +14,15 @@ export interface DjRequest {
   createdAt: string
 }
 
+export interface DjRequestSummary {
+  pending: number
+  approved: number
+  rejected: number
+}
+
 export interface DjRequestStore {
-  list: () => Promise<DjRequest[]>
+  listByRoom: (roomId: string) => Promise<DjRequest[]>
+  summary: () => Promise<DjRequestSummary>
   setStatus: (requestId: string, status: 'approved' | 'rejected') => Promise<void>
 }
 
@@ -25,12 +33,13 @@ class SupabaseDjRequestStore implements DjRequestStore {
     this.client = client
   }
 
-  async list(): Promise<DjRequest[]> {
-    const { data, error } = await this.client.rpc('dj_list_guest_requests')
+  async listByRoom(roomId: string): Promise<DjRequest[]> {
+    const { data, error } = await this.client.rpc('dj_list_room_guest_requests', { p_room_id: roomId })
     if (error) throw error
     return data.map((row) => ({
       id: row.id,
       roomName: row.room_name,
+      guestName: row.guest_name,
       title: row.title,
       artist: row.artist,
       videoId: row.video_id,
@@ -38,6 +47,14 @@ class SupabaseDjRequestStore implements DjRequestStore {
       status: row.status,
       createdAt: row.created_at,
     }))
+  }
+
+  async summary(): Promise<DjRequestSummary> {
+    const { data, error } = await this.client.rpc('dj_guest_request_summary')
+    if (error) throw error
+    const counts = data[0]
+    if (!counts) throw new Error('O resumo de pedidos não está disponível.')
+    return { pending: counts.pending_count, approved: counts.approved_count, rejected: counts.rejected_count }
   }
 
   async setStatus(requestId: string, status: 'approved' | 'rejected'): Promise<void> {

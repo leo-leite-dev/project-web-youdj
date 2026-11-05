@@ -23,8 +23,10 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > implementados no código com Supabase Auth e RLS. As migrations de perfis, salas, códigos
 > públicos, preferências musicais e pedidos da Etapa 4A foram aplicadas ao projeto remoto segundo
 > a verificação existente. A migration de moderação da Etapa 4B está versionada, mas a aplicação
-> remota não está confirmada. A busca local real retornou HTTP 429 (`daily_budget`) no gate do
-> Supabase, antes da chamada ao YouTube; a causa exata do orçamento ainda está pendente. O endpoint
+> remota não está confirmada. Um teste local anterior foi bloqueado pelo orçamento diário interno,
+> antes da chamada ao YouTube; as migrations locais removem esse bloqueio e adicionam um contador estimado.
+> Elas não foram aplicadas remotamente e a cota personalizada do Google ainda precisa ser
+> confirmada. O endpoint
 > público atualmente publicado também respondeu HTTP 429 genérico ao teste real; a versão anterior
 > não permite identificar o upstream nem comprova resultado do YouTube. Fila,
 > pagamentos e reprodução ainda **não** estão implementados.
@@ -100,24 +102,32 @@ Itens verificados no código atual:
 - Criação idempotente e leitura do próprio perfil em `public.dj_profiles`, com RLS como controle
   de acesso no banco.
 - Gerenciamento das salas do DJ em `public.rooms` (criação, listagem e ativação/pausa) na rota
-  protegida `/dj/painel/salas`, com RLS de proprietário e estados de carregamento/vazio/erro; a
-  Visão Geral mantém contagem e resumo das salas.
+  protegida `/dj/painel/salas`, com RLS de proprietário e estados de carregamento/vazio/erro. Cada
+  sala tem “Entrar na sala” e uma página protegida `/dj/painel/salas/:roomId`; a Visão Geral mostra
+  somente indicadores agregados de pedidos.
 - Código público único de 10 caracteres por sala (~52 bits de entropia, gerado no banco e
   imutável pela API), com backfill das salas existentes, link compartilhável `/sala/:codigo` e QR Code gerado
   localmente (sem serviços externos), com cópia do link e download de PNG no painel.
 - Página pública do convidado que consulta a sala por código (somente nome e estado), com
   estados de carregamento, não encontrada, indisponível e erro com nova tentativa.
-- Busca visual de vídeos do YouTube com debounce, seleção e confirmação pelo convidado, além do
-  envio de pedidos por formulário manual, mediados por Cloudflare Pages Functions; pedidos
-  pendentes criados por RPC restrita ao
-  backend, sem acesso público direto à tabela.
+- Busca visual de vídeos do YouTube iniciada explicitamente pela lupa (digitar não consulta a API),
+  com resultados em cache, seleção e confirmação pelo convidado. A seleção e o envio reutilizam o
+  resultado já obtido; o pedido manual e o link YouTube opcional continuam disponíveis. Cloudflare
+  Pages Functions e RPCs server-side mantêm a tabela inacessível diretamente ao público.
 - Painel do DJ com pedidos pendentes, aprovação/rejeição pelo proprietário da sala e lista separada
-  de aprovados; aprovação não adiciona à playlist nem inicia reprodução.
+  de aprovados e rejeitados por sala, com o apelido associado a cada pedido; aprovação não adiciona
+  à playlist nem inicia reprodução. A lista de participantes online também é restrita ao proprietário.
+- Convidado informa nome ou apelido no primeiro acesso. Um identificador aleatório é reutilizado
+  somente no mesmo navegador; não há conta, e-mail ou senha, e o apelido não é identidade verificada.
+  Heartbeats mantêm presença por sala, expirada após 90 segundos sem atividade.
 - Tema Synthwave Neon padrão nas salas públicas, com artwork definitivo em
   `public/guest-room-artwork.png`, abaixo da ação de retorno da sala. O cabeçalho exibe o nome da
   sala e seu código, sem atalhos administrativos na experiência de convidado.
-- A busca local real respondeu HTTP 429 (`daily_budget`). O RPC Supabase bloqueou antes da chamada
-  ao YouTube; ainda não foi possível distinguir orçamento diário consumido de busca desativada.
+- Histórico: um gate diário anterior impedia buscas ao atingir o teto interno. A nova migration local
+  remove o bloqueio diário e usa a configuração `daily_search_quota` (padrão 100) somente como
+  denominador do contador estimado; o Google continua controlando a cota real. O contador registra
+  chamadas `search.list` iniciadas pelo YouDJ, não consultas atendidas pelo cache nem pedidos; a
+  cota personalizada do projeto Google Cloud deve ser confirmada antes de produção.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
@@ -170,8 +180,9 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 | `/dj`             | Implementada | Login de DJ via Supabase Auth (e-mail ou Google).                       |
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; pode exigir confirmação de e-mail ou usar Google.          |
 | `/dj/painel`      | Protegida    | Resumo de salas e gestão de pedidos autorizada no backend. |
-| `/dj/painel/salas` | Protegida   | Cria, lista, ativa/pausa e compartilha salas via link e QR Code. |
-| `/sala/:roomCode` | Implementada | Busca visual com debounce e envio de pedidos (requer backend configurado). |
+| `/dj/painel/salas` | Protegida   | Cria, lista, ativa/pausa e compartilha salas via link e QR Code; “Entrar na sala” e “Gerenciar”. |
+| `/dj/painel/salas/:roomId` | Protegida | Gerencia presença e pedidos da sala; acesso restrito ao DJ proprietário no banco. |
+| `/sala/:roomCode` | Implementada | Solicita apelido no primeiro acesso; busca YouTube explícita, cache, contador e pedidos (requer backend). |
 | `/termos-de-uso` / `/privacidade` | Implementadas | Rascunhos informativos públicos; aprovação jurídica pendente. |
 | `*`               | Implementada | Página 404.                                                             |
 
@@ -181,7 +192,8 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 - Atualizações em tempo real, fila, histórico e player.
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
-- Identidades/sessões anônimas de convidados; convidados usam as Pages Functions sem conta.
+- Contas e identidades verificadas de convidados. O apelido e o ID aleatório do navegador servem
+  somente para mostrar quem enviou um pedido e manter presença aproximada; não autenticam ninguém.
 - Pagamentos e histórico financeiro.
 - Reprodução musical e integração com a YouTube IFrame Player API.
 - Validação manual dos fluxos autenticados em produção (o build publicado em 2026-11-02 já
@@ -219,18 +231,22 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 
 - Criação e listagem de salas com isolamento por DJ (implementado; migration aplicada ao remoto).
 - Links exclusivos e QR Codes por sala (implementado; migration dos códigos aplicada ao remoto).
-- Acesso público do convidado ao nome e ao estado da sala, sem cadastro (implementado).
-- Convidados não precisam de sessão; pedidos são mediados pelas Functions, com limites por IP.
+- Acesso público do convidado ao nome e ao estado da sala; primeiro acesso pede nome/apelido, sem
+  conta. A presença usa heartbeats de 30 segundos e expira após 90 segundos de inatividade.
+- A listagem de participantes e pedidos é por sala e autorizada no banco ao DJ proprietário. A
+  migration local `20261111000000_guest_identity_presence_room_management.sql` ainda não foi
+  aplicada remotamente.
 
 ### Fase 4 — Pedidos musicais · Em andamento (Etapa 4B implementada)
 
-- Pesquisa de vídeos no YouTube e pedido manual via Pages Functions; a busca local real respondeu
-  HTTP 429 (`daily_budget`) no gate Supabase, antes do YouTube. A distinção entre limite consumido
-  e orçamento desativado segue pendente; a busca real de produção também precisa ser revalidada.
+- Pesquisa de vídeos no YouTube sob ação explícita da lupa e pedido manual via Pages Functions. A
+  migration local remove o bloqueio diário e acrescenta contador global estimado por dia do Pacífico;
+  o cache é preservado e pedidos não contam como buscas.
 - Persistência de pedidos pendentes vinculados à sala, com validação e rate limits no servidor
   (migration aplicada e banco verificado; suíte pgTAP de 154 asserções).
-- Etapa 4B: busca visual com debounce e confirmação pelo convidado; painel com pedidos pendentes,
-  aprovação/rejeição e pedidos aprovados separados. RPCs verificam o proprietário no banco. Os 165
+- Etapa 4B: busca visual acionada pela lupa e confirmação pelo convidado; digitar não chama a API.
+  Cada sala tem pedidos pendentes, aprovados e rejeitados, com moderação e apelido do convidado;
+  a Visão geral exibe apenas contagens. RPCs verificam o proprietário no banco. Os 165
   testes pgTAP passaram no GitHub Actions do PR #3. A migration
   `20261107000000_add_dj_request_moderation.sql` consta no repositório, mas sua aplicação remota
   não está confirmada; não foi aplicada nesta tarefa. Esta versão classifica erros da Function
@@ -475,22 +491,20 @@ npm install
   privilegiada e deve existir somente no servidor. `VITE_SUPABASE_URL` e
   `VITE_SUPABASE_PUBLISHABLE_KEY` são públicas e destinadas ao bundle.
 - A migration de pedidos foi aplicada e verificada no Supabase remoto segundo os registros
-  existentes; a migration de moderação (`20261107000000`) segue versionada, sem confirmação de
-  aplicação remota. No deployment publicado antes desta branch, uma busca em sala ativa respondeu
-  HTTP 503 genérico; esse resultado não identifica a causa upstream. A busca local mais recente
-  respondeu HTTP 429 (`daily_budget`) no gate Supabase e não chegou ao YouTube. O endpoint da
-  produção atual também respondeu HTTP 429 genérico; a versão anterior não expõe causa suficiente
-  para identificar o upstream. A produção precisa ser revalidada após o deploy desta alteração.
-- Sem `YOUTUBE_API_KEY`, a versão local atual informa erro de configuração e preserva pedido manual.
-  Limites no banco: no máximo 10 novas chamadas `search.list` por dia do Pacífico, 10 buscas/IP/hora,
-  cache por 6h e até 5 pedidos/IP/10 min. A documentação do YouTube informa padrão de 100 chamadas
-  `search.list`/dia, 1 unidade por chamada e reset à meia-noite do Pacífico; o limite global é
-  configurável de 0 a 10 em `youtube_search_budget_config` (zero bloqueia consultas sem cache),
-  apenas para reduzir esse teto. Confirme
-  a cota efetiva do projeto no Google Cloud e ajuste abaixo dela. Tentativas sem cache reservam cota
-  mesmo se a API falhar. Cache hits não gastam cota de busca. Todas as deployments que compartilham
-  a mesma chave do YouTube devem compartilhar este banco/orçamento; bancos isolados têm contadores
-  separados e não formam, juntos, um limite global do projeto Google.
+  existentes; a migration de moderação (`20261107000000`) e as migrations locais de quota estimada
+  (`20261109000000` e `20261110000000`) seguem versionadas, sem confirmação de aplicação remota.
+  Diagnósticos anteriores no deployment público
+  retornaram HTTP 503/429 genéricos e não identificam a causa upstream. Um teste local antigo também
+  foi barrado pelo orçamento diário artificial, antes de chegar ao YouTube. A integração real e o
+  contador precisam ser revalidados após a migration e o deploy autorizados.
+- Sem `YOUTUBE_API_KEY`, a função informa erro de configuração e mantém disponível o pedido manual.
+  O cache é de 6h; pedidos continuam limitados a 5/IP/10 min. Não há bloqueio diário local nem limite
+  individual de pesquisas por IP/usuário. O contador global mostra chamadas `search.list` iniciadas
+  pelo YouDJ no dia de cota do Pacífico, e a quota configurável `youtube_search_budget_config.daily_search_quota`
+  (padrão inicial 100) serve apenas como referência visual. Cache hits e pedidos não incrementam o
+  número. A documentação do YouTube informa quota padrão de 100 chamadas/dia, 1 unidade por chamada
+  e reset à meia-noite do Pacífico; confirme a quota efetiva do projeto Google Cloud. O contador é
+  uma estimativa interna, não medição oficial do Google.
 
 ### Teste local pelo celular (Vite + Wrangler)
 
@@ -507,7 +521,8 @@ npm install
   por exemplo “Teste celular”). O fluxo de convidado grava pedidos reais nessa sala e o painel
   autenticado do mesmo DJ permite aprovar/rejeitar; os pedidos de teste ficam identificados pela
   sala dedicada. Não use sala de outro DJ. A busca usa o cache/orçamento reais do Supabase e a chave
-  real do YouTube; cada consulta inédita pode reservar 1 unidade da cota mesmo se o upstream falhar.
+  real do YouTube; cada busca inédita pode consumir uma unidade e o YouDJ registra a chamada iniciada
+  no contador estimado, inclusive quando a resposta upstream falha.
 - O script seleciona um IPv4 privado da máquina, gera QR/PNG em `.tmp/youdj-dev-room-qr.png` e
   não altera o QR de produção. A porta das Functions é loopback; a SPA só é acessível na LAN.
   Celular e Windows devem estar na mesma Wi-Fi; mantenha o Windows Defender Firewall restrito à

@@ -9,7 +9,10 @@ import {
 import { isValidRoomCode, normalizeRoomCode } from '../../features/guest/lib/roomCode'
 import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
 import type { PublicRoom } from '../../features/rooms/roomTypes'
-import { searchGuestVideos, submitGuestRequest, type GuestRequestInput, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
+import { GuestIdentityGate } from '../../features/guest/components/GuestIdentityGate'
+import type { GuestIdentity } from '../../features/guest/services/guestIdentity'
+import type { GuestPresenceStore } from '../../features/guest/services/guestPresenceStore'
+import { getYoutubeSearchUsage, searchGuestVideos, submitGuestRequest, type GuestRequestInput, type YoutubeSearchUsage, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
 import {
   createSupabasePublicRoomStore,
   type PublicRoomStore,
@@ -30,9 +33,19 @@ function SynthwaveArtwork({ className = '' }: { className?: string }) {
 
 function GuestMusicRequests({
   room,
+  guestIdentity,
+  presenceOnline,
+  presenceError,
+  retryPresence,
+  identityPersisted,
   onSubmittingChange,
 }: {
   room: PublicRoom
+  guestIdentity: GuestIdentity
+  presenceOnline: boolean
+  presenceError: string | null
+  retryPresence: () => void
+  identityPersisted: boolean
   onSubmittingChange: (submitting: boolean) => void
 }) {
   const [query, setQuery] = useState('')
@@ -46,15 +59,57 @@ function GuestMusicRequests({
   const [searching, setSearching] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [privateCode, setPrivateCode] = useState<string | null>(null)
+  const [youtubeUsage, setYoutubeUsage] = useState<YoutubeSearchUsage | null>(null)
+  const [usageStatus, setUsageStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const searchSequence = useRef(0)
-  const searchTimer = useRef<number | null>(null)
+  const usageRefreshRef = useRef<() => Promise<void>>(async () => {})
+
+  useEffect(() => {
+    let disposed = false
+    let resetTimer: number | undefined
+    let requestSequence = 0
+
+    const refresh = async () => {
+      if (resetTimer !== undefined) window.clearTimeout(resetTimer)
+      const sequence = ++requestSequence
+      try {
+        const current = await getYoutubeSearchUsage()
+        if (disposed || sequence !== requestSequence) return
+        setYoutubeUsage(current)
+        setUsageStatus('available')
+        const millisecondsUntilReset = Date.parse(current.nextResetAt) - Date.now()
+        resetTimer = window.setTimeout(() => { void refresh() }, Math.max(1000, millisecondsUntilReset + 250))
+      } catch {
+        if (disposed || sequence !== requestSequence) return
+        setYoutubeUsage(null)
+        setUsageStatus('unavailable')
+        resetTimer = window.setTimeout(() => { void refresh() }, 60_000)
+      }
+    }
+
+    usageRefreshRef.current = refresh
+    void refresh()
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      disposed = true
+      requestSequence += 1
+      if (resetTimer !== undefined) window.clearTimeout(resetTimer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      usageRefreshRef.current = async () => {}
+    }
+  }, [])
 
   const searchRef = useRef<(searchQuery: string) => Promise<void>>(async () => {})
 
   useEffect(() => {
     searchRef.current = async (searchQuery) => {
       const normalized = searchQuery.trim().replace(/\s+/g, ' ')
-      if (normalized.length < 3 || busy || !acceptedLegal) return
+      if (normalized.length < 3 || busy || !acceptedLegal || !presenceOnline) return
       const sequence = ++searchSequence.current
       setBusy(true); setSearching(true); setMessage('')
       try {
@@ -66,23 +121,22 @@ function GuestMusicRequests({
         if (sequence !== searchSequence.current) return
         setVideos([])
         setMessage(error instanceof Error ? error.message : 'Pesquisa temporariamente indisponível. O pedido manual continua disponível.')
-      } finally { if (sequence === searchSequence.current) { setBusy(false); setSearching(false) } }
+      } finally {
+        if (sequence === searchSequence.current) {
+          setBusy(false)
+          setSearching(false)
+          void usageRefreshRef.current()
+        }
+      }
     }
-  }, [acceptedLegal, busy, room.code])
-
-  useEffect(() => {
-    const normalized = query.trim().replace(/\s+/g, ' ')
-    if (!acceptedLegal || normalized.length < 3) return
-    searchTimer.current = window.setTimeout(() => { void searchRef.current(normalized) }, 600)
-    return () => { if (searchTimer.current !== null) window.clearTimeout(searchTimer.current) }
-  }, [query, acceptedLegal])
+  }, [acceptedLegal, busy, presenceOnline, room.code])
 
   async function send(input: GuestRequestInput) {
-    if (busy || !acceptedLegal) return
+    if (busy || !acceptedLegal || !presenceOnline) return
     setBusy(true); setSearching(false); setMessage(''); setPrivateCode(null)
     onSubmittingChange(true)
     try {
-      const receipt = await submitGuestRequest(room.code, input, acceptedLegal)
+      const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId)
       setPrivateCode(receipt.privateCode)
       setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
       setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
@@ -104,7 +158,12 @@ function GuestMusicRequests({
           <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
           <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
           <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
-          {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Sala ativa. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
+          {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Você entrou como <strong>{guestIdentity.nickname}</strong>. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
+          {!presenceOnline ? <div role={presenceError ? 'alert' : 'status'} className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">
+            <p>{presenceError ?? 'Conectando à sala…'}</p>
+            {presenceError && <button type="button" onClick={retryPresence} className="mt-2 min-h-9 rounded-lg border border-amber-200/20 px-3 font-semibold">Tentar novamente</button>}
+          </div> : null}
+          {presenceOnline && !identityPersisted ? <p className="mt-2 text-[10px] text-zinc-500">Este navegador não permitiu salvar o apelido; ele poderá ser solicitado novamente.</p> : null}
         </div>
       </>}
 
@@ -132,10 +191,10 @@ function GuestMusicRequests({
 
       {stage === 'entry' && <section className="space-y-4 border-t border-cyan-300/20 pt-5">
         <div><h2 className="flex items-center gap-2 text-lg font-black text-white"><MusicIcon className="size-5 text-fuchsia-400" />Peça uma música</h2><p className="mt-1 text-xs leading-5 text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p></div>
-        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/70 p-3 text-sm leading-6 text-zinc-300"><input type="checkbox" checked={acceptedLegal} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setSelected(null); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-fuchsia-400" /><span>Li e aceito os <Link to="/termos-de-uso" className="font-semibold text-cyan-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-semibold text-cyan-300 underline underline-offset-2">Política de Privacidade</Link>.</span></label>
-        <form className="flex gap-2 rounded-full border border-cyan-300/50 bg-night-950 p-1.5 focus-within:border-fuchsia-400" onSubmit={(event) => { event.preventDefault(); if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); void searchRef.current(query) }}>
-          <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label><input id="music-search" value={query} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setMessage(''); setQuery(event.target.value); setSelected(null) }} maxLength={100} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-zinc-400" />
-          <button type="submit" aria-label="Buscar músicas" disabled={busy || !acceptedLegal || query.trim().length < 3} className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-lg font-black text-night-950 disabled:opacity-40">⌕</button>
+        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/70 p-3 text-sm leading-6 text-zinc-300"><input type="checkbox" checked={acceptedLegal} disabled={busy} onChange={(event) => { searchSequence.current += 1; setSearching(false); setVideos([]); setSelected(null); setMessage(''); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-fuchsia-400 disabled:opacity-50" /><span>Li e aceito os <Link to="/termos-de-uso" className="font-semibold text-cyan-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-semibold text-cyan-300 underline underline-offset-2">Política de Privacidade</Link>.</span></label>
+        <form className="flex gap-2 rounded-full border border-cyan-300/50 bg-night-950 p-1.5 focus-within:border-fuchsia-400" onSubmit={(event) => { event.preventDefault(); void searchRef.current(query) }}>
+          <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label><input id="music-search" value={query} disabled={busy} onChange={(event) => { searchSequence.current += 1; setSearching(false); setVideos([]); setMessage(''); setQuery(event.target.value); setSelected(null) }} maxLength={100} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-zinc-400 disabled:opacity-60" />
+          <button type="submit" aria-label="Buscar músicas" disabled={busy || !presenceOnline || !acceptedLegal || query.trim().length < 3} className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-lg font-black text-night-950 disabled:opacity-40">⌕</button>
         </form>
         {searching && <p role="status" aria-live="polite" className="text-xs text-zinc-400">Buscando vídeos…</p>}
         {message && !privateCode && <p role="status" aria-live="polite" className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-3 text-sm text-amber-100">{message}</p>}
@@ -151,9 +210,16 @@ function GuestMusicRequests({
           <label className="block text-xs text-zinc-300">Título<input required maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <label className="block text-xs text-zinc-300">Artista<input required maxLength={120} value={artist} onChange={(event) => setArtist(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <label className="block text-xs text-zinc-300">Link do YouTube (opcional)<input type="url" maxLength={500} value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://youtu.be/..." className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
-          <button disabled={busy || !acceptedLegal} className="min-h-11 w-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 text-sm font-bold text-night-950 disabled:opacity-50">Enviar pedido manual</button>
+          <button disabled={busy || !presenceOnline || !acceptedLegal} className="min-h-11 w-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 text-sm font-bold text-night-950 disabled:opacity-50">Enviar pedido manual</button>
         </form>
       </details>}
+
+      {(stage === 'entry' || stage === 'results') && <div className="rounded-lg border border-cyan-300/10 bg-[#090b18]/50 px-3 py-2 text-center">
+        <p aria-live="polite" className="font-mono text-[11px] tracking-wide text-cyan-200/80">
+          Pesquisas ao YouTube hoje: {usageStatus === 'available' && youtubeUsage ? `${youtubeUsage.callsToday}/${youtubeUsage.dailyQuota}` : usageStatus === 'loading' ? '…/…' : 'indisponível'}
+        </p>
+        <p className="mt-1 text-[10px] text-zinc-500">Estimativa do YouDJ, não medição oficial do Google.</p>
+      </div>}
     </div>
   )
 }
@@ -170,6 +236,7 @@ interface StoreState {
 
 interface GuestRoomPageProps {
   store?: PublicRoomStore
+  presenceStore?: GuestPresenceStore
 }
 
 interface HomeLinkProps {
@@ -205,7 +272,7 @@ function HomeLink({ label = 'Voltar ao início', onClick, disabled = false }: Ho
   )
 }
 
-export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
+export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoomPageProps) {
   const { roomCode } = useParams()
   const code = normalizeRoomCode(roomCode)
   const valid = isValidRoomCode(code)
@@ -387,7 +454,17 @@ export function GuestRoomPage({ store: storeOverride }: GuestRoomPageProps) {
     <section className="relative mx-auto min-h-[calc(100svh-8rem)] w-full max-w-xl overflow-hidden px-4 py-5 sm:px-8 sm:py-10">
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 34px, rgba(236,72,153,.45) 35px, transparent 36px), repeating-linear-gradient(0deg, transparent 0 22px, rgba(34,211,238,.28) 23px, transparent 24px), linear-gradient(to top, rgba(217,70,239,.2), transparent)' }} />
       <div className="relative mx-auto max-w-md rounded-[1.75rem] border border-cyan-300/20 bg-[#070914]/95 p-4 shadow-[0_0_40px_rgba(217,70,239,0.11)] sm:p-6">
-         {room.status === 'active' ? <GuestMusicRequests key={experienceVersion} room={room} onSubmittingChange={setRequestSubmitting} /> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
+          {room.status === 'active' ? <GuestIdentityGate key={experienceVersion} room={room} store={presenceStore}>
+            {(identity, presenceOnline, presenceError, retryPresence, identityPersisted) => <GuestMusicRequests
+              room={room}
+              guestIdentity={identity}
+              presenceOnline={presenceOnline}
+              presenceError={presenceError}
+              retryPresence={retryPresence}
+              identityPersisted={identityPersisted}
+              onSubmittingChange={setRequestSubmitting}
+            />}
+          </GuestIdentityGate> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
          <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />
          <SynthwaveArtwork className="mt-4 h-44 sm:h-56" />
         <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>

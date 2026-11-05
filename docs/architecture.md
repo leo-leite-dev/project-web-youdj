@@ -3,8 +3,8 @@
 ## 1. Visão geral
 
 O YouDJ será uma plataforma SaaS multi-tenant em que cada DJ gerencia suas próprias salas de
-música, pedidos e histórico. Convidados acessam uma sala por link ou QR Code, sem cadastro
-obrigatório.
+música, pedidos e histórico. Convidados acessam uma sala por link ou QR Code, sem conta; no primeiro
+acesso informam um nome ou apelido não verificado.
 
 Esta versão entrega a fundação frontend, cadastro/login/logout de DJs com Supabase Auth, leitura
 ou criação idempotente do perfil autenticado em `public.dj_profiles`, salas em `public.rooms`,
@@ -179,40 +179,50 @@ proprietário.
 
 ### Convidados
 
-O convidado já pode acessar por link/QR Code e consultar publicamente o nome e o estado da sala,
-sem conta. A Etapa 4A adiciona pedidos sem identidade/login do convidado, limitados no servidor
-por endereço observado pelo Cloudflare; isso não equivale a identidade persistente nem impede
-abuso distribuído.
+- O convidado acessa por link/QR Code e informa nome ou apelido antes de entrar. `guest_id` UUID
+  aleatório e apelido são reutilizados pelo mesmo navegador via localStorage; não são autenticação,
+  prova de identidade nem autorização administrativa. Apelidos podem ser falsos ou compartilhados.
+- A Pages Function registra heartbeat para a sala ativa. O banco atualiza `last_seen_at` por par
+  sala/guest_id; a presença deixa de contar após 90s sem atualização e os registros inativos são
+  limpos após 24h. O navegador envia heartbeat a cada 30s enquanto visível e ao retornar à aba; a
+  tela do DJ consulta a lista periodicamente, sem Supabase Realtime.
+- Cada pedido novo traz o `guest_id`; a RPC recupera o apelido da presença recente no banco, sem
+  confiar em nome enviado junto ao pedido. Apelido e ID do pedido permanecem conforme retenção de
+  30 dias. Registros antigos sem apelido não são preenchidos retroativamente.
 
 ### Etapa 4A — pesquisa e pedidos
 
-- A SPA chama `POST /api/youtube-search` após 600 ms sem digitação e
-  `POST /api/guest-requests` após seleção/confirmação do convidado. Cloudflare Pages Functions
-  ficam em `functions/api`; Vite não as executa por conta própria.
+- A SPA chama `POST /api/youtube-search` somente após envio explícito do campo pelo botão da lupa
+  (ou submit acessível por teclado); digitar não chama a API. `POST /api/guest-requests` ocorre só
+  após seleção/confirmação. Cloudflare Pages Functions ficam em `functions/api`; Vite não as
+  executa por conta própria.
 - `YOUTUBE_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são bindings de runtime do Pages. O navegador
   nunca recebe chave do YouTube nem credencial privilegiada. O binding Supabase aceita a chave
   legada `service_role` ou a chave moderna `sb_secret_`; as Functions enviam a credencial apenas
   pelo header `apikey`, pois as chaves modernas não são JWTs e não devem ser usadas como
   `Authorization: Bearer`. A chave privilegiada chama RPCs `SECURITY DEFINER` estritamente
   concedidas a `service_role`.
-- A RPC valida sala ativa, guarda cache normalizado por 6h, aplica 10 pesquisas/IP/hora e reserva
-  atomicamente até 10 chamadas `search.list` sem cache por dia. A documentação atual informa
-  padrão de 100 chamadas/dia, 1 unidade por chamada e reset à meia-noite do Pacífico; a configuração
-  privada `youtube_search_budget_config.daily_search_limit` permite somente reduzir o teto de 10
-  (inclusive bloquear novas consultas sem cache). Confirmar a cota efetiva no Google Cloud antes de habilitar.
-  Reservas e cache persistem no PostgreSQL compartilhado entre instâncias; chamadas tentadas contam
-  mesmo se a API falhar. O teto é global entre deployments que usam este mesmo banco; se a mesma
-  chave Google for reutilizada com bancos independentes, os contadores não se somam. Não reutilizar
-  a chave de produção em ambientes isolados sem orçamento compartilhado.
+- A RPC de gate valida sala ativa, serializa pesquisas idênticas e preserva o cache normalizado por
+  6h; não aplica orçamento diário nem bloqueio de busca por IP/usuário. Somente após iniciar uma
+  chamada upstream `search.list`, a Function incrementa `youtube_search_usage` no banco compartilhado.
+  Cache hits, seleção e envio do pedido não incrementam o contador. Falhas ao registrar podem deixar
+  a estimativa defasada; o contador não é telemetria oficial do Google.
+- `youtube_search_budget_config.daily_search_quota` é a quota configurável apenas para apresentação,
+  com valor inicial 100; não bloqueia consultas. O endpoint público de leitura retorna somente total,
+  quota configurada, dia e instante do próximo reset, sem expor dados da sala, tabela ou credenciais.
+  A contagem e virada do dia usam `America/Los_Angeles`, incluindo horário de verão. Todos os
+  deployments que precisam compor uma estimativa global devem compartilhar o mesmo banco.
 - Fonte: [documentação oficial de custos e cotas](https://developers.google.com/youtube/v3/determine_quota_cost).
-  A quota real deve ser conferida no Google Cloud; o limite local não amplia a concessão do Google.
-- Pedidos são validados e inseridos no servidor como `pending`, associados à sala e `dj_id`.
+  O Google controla o limite real; chamadas inválidas ou que falham também podem consumir quota.
+- Pedidos são validados e inseridos no servidor como `pending`, associados à sala, `dj_id`, apelido
+  e identificador pseudônimo do navegador.
   Há limite de 5/IP/10 minutos; nenhuma tabela administrativa concede acesso direto a `anon` ou
   `authenticated`. Na implementação inicial da Etapa 4A, o backend ainda não fazia aprovação,
   fila nem reprodução; a moderação é descrita na Etapa 4B abaixo.
 - A tabela de limites guarda SHA-256 do IP recebido do Cloudflare, não o IP bruto. O hash é dado
   pseudonimizado. A migration `20261106000000_add_guest_data_retention.sql` define a função
-  `purge_expired_guest_data()` (pedidos >30 dias, limites >48h, cache vencido e orçamentos >31 dias).
+  `purge_expired_guest_data()` (pedidos >30 dias, limites >48h, cache vencido, orçamentos >31 dias
+  e presenças sem atividade >24h).
   A migration separada `20261106000001_schedule_guest_data_retention.sql` configura cron horário
   quando `pg_cron` está disponível; cache deixa de ser elegível após 6h, antes da remoção física.
   Execução depende de scheduler e banco ativos: falhas ou pausa do projeto podem atrasar a limpeza.
@@ -223,8 +233,10 @@ abuso distribuído.
   documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
   retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
   busca não é persistido; o registro de pedido guarda apenas a declaração enviada junto ao pedido.
-- Busca indisponível (chave ausente, cota ou API fora) não bloqueia pedido manual. Link manual é
-  opcional e restrito a URLs HTTPS de domínios YouTube conhecidos.
+- A pesquisa só é enviada pelo botão da lupa; mudar o texto não chama a API. O cache por query evita
+  nova `search.list` em buscas repetidas, e selecionar/enviar um resultado usa o `video_id` já
+  obtido, sem refazer a busca. Chave ausente, cota esgotada ou API indisponível são reportadas; pedido
+  manual e link HTTPS YouTube validado continuam disponíveis.
 - `surprise_mode` e `show_guest_requests` são preservados; a interface não publica fila nem lista
   de pedidos. O recibo confirma apenas gravação, não aprovação ou reprodução.
 - As páginas `/termos-de-uso` e `/privacidade` descrevem o uso da YouTube Data API, dados tratados,
@@ -238,15 +250,10 @@ abuso distribuído.
   aplicadas ao Supabase remoto segundo a verificação anterior. A migration de moderação
   (`20261107000000`) está no repositório, mas sua aplicação remota não está confirmada. Os 165
   testes pgTAP passaram no GitHub Actions do PR #3; isso não comprova o estado remoto.
-- Diagnóstico local mais recente: inicialmente houve `ECONNREFUSED` no proxy Vite porque o Wrangler
-  não estava executando. Com a Function ativa, a busca real retornou HTTP 429 (`daily_budget`) do
-  gate Supabase. Leituras das tabelas privadas de orçamento retornaram HTTP 403; a requisição foi
-  bloqueada antes do YouTube. Ainda não é possível distinguir limite diário consumido de orçamento
-  desativado nem afirmar a validade da chave/cota externa do YouTube.
-- O endpoint de busca do deployment público atual respondeu HTTP 429 com a mensagem genérica da
-  versão anterior da Function. Essa resposta não identifica se o bloqueio foi sala, rate limit ou
-  orçamento e não comprova se a YouTube Data API foi chamada; a busca precisa ser repetida após
-  publicar esta branch para obter o código de diagnóstico seguro atualizado.
+- Histórico do endpoint legado `/api/youtube-search`: um teste local anterior recebeu HTTP 429
+  (`daily_budget`) do gate artificial. As migrations locais `20261109000000` e `20261110000000`
+  substituem esse gate pelo registro após iniciar a chamada; ainda não foram aplicadas remotamente.
+  A quota personalizada do projeto Google Cloud permanece por confirmar.
 - Não houve acesso aos segredos nem aos logs de runtime do Cloudflare. As Functions agora registram
   somente categoria/status/código seguro (nunca URL com chave, credencial, corpo bruto ou stack com
   dados externos) e retornam categorias de erro distinguindo chave YouTube inválida/restrita,
@@ -255,31 +262,28 @@ abuso distribuído.
 
 ### Etapa 4B — busca visual e moderação
 
-- A interface do convidado pesquisa automaticamente após 600 ms sem digitação (mínimo de três
-  caracteres), sem botão de busca; apresenta miniatura/título/canal e, após seleção, mostra
-  “Enviar pedido ao DJ”. O backend segue validando vídeo/cache antes de gravar o pedido.
-  A função server-side e o cache/orçamento/rate limits da Etapa 4A permanecem a autoridade para
-  disponibilidade e cota; o comportamento publicado ainda depende de validação real.
+- A interface do convidado aguarda ação explícita na lupa, apresenta miniatura/título/canal e, após
+  seleção, mostra “Enviar pedido ao DJ”. Digitar não aciona o YouTube. Enviar um resultado usa o
+  `video_id` já selecionado e não repete `search.list`; buscas repetidas aproveitam o cache. O backend
+  valida sala e cache, enquanto a própria YouTube Data API aplica a quota real.
 - O recibo privado continua sendo entregue uma vez ao convidado. A confirmação informa recebimento
   pendente, sem prometer aprovação ou reprodução; `video_id` é preservado para futura integração.
 - `public.guest_requests` continua sem grants diretos. As RPCs `dj_list_guest_requests()` e
   `dj_set_guest_request_status(uuid,text)` usam `auth.uid()`, rejeitam sessões anônimas e limitam
   a consulta/alteração ao `dj_id` proprietário. A transição só aceita `pending` para `approved` ou
   `rejected`; chamadas concorrentes ou pedidos de outro DJ não alteram linhas.
-- A lista do painel separa pendentes e aprovados. Aprovação não cria playlist, fila nem reprodução.
-  Realtime continua fora desta etapa e o painel atualiza ao recarregar/decidir.
+- A rota `/dj/painel/salas/:roomId` consulta apenas a sala do DJ autenticado, lista presença e
+  pedidos pendentes/aprovados/rejeitados com apelidos. `dj_list_room_guest_requests` e
+  `dj_room_online_guests` verificam `auth.uid()` e ownership no banco; `dj_guest_request_summary`
+  retorna apenas contagens à Visão geral. A listagem detalhada não aparece no dashboard.
+  Aprovação não cria playlist, fila nem reprodução. O painel atualiza por polling, não Realtime.
 - Migration `20261107000000_add_dj_request_moderation.sql` está versionada e integrada em
   `main`, mas sua aplicação no Supabase remoto não está confirmada. Os 165 testes pgTAP passaram
   no GitHub Actions do PR #3; isso comprova a execução local do workflow, não o estado do banco
   remoto. Nenhuma migration remota foi executada nesta publicação.
-- A busca local real por “Estação Fandangueira” retornou HTTP 429 com código `daily_budget` no
-  gate Supabase e não chegou à YouTube Data API. Leituras diretas das tabelas privadas de orçamento
-  foram negadas com HTTP 403, portanto o diagnóstico da cota permanece pendente. A busca real no
-  deployment público atual respondeu HTTP 429 genérico, sem diagnóstico suficiente nesta versão.
-  A busca real de produção precisa ser repetida após o deploy atualizado, registrando status/erro
-  concreto, sem mascaramento.
-- A Function usa uma identidade de rate limit local estável somente quando `YOUDJ_LOCAL_DEV=true`;
-  em produção, o endereço observado pelo Cloudflare continua sendo a identidade de rate limit.
+- A busca local anterior por “Estação Fandangueira” retornou HTTP 429 no gate diário antigo, antes
+  da chamada à YouTube Data API. A migration acima ainda precisa ser validada em Supabase local; não
+  há leitura direta das tabelas privadas pelo cliente e o endpoint do contador só retorna agregados.
 
 ### Identidade visual das salas
 

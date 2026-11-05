@@ -5,6 +5,7 @@ import { PublicLayout } from '../layouts/PublicLayout'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { DjDashboardPage } from '../pages/dj/DjDashboardPage'
 import { DjLoginPage } from '../pages/dj/DjLoginPage'
+import { DjRoomManagementPage } from '../pages/dj/DjRoomManagementPage'
 import { DjRoomsPage } from '../pages/dj/DjRoomsPage'
 import { DjSignUpPage } from '../pages/dj/DjSignUpPage'
 import { GuestRoomPage } from '../pages/guest/GuestRoomPage'
@@ -28,6 +29,7 @@ export function AppRoutes() {
         <Route path="dj/painel" element={<DjLayout />}>
           <Route index element={<DjDashboardPage />} />
           <Route path="salas" element={<DjRoomsPage />} />
+          <Route path="salas/:roomId" element={<DjRoomManagementPage />} />
         </Route>
       </Route>
     </Routes>
