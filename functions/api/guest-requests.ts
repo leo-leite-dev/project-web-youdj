@@ -3,6 +3,31 @@ type PagesFunction<E> = (context: { request: Request; env: E }) => Response | Pr
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
 const TERMS_VERSION = '2026-11-04'
 const PRIVACY_VERSION = '2026-11-04'
+const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/
+const RECORDING_MBID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isValidYouTubeReference(value: string): boolean {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:') return false
+
+    const host = url.hostname.toLowerCase()
+    let videoId = ''
+    if (host === 'youtu.be') {
+      videoId = url.pathname.split('/').filter(Boolean)[0] ?? ''
+    } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) {
+      if (url.pathname === '/watch') {
+        videoId = url.searchParams.get('v') ?? ''
+      } else {
+        const [kind, id] = url.pathname.split('/').filter(Boolean)
+        if (kind && ['shorts', 'embed', 'live'].includes(kind)) videoId = id ?? ''
+      }
+    }
+    return VIDEO_ID_PATTERN.test(videoId)
+  } catch {
+    return false
+  }
+}
 
 function createPrivateCode(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
@@ -22,13 +47,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const payload = body.request
   if (typeof payload !== 'object' || payload === null || !('kind' in payload)) return json({ error: 'Pedido inválido.' }, 400)
   let requestData: Record<string, unknown>
-  if (payload.kind === 'youtube' && 'video' in payload && typeof payload.video === 'object' && payload.video !== null && 'videoId' in payload.video && typeof payload.video.videoId === 'string' && /^[A-Za-z0-9_-]{11}$/.test(payload.video.videoId)) {
+  if (payload.kind === 'catalog' && 'recordingMbid' in payload && typeof payload.recordingMbid === 'string' && RECORDING_MBID_PATTERN.test(payload.recordingMbid)) {
+    requestData = { kind: 'catalog', recordingMbid: payload.recordingMbid.toLowerCase() }
+  } else if (payload.kind === 'youtube-link' && 'title' in payload && typeof payload.title === 'string' && 'artist' in payload && typeof payload.artist === 'string' && 'url' in payload && typeof payload.url === 'string') {
+    const title = payload.title.trim(); const artist = payload.artist.trim(); const url = payload.url.trim()
+    if (!title || title.length > 120 || !artist || artist.length > 120 || !isValidYouTubeReference(url)) return json({ error: 'Informe título, artista e um link válido de vídeo do YouTube.' }, 400)
+    requestData = { kind: 'manual', title, artist, url }
+  } else if (payload.kind === 'youtube' && 'video' in payload && typeof payload.video === 'object' && payload.video !== null && 'videoId' in payload.video && typeof payload.video.videoId === 'string' && VIDEO_ID_PATTERN.test(payload.video.videoId)) {
     requestData = { kind: 'youtube', videoId: payload.video.videoId }
   } else if (payload.kind === 'manual' && 'title' in payload && typeof payload.title === 'string' && 'artist' in payload && typeof payload.artist === 'string' && 'url' in payload && typeof payload.url === 'string') {
     const title = payload.title.trim(); const artist = payload.artist.trim(); const url = payload.url.trim()
-    let validYoutubeUrl = !url
-    try { validYoutubeUrl = !url || (new URL(url).protocol === 'https:' && ['youtube.com', 'www.youtube.com', 'youtu.be', 'music.youtube.com'].includes(new URL(url).hostname)) } catch { validYoutubeUrl = false }
-    if (!title || title.length > 120 || artist.length > 120 || !artist || url.length > 500 || !validYoutubeUrl) return json({ error: 'Confira título, artista e um link válido do YouTube (opcional).' }, 400)
+    if (!title || title.length > 120 || artist.length > 120 || !artist || url.length > 500 || (url && !isValidYouTubeReference(url))) return json({ error: 'Confira título, artista e um link válido do YouTube (opcional).' }, 400)
     requestData = { kind: 'manual', title, artist, url: url || null }
   } else return json({ error: 'Pedido inválido.' }, 400)
   try {

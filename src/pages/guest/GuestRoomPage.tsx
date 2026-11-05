@@ -9,7 +9,7 @@ import {
 import { isValidRoomCode, normalizeRoomCode } from '../../features/guest/lib/roomCode'
 import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
 import type { PublicRoom } from '../../features/rooms/roomTypes'
-import { searchGuestVideos, submitGuestRequest, type GuestRequestInput, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
+import { searchMusicCatalog, submitGuestRequest, type GuestRequestInput, type MusicCatalogRecording } from '../../features/guest/services/guestRequestApi'
 import {
   createSupabasePublicRoomStore,
   type PublicRoomStore,
@@ -36,12 +36,14 @@ function GuestMusicRequests({
   onSubmittingChange: (submitting: boolean) => void
 }) {
   const [query, setQuery] = useState('')
-  const [videos, setVideos] = useState<YoutubeVideo[]>([])
-  const [selected, setSelected] = useState<YoutubeVideo | null>(null)
+  const [results, setResults] = useState<MusicCatalogRecording[]>([])
+  const [selected, setSelected] = useState<MusicCatalogRecording | null>(null)
+  const [nextOffset, setNextOffset] = useState<number | null>(null)
   const [title, setTitle] = useState('')
   const [artist, setArtist] = useState('')
   const [url, setUrl] = useState('')
   const [message, setMessage] = useState('')
+  const [searchError, setSearchError] = useState('')
   const [busy, setBusy] = useState(false)
   const [searching, setSearching] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
@@ -49,111 +51,112 @@ function GuestMusicRequests({
   const searchSequence = useRef(0)
   const searchTimer = useRef<number | null>(null)
 
-  const searchRef = useRef<(searchQuery: string) => Promise<void>>(async () => {})
+  const searchRef = useRef<(searchQuery: string, offset: number, append: boolean) => Promise<void>>(async () => {})
 
   useEffect(() => {
-    searchRef.current = async (searchQuery) => {
+    searchRef.current = async (searchQuery, offset, append) => {
       const normalized = searchQuery.trim().replace(/\s+/g, ' ')
-      if (normalized.length < 3 || busy || !acceptedLegal) return
-      const sequence = ++searchSequence.current
-      setBusy(true); setSearching(true); setMessage('')
+      if (normalized.length < 3 || busy || searching || !acceptedLegal) return
+      const sequence = searchSequence.current
+      setSearching(true)
+      setSearchError('')
+      if (!append) {
+        setResults([])
+        setSelected(null)
+        setNextOffset(null)
+      }
       try {
-        const result = await searchGuestVideos(room.code, normalized)
+        const page = await searchMusicCatalog(room.code, normalized, offset)
         if (sequence !== searchSequence.current) return
-        setVideos(result.videos)
-        setMessage(result.available ? (result.videos.length ? '' : 'Nenhum vídeo encontrado.') : 'Busca no YouTube ainda não configurada. Você pode enviar um pedido manual.')
+        setResults((current) => append ? [...current, ...page.results] : page.results)
+        setNextOffset(page.nextOffset)
+        if (!append && page.results.length === 0) {
+          setSearchError('Nenhuma música encontrada. Você pode fazer um pedido manual.')
+        }
       } catch (error) {
         if (sequence !== searchSequence.current) return
-        setVideos([])
-        setMessage(error instanceof Error ? error.message : 'Pesquisa temporariamente indisponível. O pedido manual continua disponível.')
-      } finally { if (sequence === searchSequence.current) { setBusy(false); setSearching(false) } }
+        setSearchError(error instanceof Error ? error.message : 'Pesquisa temporariamente indisponível. Você pode fazer um pedido manual.')
+      } finally {
+        if (sequence === searchSequence.current) setSearching(false)
+      }
     }
-  }, [acceptedLegal, busy, room.code])
+  }, [acceptedLegal, busy, room.code, searching])
 
   useEffect(() => {
     const normalized = query.trim().replace(/\s+/g, ' ')
     if (!acceptedLegal || normalized.length < 3) return
-    searchTimer.current = window.setTimeout(() => { void searchRef.current(normalized) }, 600)
-    return () => { if (searchTimer.current !== null) window.clearTimeout(searchTimer.current) }
+    searchTimer.current = window.setTimeout(() => { void searchRef.current(normalized, 0, false) }, 600)
+    return () => {
+      if (searchTimer.current !== null) window.clearTimeout(searchTimer.current)
+    }
   }, [query, acceptedLegal])
 
   async function send(input: GuestRequestInput) {
     if (busy || !acceptedLegal) return
+    searchSequence.current += 1
+    if (searchTimer.current !== null) window.clearTimeout(searchTimer.current)
+    searchTimer.current = null
     setBusy(true); setSearching(false); setMessage(''); setPrivateCode(null)
     onSubmittingChange(true)
     try {
       const receipt = await submitGuestRequest(room.code, input, acceptedLegal)
       setPrivateCode(receipt.privateCode)
-      setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
+      setSelected(null); setTitle(''); setArtist(''); setUrl(''); setResults([]); setQuery('')
       setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.')
     } finally { setBusy(false); onSubmittingChange(false) }
   }
 
-  const stage = privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
-
-  return (
-    <div className="space-y-5">
-      {stage === 'entry' && <>
-        <div className="rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-4 shadow-[0_0_30px_rgba(217,70,239,0.1)] sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-fuchsia-300"><MusicIcon className="size-4" />Área do convidado</span>
-            <span className="rounded-full border border-emerald-400/40 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{room.status === 'active' ? 'Ativa' : 'Pausada'}{room.status === 'active' && <span aria-hidden="true"> ●</span>}</span>
-          </div>
-          <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
-          <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
-          <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
-          {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Sala ativa. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
-        </div>
-      </>}
-
-      {stage === 'results' && <div className="flex items-start justify-between gap-3 px-1 pt-2">
-        <div><button type="button" onClick={() => { setVideos([]); setSelected(null); setMessage('') }} className="mb-3 inline-flex size-9 items-center justify-center rounded-full border border-cyan-300/50 text-cyan-200" aria-label="Voltar para a busca">←</button><h1 className="text-xl font-black text-white">Resultados da busca</h1><p className="mt-1 text-sm text-zinc-300">“{query.trim()}”</p></div>
-        <div aria-hidden="true" className="mt-6 flex h-8 items-end gap-1">{[8, 18, 11, 26, 15, 22, 12].map((h, i) => <span key={i} className="w-1.5 bg-fuchsia-500" style={{ height: h }} />)}</div>
-      </div>}
-
-      {stage === 'selection' && selected && <div className="space-y-4">
-        <button type="button" onClick={() => setSelected(null)} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-cyan-200">← Voltar aos resultados</button>
-        <h1 className="text-xl font-black text-white">Confirme seu pedido</h1>
-        <article className="overflow-hidden rounded-2xl border border-fuchsia-400/40 bg-[#090b18] shadow-[0_0_25px_rgba(217,70,239,0.12)]">
-          <img src={selected.thumbnail} alt="" className="aspect-video max-h-52 w-full object-cover" />
-          <div className="p-4"><p className="font-bold leading-5 text-white">{selected.title}</p><p className="mt-1 text-sm text-zinc-400">{selected.channel}</p><button type="button" disabled={busy || !acceptedLegal} onClick={() => void send({ kind: 'youtube', video: selected })} className="mt-4 min-h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 px-4 text-sm font-black text-[#080914] disabled:opacity-50">{busy ? 'Enviando pedido…' : 'Enviar pedido ao DJ'}</button><p className="mt-3 text-center text-xs text-zinc-400">O pedido fica sujeito à decisão do DJ.</p></div>
-        </article>
-      </div>}
-
-      {stage === 'receipt' && <section className="space-y-4 rounded-2xl border border-emerald-300/30 bg-[#090b18]/95 p-5 text-center">
+  if (privateCode) {
+    return (
+      <section className="space-y-4 rounded-2xl border border-emerald-300/30 bg-[#090b18]/95 p-5 text-center">
         <span aria-hidden="true" className="mx-auto grid size-12 place-items-center rounded-full border border-emerald-300 text-2xl text-emerald-300">✓</span>
-        <h1 className="text-xl font-black text-white">Pedido enviado ao DJ</h1>
+        <h2 className="text-xl font-black text-white">Pedido enviado ao DJ</h2>
         <p role="status" aria-live="polite" className="text-sm leading-6 text-emerald-200">{message}</p>
         <div className="break-all rounded-xl border border-cyan-300/20 bg-night-950 p-3 text-left"><p className="text-xs text-zinc-400">Comprovante privado — salve agora; ele não poderá ser recuperado depois.</p><code className="mt-2 block select-all font-mono text-xs text-cyan-200">{privateCode}</code><a className="mt-3 inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>
         <p className="text-xs text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
-      </section>}
+      </section>
+    )
+  }
 
-      {stage === 'entry' && <section className="space-y-4 border-t border-cyan-300/20 pt-5">
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-4 shadow-[0_0_30px_rgba(217,70,239,0.1)] sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-fuchsia-300"><MusicIcon className="size-4" />Área do convidado</span>
+          <span className="rounded-full border border-emerald-400/40 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{room.status === 'active' ? 'Ativa' : 'Pausada'}{room.status === 'active' && <span aria-hidden="true"> ●</span>}</span>
+        </div>
+        <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
+        <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
+        <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
+        <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Sala ativa. Envie uma sugestão musical para o DJ.</p>
+      </div>
+
+      <section className="space-y-4 border-t border-cyan-300/20 pt-5">
         <div><h2 className="flex items-center gap-2 text-lg font-black text-white"><MusicIcon className="size-5 text-fuchsia-400" />Peça uma música</h2><p className="mt-1 text-xs leading-5 text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p></div>
-        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/70 p-3 text-sm leading-6 text-zinc-300"><input type="checkbox" checked={acceptedLegal} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setSelected(null); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-fuchsia-400" /><span>Li e aceito os <Link to="/termos-de-uso" className="font-semibold text-cyan-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-semibold text-cyan-300 underline underline-offset-2">Política de Privacidade</Link>.</span></label>
-        <form className="flex gap-2 rounded-full border border-cyan-300/50 bg-night-950 p-1.5 focus-within:border-fuchsia-400" onSubmit={(event) => { event.preventDefault(); if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); void searchRef.current(query) }}>
-          <label className="sr-only" htmlFor="music-search">Pesquisar no YouTube</label><input id="music-search" value={query} onChange={(event) => { searchSequence.current += 1; setBusy(false); setSearching(false); setVideos([]); setMessage(''); setQuery(event.target.value); setSelected(null) }} maxLength={100} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-zinc-400" />
-          <button type="submit" aria-label="Buscar músicas" disabled={busy || !acceptedLegal || query.trim().length < 3} className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-lg font-black text-night-950 disabled:opacity-40">⌕</button>
+        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-night-950/70 p-3 text-sm leading-6 text-zinc-300"><input type="checkbox" checked={acceptedLegal} disabled={busy} onChange={(event) => { searchSequence.current += 1; setSearching(false); setResults([]); setSelected(null); setNextOffset(null); setSearchError(''); setAcceptedLegal(event.target.checked) }} className="mt-1 size-4 shrink-0 accent-fuchsia-400" /><span>Li e aceito os <Link to="/termos-de-uso" className="font-semibold text-cyan-300 underline underline-offset-2">Termos de Uso</Link> e a <Link to="/privacidade" className="font-semibold text-cyan-300 underline underline-offset-2">Política de Privacidade</Link>.</span></label>
+        <form className="flex gap-2 rounded-full border border-cyan-300/50 bg-night-950 p-1.5 focus-within:border-fuchsia-400" onSubmit={(event) => { event.preventDefault(); if (searchTimer.current !== null) window.clearTimeout(searchTimer.current); searchTimer.current = null; void searchRef.current(query, 0, false) }}>
+          <label className="sr-only" htmlFor="music-search">Pesquisar músicas por título ou artista</label><input id="music-search" value={query} onChange={(event) => { searchSequence.current += 1; setSearching(false); setResults([]); setSelected(null); setNextOffset(null); setSearchError(''); setMessage(''); setQuery(event.target.value) }} maxLength={80} placeholder="Título, artista ou música" autoComplete="off" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-zinc-400" />
+          <button type="submit" aria-label="Pesquisar músicas" disabled={busy || searching || !acceptedLegal || query.trim().length < 3} className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-lg font-black text-night-950 disabled:opacity-40">⌕</button>
         </form>
-        {searching && <p role="status" aria-live="polite" className="text-xs text-zinc-400">Buscando vídeos…</p>}
+        {searching && <p role="status" aria-live="polite" className="text-xs text-zinc-400">Buscando músicas…</p>}
+        {searchError && <p role="status" aria-live="polite" className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-3 text-sm text-amber-100">{searchError}</p>}
+        {results.length > 0 && <ul aria-label="Resultados do catálogo musical" className="space-y-2">{results.map((recording) => <li key={recording.recordingMbid}><button type="button" aria-pressed={selected?.recordingMbid === recording.recordingMbid} onClick={() => setSelected(recording)} className={`flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border bg-[#090b18]/95 p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-fuchsia-400 ${selected?.recordingMbid === recording.recordingMbid ? 'border-fuchsia-400/70' : 'border-cyan-300/20 hover:border-fuchsia-400/60'}`}><span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{recording.title}</span><span className="mt-1 block truncate text-xs text-zinc-400">{recording.artist}</span></span><span aria-hidden="true" className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm ${selected?.recordingMbid === recording.recordingMbid ? 'border-fuchsia-400 text-fuchsia-300' : 'border-cyan-300/30 text-cyan-300'}`}>{selected?.recordingMbid === recording.recordingMbid ? '✓' : '♪'}</span></button></li>)}</ul>}
+        {selected && <button type="button" disabled={busy || !acceptedLegal} onClick={() => void send({ kind: 'catalog', recordingMbid: selected.recordingMbid, title: selected.title, artist: selected.artist })} className="min-h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 px-4 text-sm font-black text-[#080914] disabled:opacity-50">{busy ? 'Enviando pedido…' : 'Enviar pedido ao DJ'}</button>}
+        {nextOffset !== null && <button type="button" disabled={searching || busy} onClick={() => void searchRef.current(query, nextOffset, true)} className="min-h-11 w-full rounded-full border border-cyan-300/30 px-4 text-sm font-semibold text-cyan-200 disabled:opacity-50">{searching ? 'Carregando…' : 'Carregar mais músicas'}</button>}
         {message && !privateCode && <p role="status" aria-live="polite" className="rounded-xl border border-amber-300/20 bg-amber-300/5 px-3 py-3 text-sm text-amber-100">{message}</p>}
-      </section>}
+      </section>
 
-      {stage === 'results' && <ul className="space-y-2">{videos.map((video) => <li key={video.videoId}><button type="button" aria-pressed={selected?.videoId === video.videoId} onClick={() => setSelected(video)} className="flex min-h-[94px] w-full items-center gap-3 rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-2 text-left transition hover:border-fuchsia-400/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fuchsia-400">
-        <img src={video.thumbnail} alt="" loading="lazy" className="size-[76px] shrink-0 rounded-xl object-cover" /><span className="min-w-0 flex-1"><span className="line-clamp-2 block text-sm font-semibold leading-5 text-white">{video.title}</span><span className="mt-1 block truncate text-xs text-zinc-400">{video.channel}</span></span><span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-fuchsia-400 text-sm text-fuchsia-300">▶</span>
-      </button></li>)}</ul>}
-
-      {(stage === 'entry' || stage === 'results') && <details className="rounded-2xl border border-cyan-300/25 bg-night-950/80 p-4">
+      <details className="rounded-2xl border border-cyan-300/25 bg-night-950/80 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-zinc-100">▶ &nbsp;Não encontrou? Faça um pedido manual</summary>
-        <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); void send({ kind: 'manual', title, artist, url }) }}>
+        <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); void send(url.trim() ? { kind: 'youtube-link', title, artist, url: url.trim() } : { kind: 'manual', title, artist, url: '' }) }}>
           <label className="block text-xs text-zinc-300">Título<input required maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <label className="block text-xs text-zinc-300">Artista<input required maxLength={120} value={artist} onChange={(event) => setArtist(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <label className="block text-xs text-zinc-300">Link do YouTube (opcional)<input type="url" maxLength={500} value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://youtu.be/..." className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-night-950 px-3 text-sm" /></label>
           <button disabled={busy || !acceptedLegal} className="min-h-11 w-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 text-sm font-bold text-night-950 disabled:opacity-50">Enviar pedido manual</button>
         </form>
-      </details>}
+      </details>
     </div>
   )
 }

@@ -186,9 +186,10 @@ abuso distribuído.
 
 ### Etapa 4A — pesquisa e pedidos
 
-- A SPA chama `POST /api/youtube-search` após 600 ms sem digitação e
+- A SPA chama `POST /api/music-search` após 600 ms sem digitação e
   `POST /api/guest-requests` após seleção/confirmação do convidado. Cloudflare Pages Functions
-  ficam em `functions/api`; Vite não as executa por conta própria.
+  ficam em `functions/api`; Vite não as executa por conta própria. `/api/youtube-search` permanece
+  como endpoint legado e não é usado pela busca principal.
 - `YOUTUBE_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são bindings de runtime do Pages. O navegador
   nunca recebe chave do YouTube nem credencial privilegiada. O binding Supabase aceita a chave
   legada `service_role` ou a chave moderna `sb_secret_`; as Functions enviam a credencial apenas
@@ -204,6 +205,9 @@ abuso distribuído.
   mesmo se a API falhar. O teto é global entre deployments que usam este mesmo banco; se a mesma
   chave Google for reutilizada com bancos independentes, os contadores não se somam. Não reutilizar
   a chave de produção em ambientes isolados sem orçamento compartilhado.
+- Cache, limites e orçamento acima pertencem ao endpoint legado `/api/youtube-search`. A busca do
+  catálogo usa uma RPC e bucket de rate limit separados; não lê nem altera o orçamento diário do
+  YouTube.
 - Fonte: [documentação oficial de custos e cotas](https://developers.google.com/youtube/v3/determine_quota_cost).
   A quota real deve ser conferida no Google Cloud; o limite local não amplia a concessão do Google.
 - Pedidos são validados e inseridos no servidor como `pending`, associados à sala e `dj_id`.
@@ -223,12 +227,13 @@ abuso distribuído.
   documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
   retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
   busca não é persistido; o registro de pedido guarda apenas a declaração enviada junto ao pedido.
-- Busca indisponível (chave ausente, cota ou API fora) não bloqueia pedido manual. Link manual é
-  opcional e restrito a URLs HTTPS de domínios YouTube conhecidos.
+- Falha de busca do catálogo não bloqueia pedido manual. O formulário manual aceita título/artista
+  e link HTTPS opcional de vídeo YouTube; o backend valida o ID do vídeo e armazena o link como
+  referência, sem download ou player.
 - `surprise_mode` e `show_guest_requests` são preservados; a interface não publica fila nem lista
   de pedidos. O recibo confirma apenas gravação, não aprovação ou reprodução.
-- As páginas `/termos-de-uso` e `/privacidade` descrevem o uso da YouTube Data API, dados tratados,
-  cache, retenção configurada e o código/aceite dos pedidos. A interface exige aceite antes de
+- As páginas `/termos-de-uso` e `/privacidade` descrevem o catálogo MusicBrainz, links YouTube, dados
+  tratados, retenção configurada e o código/aceite dos pedidos. A interface exige aceite antes de
   buscar ou enviar; somente pedidos persistem versão e timestamp. Permanecem pendentes de revisão:
   bases legais, regiões/transferências, política de logs de terceiros e procedimento/prazo de
   atendimento a titulares. Referências: [políticas para clientes
@@ -238,15 +243,12 @@ abuso distribuído.
   aplicadas ao Supabase remoto segundo a verificação anterior. A migration de moderação
   (`20261107000000`) está no repositório, mas sua aplicação remota não está confirmada. Os 165
   testes pgTAP passaram no GitHub Actions do PR #3; isso não comprova o estado remoto.
-- Diagnóstico local mais recente: inicialmente houve `ECONNREFUSED` no proxy Vite porque o Wrangler
-  não estava executando. Com a Function ativa, a busca real retornou HTTP 429 (`daily_budget`) do
-  gate Supabase. Leituras das tabelas privadas de orçamento retornaram HTTP 403; a requisição foi
-  bloqueada antes do YouTube. Ainda não é possível distinguir limite diário consumido de orçamento
-  desativado nem afirmar a validade da chave/cota externa do YouTube.
-- O endpoint de busca do deployment público atual respondeu HTTP 429 com a mensagem genérica da
-  versão anterior da Function. Essa resposta não identifica se o bloqueio foi sala, rate limit ou
-  orçamento e não comprova se a YouTube Data API foi chamada; a busca precisa ser repetida após
-  publicar esta branch para obter o código de diagnóstico seguro atualizado.
+- Histórico de diagnóstico do endpoint legado `/api/youtube-search`: inicialmente houve
+  `ECONNREFUSED` no proxy Vite porque o Wrangler não estava executando. Com a Function ativa, uma
+  busca real antiga retornou HTTP 429 (`daily_budget`) do gate Supabase. Esse diagnóstico não se
+  aplica à busca MusicBrainz da Etapa 4C, que não usa a YouTube Data API.
+- O endpoint legado de busca de vídeo em um deployment anterior respondeu HTTP 429 genérico; a
+  resposta não permite concluir se o bloqueio foi sala, rate limit, orçamento ou chamada upstream.
 - Não houve acesso aos segredos nem aos logs de runtime do Cloudflare. As Functions agora registram
   somente categoria/status/código seguro (nunca URL com chave, credencial, corpo bruto ou stack com
   dados externos) e retornam categorias de erro distinguindo chave YouTube inválida/restrita,
@@ -255,11 +257,9 @@ abuso distribuído.
 
 ### Etapa 4B — busca visual e moderação
 
-- A interface do convidado pesquisa automaticamente após 600 ms sem digitação (mínimo de três
-  caracteres), sem botão de busca; apresenta miniatura/título/canal e, após seleção, mostra
-  “Enviar pedido ao DJ”. O backend segue validando vídeo/cache antes de gravar o pedido.
-  A função server-side e o cache/orçamento/rate limits da Etapa 4A permanecem a autoridade para
-  disponibilidade e cota; o comportamento publicado ainda depende de validação real.
+- A implementação original apresentava resultados de vídeo e aceitava IDs YouTube validados pelo
+  backend. Esse formato permanece compatível com pedidos já existentes; a interface principal
+  agora busca metadados no catálogo da Etapa 4C, sem vídeo, miniatura ou player.
 - O recibo privado continua sendo entregue uma vez ao convidado. A confirmação informa recebimento
   pendente, sem prometer aprovação ou reprodução; `video_id` é preservado para futura integração.
 - `public.guest_requests` continua sem grants diretos. As RPCs `dj_list_guest_requests()` e
@@ -280,6 +280,28 @@ abuso distribuído.
   concreto, sem mascaramento.
 - A Function usa uma identidade de rate limit local estável somente quando `YOUDJ_LOCAL_DEV=true`;
   em produção, o endereço observado pelo Cloudflare continua sendo a identidade de rate limit.
+
+### Etapa 4C — catálogo MusicBrainz e pedidos híbridos (local)
+
+- Fonte: [MusicBrainz Core](https://musicbrainz.org/doc/MusicBrainz_Database), campos de gravação
+  (título, artist credit e MBID) licenciados sob [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+  A busca do convidado consulta somente a cópia local; a API pública MusicBrainz é usada pelo
+  importador manual, nunca no caminho da pesquisa em produção.
+- O snapshot inicial contém 140 MBIDs únicos reais, 20 por artista: Scorpions, Bon Jovi, Legião
+  Urbana, Charlie Brown Jr., Skank, Titãs e Jorge Ben Jor. O recorte é allowlisted, com limite
+  absoluto de 250 gravações; nenhum dump completo é importado. O importador usa User-Agent
+  identificado, espera 1,1 s entre consultas, pagina manualmente e faz upsert/deduplicação por MBID.
+- `music_catalog_recordings` tem RLS sem leitura direta por `anon`/`authenticated`, índice GIN
+  full-text e apenas metadados. Pages Function chama RPC `SECURITY DEFINER` com
+  `SUPABASE_SERVICE_ROLE_KEY` no servidor; cada página retorna até 10 resultados e o rate limit é
+  independente, 30 buscas/IP/hora. A busca não consulta nem altera cotas do YouTube.
+- Pedidos de catálogo guardam título, artista, MBID e origem `musicbrainz`; referências YouTube e
+  pedidos manuais usam origem própria. Pedidos antigos `video_id` são preservados. As RPCs de
+  moderação continuam limitadas ao DJ proprietário; nenhum pedido inicia reprodução ou playlist.
+- Migration `20261108000000_add_musicbrainz_catalog.sql`, snapshot e `supabase/seed.sql` são
+  locais/versionados; `supabase/config.toml` carrega o seed apenas em resets locais. Nada foi
+  aplicado ao banco remoto. Este ambiente não tem Supabase CLI, Docker ou `psql`, portanto a
+  migration, o seed e os pgTAP novos ainda não foram executados em PostgreSQL local.
 
 ### Identidade visual das salas
 

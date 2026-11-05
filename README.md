@@ -107,17 +107,32 @@ Itens verificados no código atual:
   localmente (sem serviços externos), com cópia do link e download de PNG no painel.
 - Página pública do convidado que consulta a sala por código (somente nome e estado), com
   estados de carregamento, não encontrada, indisponível e erro com nova tentativa.
-- Busca visual de vídeos do YouTube com debounce, seleção e confirmação pelo convidado, além do
-  envio de pedidos por formulário manual, mediados por Cloudflare Pages Functions; pedidos
-  pendentes criados por RPC restrita ao
-  backend, sem acesso público direto à tabela.
+- Busca musical principal por título/artista no catálogo Supabase local do YouDJ, após debounce de
+  600 ms; cada resultado mostra somente título, artista e MBID. O snapshot inicial contém 140
+  gravações reais MusicBrainz Core (CC0-1.0), limitado a 20 por artista e 250 no banco. A consulta
+  do convidado passa por Pages Function/RPC indexada e não chama MusicBrainz nem consome cota do
+  YouTube.
+- Pedidos do catálogo armazenam título, artista, MBID e origem `musicbrainz`; pedidos manuais podem
+  incluir URL HTTPS de vídeo YouTube como referência (`youtube`), ou ser somente texto (`manual`).
+  IDs YouTube antigos continuam compatíveis. Todos os pedidos são mediados por Pages Function e
+  RPC restrita; nenhum resultado adiciona áudio à playlist ou inicia reprodução.
+- Importador manual incremental em `scripts/import-musicbrainz-catalog.mjs`, com artista allowlist,
+  User-Agent identificado, intervalo de 1,1 s, deduplicação por MBID e limite de 250 gravações.
+  Ele alimenta apenas o snapshot/seed local; não existe consulta à API MusicBrainz por convidados.
+- Snapshot inicial: 140 gravações reais, 20 para cada um dos 7 artistas permitidos; JSON de 34.207
+  bytes e estimativa aproximada de 48.895 bytes para tabela/índices. A estimativa não foi medida
+  em PostgreSQL porque não há servidor local instalado neste ambiente.
 - Painel do DJ com pedidos pendentes, aprovação/rejeição pelo proprietário da sala e lista separada
   de aprovados; aprovação não adiciona à playlist nem inicia reprodução.
 - Tema Synthwave Neon padrão nas salas públicas, com artwork definitivo em
   `public/guest-room-artwork.png`, abaixo da ação de retorno da sala. O cabeçalho exibe o nome da
   sala e seu código, sem atalhos administrativos na experiência de convidado.
-- A busca local real respondeu HTTP 429 (`daily_budget`). O RPC Supabase bloqueou antes da chamada
-  ao YouTube; ainda não foi possível distinguir orçamento diário consumido de busca desativada.
+- A migration `supabase/migrations/20261108000000_add_musicbrainz_catalog.sql` e o seed em
+  `supabase/seed.sql` são locais/versionados e **não foram aplicados ao Supabase remoto**. O RLS
+  bloqueia leitura direta do catálogo; somente as Pages Functions com service role chamam as RPCs.
+- Histórico do endpoint legado `/api/youtube-search`: uma busca anterior retornou HTTP 429
+  (`daily_budget`) no RPC do orçamento. Esse diagnóstico pertence à busca de vídeo antiga e não
+  limita nem é usado pelo catálogo MusicBrainz.
 - Tela de link inválido para códigos de sala malformados.
 - Página 404 para rotas desconhecidas.
 - ESLint, Vitest, Testing Library e jsdom configurados.
@@ -481,9 +496,10 @@ npm install
   respondeu HTTP 429 (`daily_budget`) no gate Supabase e não chegou ao YouTube. O endpoint da
   produção atual também respondeu HTTP 429 genérico; a versão anterior não expõe causa suficiente
   para identificar o upstream. A produção precisa ser revalidada após o deploy desta alteração.
-- Sem `YOUTUBE_API_KEY`, a versão local atual informa erro de configuração e preserva pedido manual.
-  Limites no banco: no máximo 10 novas chamadas `search.list` por dia do Pacífico, 10 buscas/IP/hora,
-  cache por 6h e até 5 pedidos/IP/10 min. A documentação do YouTube informa padrão de 100 chamadas
+- `YOUTUBE_API_KEY` é necessária somente ao endpoint legado `/api/youtube-search`; a busca principal
+  do catálogo e pedidos manuais não dependem dela. Seus limites permanecem sem alteração: no máximo
+  10 novas chamadas `search.list` por dia do Pacífico, 10 buscas/IP/hora, cache por 6h e até 5
+  pedidos/IP/10 min. A busca do catálogo usa bucket independente de 30 consultas/IP/hora. A documentação do YouTube informa padrão de 100 chamadas
   `search.list`/dia, 1 unidade por chamada e reset à meia-noite do Pacífico; o limite global é
   configurável de 0 a 10 em `youtube_search_budget_config` (zero bloqueia consultas sem cache),
   apenas para reduzir esse teto. Confirme
@@ -492,26 +508,30 @@ npm install
   a mesma chave do YouTube devem compartilhar este banco/orçamento; bancos isolados têm contadores
   separados e não formam, juntos, um limite global do projeto Google.
 
-### Teste local pelo celular (Vite + Wrangler)
+### Teste local pelo celular (Supabase local + Vite + Wrangler)
 
-- `npm install` instala Wrangler como dependência de desenvolvimento. `npm run dev:mobile --
-  --room-code CODIGO` compila a SPA, inicia Pages Functions localmente em `127.0.0.1:8788` e Vite
-  somente no IP privado escolhido da LAN, na porta `5173`; o proxy `/api` leva as chamadas reais
-  do navegador ao Wrangler. Não publica nem configura Preview/Production.
-- Configure `.env.local` com as variáveis públicas `VITE_SUPABASE_URL` e
-  `VITE_SUPABASE_PUBLISHABLE_KEY`. Copie `.dev.vars.example` para `.dev.vars` (ignorado pelo Git)
-  e preencha `SUPABASE_URL` do mesmo projeto, `SUPABASE_SERVICE_ROLE_KEY` e `YOUTUBE_API_KEY`.
-  Nunca coloque as duas chaves de servidor em `VITE_*`, não as cole em conversas e não versione
+- A busca do catálogo e os pedidos de teste gravam rate limits/pedidos. Use um projeto Supabase
+  **local** para este fluxo; não aponte `.dev.vars` ao projeto de produção. A migration e o seed
+  `supabase/seed.sql` são carregados somente pelo reset local. Este ambiente não tem Supabase CLI,
+  Docker ou `psql`, então a validação end-to-end pelo QR ainda depende de iniciar esse stack local.
+- Com Docker e Supabase CLI instalados, execute `supabase start` e `supabase db reset --local` na
+  worktree do YouDJ. O reset local aplica migrations e carrega o catálogo CC0 inicial. Não use
+  `db reset` em projetos remotos.
+- Configure `.env.local` com `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` do Supabase local.
+  Configure `.dev.vars` (ignorado pelo Git) com o mesmo `SUPABASE_URL` e a service role key local.
+  `YOUTUBE_API_KEY` é opcional: a busca principal do catálogo não chama a YouTube Data API nem usa
+  sua cota. Nunca coloque chaves de servidor em `VITE_*`, não as cole em conversas e não versione
   `.dev.vars`.
-- Use somente uma sala ativa de teste pertencente à sua conta de DJ (idealmente uma sala dedicada,
-  por exemplo “Teste celular”). O fluxo de convidado grava pedidos reais nessa sala e o painel
-  autenticado do mesmo DJ permite aprovar/rejeitar; os pedidos de teste ficam identificados pela
-  sala dedicada. Não use sala de outro DJ. A busca usa o cache/orçamento reais do Supabase e a chave
-  real do YouTube; cada consulta inédita pode reservar 1 unidade da cota mesmo se o upstream falhar.
-- O script seleciona um IPv4 privado da máquina, gera QR/PNG em `.tmp/youdj-dev-room-qr.png` e
-  não altera o QR de produção. A porta das Functions é loopback; a SPA só é acessível na LAN.
-  Celular e Windows devem estar na mesma Wi-Fi; mantenha o Windows Defender Firewall restrito à
-  rede privada e não configure port-forwarding. Se houver mais de uma interface, passe `--ip`.
+- Para expandir o catálogo, execute manualmente `node scripts/import-musicbrainz-catalog.mjs`;
+  cada execução busca no máximo uma página por artista, espera 1,1 s entre chamadas, deduplica por
+  MBID e atualiza apenas os snapshots locais. `node scripts/import-musicbrainz-catalog.mjs
+  --apply-local` aplica o snapshot existente sem consultar a rede MusicBrainz; o modo combinado
+  `--refresh --apply-local` busca uma página e faz upsert. O importador lê os secrets locais de
+  `.dev.vars` ou do ambiente e recusa qualquer URL Supabase fora de `http://localhost:54321`/loopback.
+- Crie uma sala de teste com um DJ local e execute `npm run dev:mobile -- --room-code CODIGO`.
+  O script inicia Pages Functions em `127.0.0.1:8788` e Vite no IP privado da LAN, na porta `5173`;
+  o QR exibido é apenas de desenvolvimento, não altera o QR de produção. Mantenha telefone e
+  computador na mesma Wi-Fi, não configure port-forwarding e use `--ip` se houver várias interfaces.
 - A migration local de retenção define exclusão de pedidos após 30 dias, limites após 48 horas,
   cache fisicamente expirado e contadores após 31 dias. O cache deixa de ser elegível após 6h; a
   limpeza física é agendada de hora em hora via pg_cron quando a extensão está disponível. A rotina
@@ -607,11 +627,12 @@ fluxos de validação, sessão, rota protegida e criação de perfil com doubles
 criação/listagem de salas, do compartilhamento (link e QR Code) e da página pública do
 convidado. A suíte é executada por arquivo; a etapa 3B validou os 41 testes novos e afetados.
 
-A suíte pgTAP tem 154 asserções: 28 em `dj_profiles_rls.test.sql`, 33 em `rooms_rls.test.sql`,
+A suíte pgTAP existente tem 154 asserções: 28 em `dj_profiles_rls.test.sql`, 33 em `rooms_rls.test.sql`,
 27 em `rooms_public_code.test.sql`, 17 em `room_music_preferences.test.sql` e 49 em
 `guest_requests_security.test.sql`, incluindo os testes de segurança da Etapa 4A. Ela é executada
 em um Supabase local isolado pelo workflow, pois este ambiente local não possui Docker nem
-PostgreSQL.
+PostgreSQL. A migration do catálogo acrescenta 15 asserções em
+`musicbrainz_catalog.test.sql`; essas novas asserções ainda não foram executadas em PostgreSQL.
 
 | Verificação         | Finalidade                                                        |
 | ------------------- | ----------------------------------------------------------------- |
