@@ -14,6 +14,19 @@ export interface GuestRequestReceipt {
   privateCode: string
 }
 
+export type GuestRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface GuestRequestStatusItem {
+  title: string
+  artist: string
+  status: GuestRequestStatus
+  createdAt: string
+}
+
+export interface GuestRequestStatusStore {
+  list: (roomCode: string, privateCodes: string[]) => Promise<GuestRequestStatusItem[]>
+}
+
 export interface YoutubeSearchUsage {
   callsToday: number
   dailyQuota: number
@@ -109,4 +122,43 @@ export async function submitGuestRequest(
     throw new Error('Não foi possível validar o comprovante do pedido.')
   }
   return { received: true, privateCode: payload.privateCode }
+}
+
+const GUEST_REQUEST_STATUSES_PATH = '/api/guest-request-status'
+const REQUEST_STATUSES = new Set<GuestRequestStatus>(['pending', 'approved', 'rejected'])
+
+export async function listGuestRequestStatuses(
+  roomCode: string,
+  privateCodes: string[],
+): Promise<GuestRequestStatusItem[]> {
+  if (!privateCodes.length) return []
+
+  const payload = await post<unknown>(GUEST_REQUEST_STATUSES_PATH, {
+    roomCode,
+    privateCodes,
+  })
+  if (!isRecord(payload) || !Array.isArray(payload.requests) || payload.requests.length > 100) {
+    throw new Error('Não foi possível validar seus pedidos. Tente novamente.')
+  }
+
+  return payload.requests.map((item): GuestRequestStatusItem => {
+    if (!isRecord(item)
+      || typeof item.title !== 'string' || !item.title.trim() || item.title.length > 120
+      || typeof item.artist !== 'string' || !item.artist.trim() || item.artist.length > 120
+      || typeof item.status !== 'string' || !REQUEST_STATUSES.has(item.status as GuestRequestStatus)
+      || typeof item.createdAt !== 'string' || !Number.isFinite(Date.parse(item.createdAt))) {
+      throw new Error('Não foi possível validar seus pedidos. Tente novamente.')
+    }
+
+    return {
+      title: item.title,
+      artist: item.artist,
+      status: item.status as GuestRequestStatus,
+      createdAt: item.createdAt,
+    }
+  })
+}
+
+export const guestRequestStatusStore: GuestRequestStatusStore = {
+  list: listGuestRequestStatuses,
 }
