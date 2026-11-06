@@ -75,6 +75,12 @@ export type Database = {
           created_at: string
         }[]
       }
+      dj_list_room_music_queue: {
+        Args: { p_room_id: string }
+        Returns: { request_id: string; title: string; artist: string; video_id: string | null; submitted_url: string | null; guest_name: string; position: number; added_at: string }[]
+      }
+      dj_reorder_room_music_queue: { Args: { p_room_id: string; p_request_ids: string[] }; Returns: boolean }
+      dj_remove_room_music_queue_item: { Args: { p_room_id: string; p_request_id: string }; Returns: boolean }
       dj_get_room_management_context: {
         Args: { p_room_id: string }
         Returns: {

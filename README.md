@@ -121,9 +121,18 @@ Itens verificados no código atual:
   Aprovação não adiciona à playlist nem inicia reprodução.
 - Painel do DJ com pedidos pendentes, aprovação/rejeição e lista separada
   de aprovados e rejeitados por sala, com o apelido associado a cada pedido.
+- Aba “Fila e Player” no gerenciamento de cada sala: pedidos aprovados entram uma única vez no fim
+  da fila; DJ pode reordenar/remover sem alterar o status do pedido. Migration local adiciona
+  autorização por sala. Player/reprodução não estão implementados e migration ainda não aplicada
+  remotamente.
 - Convidado informa nome ou apelido no primeiro acesso. Um identificador aleatório é reutilizado
   somente no mesmo navegador; não há conta, e-mail ou senha, e o apelido não é identidade verificada.
   Heartbeats mantêm presença por sala, expirada após 90 segundos sem atividade.
+- A interface “Meus pedidos” acompanha os estados existentes usando comprovantes privados como prova
+  de posse, sem confiar no `guest_id`; os códigos são guardados por sala no navegador e podem ser
+  importados. A RPC server-side requer a migration local
+  `20261113000000_guest_request_status_by_receipt.sql`, ainda pendente de validação no GitHub Actions
+  e aplicação autorizada. Até lá, a consulta ao backend não está disponível.
 - A migration local `20261112000000_room_moderators_and_permissions.sql` adiciona membership
   privado por sala e RPCs com verificação server-side owner/moderator. Requer a migration
   `20261111000000_guest_identity_presence_room_management.sql` e ainda não foi aplicada nem
@@ -199,7 +208,7 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 ### O que ainda não está implementado
 
 - Recuperação de senha e gestão de e-mail/senha.
-- Atualizações em tempo real, fila, histórico e player.
+- Atualizações em tempo real, histórico e player.
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
 - Contas e identidades verificadas de convidados. O apelido e o ID aleatório do navegador servem
@@ -264,7 +273,7 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
   para diagnóstico mais específico sem revelar credenciais ou corpos do provedor.
 - Termos de Uso e Política de Privacidade em rascunho, com aceite obrigatório no fluxo do convidado;
   precisam de revisão e aprovação antes da publicação.
-- Fila livre.
+- Fila livre/automática (a Etapa 1 atual cobre somente a fila gerenciada pelo DJ).
 - Reorganização de pedidos.
 - Atualizações em tempo real.
 - Prevenção de músicas repetidas.
@@ -766,7 +775,7 @@ pgTAP, incluindo a Etapa 4A, são executadas em cada Pull Request que altera `su
   usuários de teste), para uso geral.
 - Recuperação de senha e gestão de credenciais.
 - Integração do Supabase Realtime aos fluxos da aplicação.
-- Gestão de pedidos no painel, aprovação, fila e histórico.
+- Gestão de pedidos no painel, aprovação e fila básica por sala (reordenação e remoção); histórico ainda pendente.
 - Validação real das Pages Functions, incluindo busca via chave/cota efetiva do YouTube.
 - Revisão/aprovação dos Termos de Uso e Política de Privacidade, identificação do controlador,
   canal de contato e definição dos prazos de retenção.

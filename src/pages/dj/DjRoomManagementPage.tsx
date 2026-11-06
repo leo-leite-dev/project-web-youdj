@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { DjRequestsSection } from '../../features/guest/components/DjRequestsSection'
 import { DjRoomPresenceSection } from '../../features/guest/components/DjRoomPresenceSection'
+import { DjMusicQueueSection } from '../../features/guest/components/DjMusicQueueSection'
+import type { DjMusicQueueStore } from '../../features/guest/services/djMusicQueueStore'
 import type { DjPresenceStore } from '../../features/guest/services/djPresenceStore'
 import type { DjRequestStore } from '../../features/guest/services/djRequestStore'
 import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
@@ -16,6 +18,7 @@ interface DjRoomManagementPageProps {
   roomManagementStore?: DjRoomManagementStore
   requestStore?: DjRequestStore
   presenceStore?: DjPresenceStore
+  queueStore?: DjMusicQueueStore
 }
 
 type PageState =
@@ -24,7 +27,7 @@ type PageState =
   | { kind: 'notFound' }
   | { kind: 'ready'; room: ManagedRoom }
 
-export function DjRoomManagementPage({ roomManagementStore, requestStore, presenceStore }: DjRoomManagementPageProps) {
+export function DjRoomManagementPage({ roomManagementStore, requestStore, presenceStore, queueStore }: DjRoomManagementPageProps) {
   const { roomId } = useParams()
   const [storeState] = useState(() => {
     if (roomManagementStore) return { store: roomManagementStore, error: null }
@@ -35,6 +38,7 @@ export function DjRoomManagementPage({ roomManagementStore, requestStore, presen
     }
   })
   const [page, setPage] = useState<PageState>({ kind: 'loading' })
+  const [activeTab, setActiveTab] = useState<'requests' | 'queue'>('requests')
 
   const reload = useCallback(async () => {
     if (!roomId) {
@@ -104,7 +108,10 @@ export function DjRoomManagementPage({ roomManagementStore, requestStore, presen
     </header>
 
     {isOwner && storeState.store && <DjRoomModeratorsSection roomId={room.id} store={storeState.store} />}
-    <DjRoomPresenceSection roomId={room.id} store={presenceStore} />
-    <DjRequestsSection roomId={room.id} store={requestStore} />
+    <nav role="tablist" aria-label="Seções da sala" className="flex gap-2 border-b border-white/10">
+      <button type="button" aria-selected={activeTab === 'requests'} role="tab" onClick={() => setActiveTab('requests')} className={`min-h-11 border-b-2 px-4 text-sm font-semibold ${activeTab === 'requests' ? 'border-cyan-300 text-cyan-100' : 'border-transparent text-zinc-400'}`}>Pedidos</button>
+      <button type="button" aria-selected={activeTab === 'queue'} role="tab" onClick={() => setActiveTab('queue')} className={`min-h-11 border-b-2 px-4 text-sm font-semibold ${activeTab === 'queue' ? 'border-fuchsia-300 text-fuchsia-100' : 'border-transparent text-zinc-400'}`}>Fila e Player</button>
+    </nav>
+    {activeTab === 'requests' ? <><DjRoomPresenceSection roomId={room.id} store={presenceStore} /><DjRequestsSection roomId={room.id} store={requestStore} /></> : <DjMusicQueueSection roomId={room.id} store={queueStore} />}
   </div>
 }

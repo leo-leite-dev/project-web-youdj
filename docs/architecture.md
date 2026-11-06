@@ -246,6 +246,15 @@ proprietário.
   documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
   retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
   busca não é persistido; o registro de pedido guarda apenas a declaração enviada junto ao pedido.
+- “Meus pedidos” mantém os códigos privados de comprovante no `localStorage`, com escopo por sala e
+  expiração local em 30 dias; permite importar um código apresentado anteriormente. O endpoint
+  `POST /api/guest-request-status` valida e transforma cada código em SHA-256 no servidor; nenhum
+  `guest_id` enviado pelo navegador autoriza leitura. A RPC `guest_list_requests_by_receipt_hashes`
+  usa `service_role`, limita a consulta à sala e à retenção de 30 dias e retorna apenas título,
+  artista, status e data. A migration `20261113000000_guest_request_status_by_receipt.sql` e o teste
+  `supabase/tests/guest_request_status.test.sql` permanecem pendentes de validação/aplicação; até lá
+  o caminho real ao banco não está validado. O workflow pgTAP roda localmente no GitHub Actions em
+  pushes para `develop` e pull requests para `main`.
 - A pesquisa só é enviada pelo botão da lupa; mudar o texto não chama a API. O cache por query evita
   nova `search.list` em buscas repetidas, e selecionar/enviar um resultado usa o `video_id` já
   obtido, sem refazer a busca. Chave ausente, cota esgotada ou API indisponível são reportadas; pedido
@@ -290,7 +299,8 @@ proprietário.
   `dj_room_online_guests` verificam `auth.uid()` e ownership no banco; `dj_guest_request_summary`
   é uma RPC legada; a interface não tem página de Visão geral e `/dj/painel` redireciona para
   `/dj/painel/salas`. A listagem detalhada fica na gestão individual da sala.
-  Aprovação não cria playlist, fila nem reprodução. O painel atualiza por polling, não Realtime.
+  Na etapa original de moderação, aprovação não criava playlist, fila nem reprodução. A fila básica
+  por sala está descrita na Etapa 4C abaixo; reprodução continua ausente. O painel atualiza por polling, não Realtime.
 - Migration `20261107000000_add_dj_request_moderation.sql` está versionada e integrada em
   `main`, mas sua aplicação no Supabase remoto não está confirmada. Os 165 testes pgTAP passaram
   no GitHub Actions do PR #3; isso comprova a execução local do workflow, não o estado do banco
@@ -484,6 +494,20 @@ Princípios que devem orientar as próximas etapas:
 - Pagamentos.
 - Player de música/vídeo.
 - Testes end-to-end em navegador.
+
+### Etapa 4C — fila por sala (Etapa 1)
+
+- Cada aprovação de pedido `pending` para `approved` insere atomicamente seu `request_id` em
+  `public.room_music_queue`, com chave única por pedido. O item é ordenado no fim da fila da sala;
+  repetir uma aprovação não duplica nem altera status.
+- RPCs `dj_list_room_music_queue`, `dj_reorder_room_music_queue` e
+  `dj_remove_room_music_queue_item` autorizam owner/moderator via `private.current_room_role` e
+  limitam cada operação à sala solicitada. A tabela não concede acesso direto aos papéis de API.
+- A aba “Fila e Player” exibe e reordena a fila e permite remover itens. Remoção afeta somente a
+  entrada da fila; o pedido aprovado mantém o status `approved`. Não há reprodução/player.
+- Migration `20261114000000_add_room_music_queue.sql` está versionada localmente e depende das
+  migrations de pedidos e de membership (`20261105000000`, `20261111000000` e `20261112000000`);
+  aplicação remota e teste contra Supabase real não realizados.
 
 ## 9. Próximos passos recomendados
 
