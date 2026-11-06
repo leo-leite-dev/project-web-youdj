@@ -128,6 +128,11 @@ Itens verificados no código atual:
 - Convidado informa nome ou apelido no primeiro acesso. Um identificador aleatório é reutilizado
   somente no mesmo navegador; não há conta, e-mail ou senha, e o apelido não é identidade verificada.
   Heartbeats mantêm presença por sala, expirada após 90 segundos sem atividade.
+- A interface “Meus pedidos” acompanha os estados existentes usando comprovantes privados como prova
+  de posse, sem confiar no `guest_id`; os códigos são guardados por sala no navegador e podem ser
+  importados. A RPC server-side requer a migration local
+  `20261113000000_guest_request_status_by_receipt.sql`, ainda pendente de validação no GitHub Actions
+  e aplicação autorizada. Até lá, a consulta ao backend não está disponível.
 - A migration local `20261112000000_room_moderators_and_permissions.sql` adiciona membership
   privado por sala e RPCs com verificação server-side owner/moderator. Requer a migration
   `20261111000000_guest_identity_presence_room_management.sql` e ainda não foi aplicada nem

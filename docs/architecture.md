@@ -246,6 +246,15 @@ proprietário.
   documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
   retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
   busca não é persistido; o registro de pedido guarda apenas a declaração enviada junto ao pedido.
+- “Meus pedidos” mantém os códigos privados de comprovante no `localStorage`, com escopo por sala e
+  expiração local em 30 dias; permite importar um código apresentado anteriormente. O endpoint
+  `POST /api/guest-request-status` valida e transforma cada código em SHA-256 no servidor; nenhum
+  `guest_id` enviado pelo navegador autoriza leitura. A RPC `guest_list_requests_by_receipt_hashes`
+  usa `service_role`, limita a consulta à sala e à retenção de 30 dias e retorna apenas título,
+  artista, status e data. A migration `20261113000000_guest_request_status_by_receipt.sql` e o teste
+  `supabase/tests/guest_request_status.test.sql` permanecem pendentes de validação/aplicação; até lá
+  o caminho real ao banco não está validado. O workflow pgTAP roda localmente no GitHub Actions em
+  pushes para `develop` e pull requests para `main`.
 - A pesquisa só é enviada pelo botão da lupa; mudar o texto não chama a API. O cache por query evita
   nova `search.list` em buscas repetidas, e selecionar/enviar um resultado usa o `video_id` já
   obtido, sem refazer a busca. Chave ausente, cota esgotada ou API indisponível são reportadas; pedido
