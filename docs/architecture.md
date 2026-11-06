@@ -288,7 +288,8 @@ proprietário.
 - A rota `/dj/painel/salas/:roomId` consulta apenas a sala do DJ autenticado, lista presença e
   pedidos pendentes/aprovados/rejeitados com apelidos. `dj_list_room_guest_requests` e
   `dj_room_online_guests` verificam `auth.uid()` e ownership no banco; `dj_guest_request_summary`
-  retorna apenas contagens à Visão geral. A listagem detalhada não aparece no dashboard.
+  é uma RPC legada; a interface não tem página de Visão geral e `/dj/painel` redireciona para
+  `/dj/painel/salas`. A listagem detalhada fica na gestão individual da sala.
   Aprovação não cria playlist, fila nem reprodução. O painel atualiza por polling, não Realtime.
 - Migration `20261107000000_add_dj_request_moderation.sql` está versionada e integrada em
   `main`, mas sua aplicação no Supabase remoto não está confirmada. Os 165 testes pgTAP passaram
@@ -308,6 +309,9 @@ proprietário.
 
 ### Desenvolvimento local via Wrangler
 
+- `npm run dev` inicia Wrangler Pages Functions em `127.0.0.1:8788` e Vite/HMR em
+  `127.0.0.1:3000`; o proxy `/api` encaminha as chamadas às Functions locais. As bindings do servidor
+  são lidas de `.dev.vars`, que não deve ser versionado. Não há deploy ou Preview nesse fluxo.
 - `npm run dev:mobile -- --room-code <código>` executa um build local inicial, serve a SPA por Vite
   no IPv4 privado selecionado e usa proxy de `/api` para `wrangler pages dev` em `127.0.0.1:8788`.
   O dev server da Function não fica exposto diretamente à LAN; não há deploy nem Preview.

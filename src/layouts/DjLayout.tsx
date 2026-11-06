@@ -2,7 +2,6 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import {
   ClockIcon,
-  HomeIcon,
   ListMusicIcon,
   MusicIcon,
   QrCodeIcon,
@@ -53,21 +52,6 @@ export function DjLayout() {
                 <span className="rooms-nav-disabled"><UsersIcon className="size-5" /> Conta</span>
               </>
             ) : <>
-            <NavLink
-              to="/dj/painel"
-              end
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-accent-500/15 text-accent-300'
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                }`
-              }
-            >
-              <HomeIcon className="size-4" />
-              Visão geral
-            </NavLink>
-
             <NavLink
               to="/dj/painel/salas"
               className={({ isActive }) =>
@@ -139,17 +123,6 @@ export function DjLayout() {
             </Link>
           </div>
           <div className="mt-3 flex items-center gap-2 overflow-x-auto text-xs">
-            <NavLink
-              to="/dj/painel"
-              end
-              className={({ isActive }) =>
-                `shrink-0 rounded-lg px-3 py-1.5 font-semibold ${
-                  isActive ? 'bg-accent-500/15 text-accent-300' : 'text-zinc-400'
-                }`
-              }
-            >
-              Visão geral
-            </NavLink>
             <NavLink
               to="/dj/painel/salas"
               className={({ isActive }) =>

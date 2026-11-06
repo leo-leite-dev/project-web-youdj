@@ -36,6 +36,7 @@ describe('DjLayout navigation', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Gerenciamento de salas' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Visão geral' })).not.toBeInTheDocument()
     const roomLinks = screen.getAllByRole('link', { name: 'Salas' })
     expect(roomLinks).toHaveLength(2)
     expect(roomLinks.every((link) => link.getAttribute('href') === '/dj/painel/salas')).toBe(true)
@@ -46,5 +47,22 @@ describe('DjLayout navigation', () => {
     expect(
       within(screen.getByRole('navigation', { name: 'Navegação do painel' })).getByText('Salas'),
     ).toBeInTheDocument()
+  })
+
+  it('keeps the overview out of navigation on individual room management pages', () => {
+    render(
+      <AuthContext.Provider value={authValue}>
+        <MemoryRouter initialEntries={['/dj/painel/salas/room-a']}>
+          <Routes>
+            <Route path="/dj/painel" element={<DjLayout />}>
+              <Route path="salas/:roomId" element={<h1>Gerenciamento individual</h1>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Gerenciamento individual' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Visão geral' })).not.toBeInTheDocument()
   })
 })

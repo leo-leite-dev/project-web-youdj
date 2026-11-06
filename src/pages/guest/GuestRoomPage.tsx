@@ -59,6 +59,7 @@ function GuestMusicRequests({
   const [searching, setSearching] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [privateCode, setPrivateCode] = useState<string | null>(null)
+  const [receiptVisible, setReceiptVisible] = useState(false)
   const [youtubeUsage, setYoutubeUsage] = useState<YoutubeSearchUsage | null>(null)
   const [usageStatus, setUsageStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const searchSequence = useRef(0)
@@ -138,6 +139,7 @@ function GuestMusicRequests({
     try {
       const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId)
       setPrivateCode(receipt.privateCode)
+      setReceiptVisible(true)
       setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
       setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
@@ -145,7 +147,7 @@ function GuestMusicRequests({
     } finally { setBusy(false); onSubmittingChange(false) }
   }
 
-  const stage = privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
+  const stage = receiptVisible && privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
 
   return (
     <div className="space-y-5">
@@ -190,6 +192,7 @@ function GuestMusicRequests({
         <p role="status" aria-live="polite" className="text-sm leading-6 text-emerald-200">{message}</p>
         <div className="break-all rounded-xl border border-cyan-300/20 bg-night-950 p-3 text-left"><p className="text-xs text-zinc-400">Comprovante privado — salve agora; ele não poderá ser recuperado depois.</p><code className="mt-2 block select-all font-mono text-xs text-cyan-200">{privateCode}</code><a className="mt-3 inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>
         <p className="text-xs text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
+        <button type="button" onClick={() => { setReceiptVisible(false); setMessage('') }} className="min-h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 px-4 text-sm font-black text-[#080914] shadow-[0_0_22px_rgba(217,70,239,0.18)] transition hover:shadow-[0_0_30px_rgba(34,211,238,0.28)]">Pedir outra música</button>
       </section>}
 
       {stage === 'entry' && <section className="space-y-4 border-t border-cyan-300/20 pt-5">

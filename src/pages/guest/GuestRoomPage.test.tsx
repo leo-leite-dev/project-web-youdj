@@ -131,13 +131,14 @@ describe('GuestRoomPage', () => {
 
   it('sends a manual request only after explicit submission and confirms receipt', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    const presenceStore: GuestPresenceStore = { heartbeat: vi.fn().mockResolvedValue(undefined) }
     const privateCode = 'a'.repeat(64)
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       if (String(input) === '/api/youtube-search-usage') return searchUsageResponse(0)
       if (String(input) === '/api/guest-requests') return new Response(JSON.stringify({ received: true, privateCode }), { status: 201 })
       throw new Error(`Unexpected request: ${String(input)}`)
     })
-    renderRoom('/sala/a1b2c3d4e5', store)
+    renderRoom('/sala/a1b2c3d4e5', store, { presenceStore })
     await screen.findByRole('heading', { name: /peça uma música/i })
     expect(await screen.findByText('Pesquisas ao YouTube hoje: 0/100')).toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
@@ -156,10 +157,19 @@ describe('GuestRoomPage', () => {
     const requestBody = JSON.parse(String(requestCall?.[1]?.body)) as { acceptedLegal: boolean; guestId: string }
     expect(requestBody.acceptedLegal).toBe(true)
     expect(requestBody.guestId).toBe(DEFAULT_IDENTITY.guestId)
-    fireEvent.click(screen.getByRole('button', { name: 'Voltar à sala' }))
+    const anotherRequestButton = screen.getByRole('button', { name: 'Pedir outra música' })
+    const returnButton = screen.getByRole('button', { name: 'Voltar à sala' })
+    expect(anotherRequestButton.compareDocumentPosition(returnButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(anotherRequestButton)
     expect(screen.getByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.getByLabelText('Pesquisar no YouTube')).toHaveValue('')
-    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(screen.getByLabelText('Título')).toHaveValue('')
+    expect(screen.getByLabelText('Artista')).toHaveValue('')
+    expect(screen.getByLabelText('Link do YouTube (opcional)')).toHaveValue('')
+    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(readGuestIdentity()).toEqual(DEFAULT_IDENTITY)
+    expect(presenceStore.heartbeat).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/guest-requests')).toHaveLength(1)
     fetchSpy.mockRestore()
   })
 

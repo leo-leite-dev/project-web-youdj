@@ -9,6 +9,7 @@ versionamento semântico.
 
 ### Adicionado
 
+- O painel não exibe mais “Visão geral”: `/dj/painel` redireciona para Salas. Na confirmação de pedido, “Pedir outra música” volta ao formulário sem reenviar o pedido, apagar o comprovante, reiniciar presença ou remover o aceite dos termos. `npm run dev` inicia Vite/HMR e Wrangler para que as Pages Functions locais respondam às chamadas `/api`.
 - Gerenciamento por sala com identificação `DJ: [nome do perfil]`, papéis de proprietário/moderador/convidado, convites e revogações owner-only, e RPCs server-side para leitura de presença/pedidos e moderação. A migration 11 preserva a RPC legada `submit_guest_request` para o Pages Function já publicado; a migration 12 mantém o contrato de sete colunas de `room_by_code` e oferece `room_by_code_with_membership` à nova interface. Migrations e testes pgTAP são locais e ainda requerem validação no GitHub Actions; backend remoto não foi alterado.
 - A página administrativa remove “Entrar na sala”; falhas ao carregar pedidos/presença agora ficam distintas dos estados vazios e oferecem nova tentativa. Busca YouTube, cache, contador e visual Synthwave foram mantidos.
 - Etapa 4B: busca visual do YouTube iniciada pela lupa, seleção e confirmação do convidado; seção de pedidos pendentes no painel, aprovação/rejeição por RPC autenticada e pedidos aprovados separados, sem playlist/reprodução. Os 165 testes pgTAP passaram no GitHub Actions do PR #3; a migration de moderação continua sem confirmação de aplicação remota e requer validação operacional.

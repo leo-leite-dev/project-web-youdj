@@ -37,7 +37,6 @@ function fakeStores(): { requestStore: DjRequestStore; presenceStore: DjPresence
         { id: 'approved', roomName: 'Festa da Ana', guestName: 'Apelido 2', title: 'Pedido aprovado', artist: 'Artista', videoId: null, submittedUrl: null, status: 'approved', createdAt: '2026-11-05T09:00:00Z' },
         { id: 'rejected', roomName: 'Festa da Ana', guestName: 'Apelido 3', title: 'Pedido rejeitado', artist: 'Artista', videoId: null, submittedUrl: null, status: 'rejected', createdAt: '2026-11-05T08:00:00Z' },
       ]),
-      summary: vi.fn().mockResolvedValue({ pending: 1, approved: 1, rejected: 1 }),
       setStatus: vi.fn().mockResolvedValue(undefined),
     },
     presenceStore: {

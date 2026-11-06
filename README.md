@@ -257,7 +257,7 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
   (migration aplicada e banco verificado; suíte pgTAP de 154 asserções).
 - Etapa 4B: busca visual acionada pela lupa e confirmação pelo convidado; digitar não chama a API.
   Cada sala tem pedidos pendentes, aprovados e rejeitados, com moderação e apelido do convidado;
-  a Visão geral exibe apenas contagens. RPCs verificam o proprietário no banco. Os 165
+  `/dj/painel` redireciona para Salas e não há página Visão geral. RPCs verificam o proprietário no banco. Os 165
   testes pgTAP passaram no GitHub Actions do PR #3. A migration
   `20261107000000_add_dj_request_moderation.sql` consta no repositório, mas sua aplicação remota
   não está confirmada; não foi aplicada nesta tarefa. Esta versão classifica erros da Function
@@ -558,7 +558,8 @@ npm install
 O cadastro/login de DJs e a leitura/criação do próprio perfil estão ativos. No projeto remoto
 atual, a confirmação de e-mail está habilitada e o `site_url` é `https://project-web-youdj.pages.dev`;
 para testar localmente o retorno do e-mail e o login com Google, execute
-`npm run dev -- --port 3000` (a porta 3000 é a autorizada no painel do Supabase). Depois de
+`npm run dev` (Vite em `127.0.0.1:3000`, porta autorizada no painel do Supabase). O script também
+inicia o Wrangler Pages Functions em `127.0.0.1:8788` para as rotas `/api`. Depois de
 confirmar, acesse `/dj` para entrar. Não altere URLs de redirecionamento no Supabase sem
 autorização.
 
@@ -593,7 +594,10 @@ Pontos importantes:
 npm run dev
 ```
 
-O Vite informa a URL local no terminal, normalmente `http://localhost:5173`.
+O script inicia Wrangler Pages Functions em `127.0.0.1:8788` e Vite/HMR em
+`http://localhost:3000`; o proxy `/api` encaminha ao Wrangler. Os bindings locais de servidor são
+lidos de `.dev.vars` (ignorado pelo Git). Para desenvolvimento sem usar as Functions, não há um
+modo alternativo implícito: mantenha ambas as partes em execução pelo script.
 
 > No Windows com PowerShell e política de execução restritiva, utilize `npm.cmd` no lugar de
 > `npm`.
@@ -618,7 +622,7 @@ npm run preview
 
 | Comando              | Descrição                                          |
 | -------------------- | -------------------------------------------------- |
-| `npm run dev`        | Inicia o servidor de desenvolvimento do Vite.      |
+| `npm run dev`        | Inicia Vite/HMR em `localhost:3000` e Wrangler Pages Functions em `127.0.0.1:8788`. |
 | `npm run typecheck`  | Executa a verificação de tipos com TypeScript.     |
 | `npm run lint`       | Executa a análise estática com ESLint.             |
 | `npm run test`       | Executa os testes automatizados uma vez.           |

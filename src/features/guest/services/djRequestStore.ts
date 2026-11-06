@@ -14,15 +14,8 @@ export interface DjRequest {
   createdAt: string
 }
 
-export interface DjRequestSummary {
-  pending: number
-  approved: number
-  rejected: number
-}
-
 export interface DjRequestStore {
   listByRoom: (roomId: string) => Promise<DjRequest[]>
-  summary: () => Promise<DjRequestSummary>
   setStatus: (requestId: string, status: 'approved' | 'rejected') => Promise<void>
 }
 
@@ -48,14 +41,6 @@ class SupabaseDjRequestStore implements DjRequestStore {
       status: row.status,
       createdAt: row.created_at,
     }))
-  }
-
-  async summary(): Promise<DjRequestSummary> {
-    const { data, error } = await this.client.rpc('dj_guest_request_summary')
-    if (error) throw error
-    const counts = data[0]
-    if (!counts) throw new Error('O resumo de pedidos não está disponível.')
-    return { pending: counts.pending_count, approved: counts.approved_count, rejected: counts.rejected_count }
   }
 
   async setStatus(requestId: string, status: 'approved' | 'rejected'): Promise<void> {
