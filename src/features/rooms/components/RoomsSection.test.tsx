@@ -54,7 +54,7 @@ describe('RoomsSection sharing actions', () => {
   it('copies the public link to the clipboard', async () => {
     renderSection()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar link' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar link da sala Festa Teste' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Link copiado.')
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(link)
@@ -64,7 +64,7 @@ describe('RoomsSection sharing actions', () => {
     vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('denied'))
     renderSection()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copiar link' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar link da sala Festa Teste' }))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/não foi possível copiar automaticamente/i)

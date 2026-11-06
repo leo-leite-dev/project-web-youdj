@@ -42,7 +42,7 @@ describe('DjRoomsPage', () => {
     expect(screen.getByLabelText('Link público da sala Festa Teste')).toHaveValue(
       `${window.location.origin}/sala/${room.code}`,
     )
-    expect(screen.getByText('DJ: DJ Teste')).toBeInTheDocument()
+    expect(screen.getAllByText('DJ: DJ Teste').length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Entrar na sala Festa Teste' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Gerenciar sala Festa Teste' })).toHaveAttribute('href', `/dj/painel/salas/${room.id}`)
 

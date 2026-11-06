@@ -57,41 +57,6 @@ afterEach(() => {
 })
 
 describe('GuestRoomPage', () => {
-  it('recognizes the authenticated room owner and does not request a guest nickname', async () => {
-    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({
-      code: 'A1B2C3D4E5', djName: 'DJ Ana', roomId: 'room-owner-a', viewerRole: 'owner',
-    })] })
-    renderRoom('/sala/a1b2c3d4e5', store, { identity: null })
-
-    expect(await screen.findByText('DJ: DJ Ana')).toBeInTheDocument()
-    expect(screen.getByText('Proprietário')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Abrir gerenciamento da sala' })).toHaveAttribute('href', '/dj/painel/salas/room-owner-a')
-    expect(readGuestIdentity()).toBeNull()
-  })
-
-  it('recognizes a moderator without treating them as a public guest', async () => {
-    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({
-      code: 'A1B2C3D4E5', djName: 'DJ Ana', roomId: 'room-owner-a', viewerRole: 'moderator',
-    })] })
-    renderRoom('/sala/a1b2c3d4e5', store, { identity: null })
-
-    expect(await screen.findByText('Moderador')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
-    expect(readGuestIdentity()).toBeNull()
-  })
-
-  it('does not prompt a registered non-member to use an unregistered guest nickname', async () => {
-    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({
-      code: 'A1B2C3D4E5', djName: 'DJ Ana', viewerRole: 'unauthorized',
-    })] })
-    renderRoom('/sala/a1b2c3d4e5', store, { identity: null })
-
-    expect(await screen.findByRole('heading', { name: 'Acesso de DJ não atribuído' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
-    expect(readGuestIdentity()).toBeNull()
-  })
-
   it('asks for a nickname before entry and reuses that browser identity on the next visit', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
     const presenceStore: GuestPresenceStore = { heartbeat: vi.fn().mockResolvedValue(undefined) }
@@ -145,6 +110,25 @@ describe('GuestRoomPage', () => {
     expectArtworkImmediatelyBelowReturnButton()
   })
 
+  it('does not confirm entry until presence is registered and shows the backend failure', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    let rejectHeartbeat: ((error: Error) => void) | undefined
+    const presenceStore: GuestPresenceStore = {
+      heartbeat: vi.fn(() => new Promise<void>((_resolve, reject) => { rejectHeartbeat = reject })),
+    }
+    renderRoom('/sala/a1b2c3d4e5', store, { presenceStore })
+
+    expect((await screen.findAllByText('Conectando à sala…')).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Você entrou como/)).not.toBeInTheDocument()
+
+    await act(async () => {
+      rejectHeartbeat?.(new Error('Falha original de presença'))
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha original de presença')
+    expect(screen.queryByText(/Você entrou como/)).not.toBeInTheDocument()
+  })
+
   it('sends a manual request only after explicit submission and confirms receipt', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
     const privateCode = 'a'.repeat(64)
@@ -164,7 +148,7 @@ describe('GuestRoomPage', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido manual' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
+    expect(await screen.findByText(/pedido recebido/i)).toBeInTheDocument()
     expect(screen.getByText(privateCode)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Solicitar exclusão por e-mail' })).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(privateCode)))
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/guest-requests', expect.objectContaining({ method: 'POST' })))
@@ -225,7 +209,7 @@ describe('GuestRoomPage', () => {
     expect(screen.queryByRole('button', { name: 'Enviar pedido ao DJ' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /música exemplo/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido ao DJ' }))
-    expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
+    expect(await screen.findByText(/pedido recebido/i)).toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(1)
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search-usage')).toHaveLength(2)
     const requestCall = fetchSpy.mock.calls.find(([url]) => url === '/api/guest-requests')

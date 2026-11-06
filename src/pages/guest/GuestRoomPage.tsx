@@ -156,13 +156,15 @@ function GuestMusicRequests({
             <span className="rounded-full border border-emerald-400/40 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-300">{room.status === 'active' ? 'Ativa' : 'Pausada'}{room.status === 'active' && <span aria-hidden="true"> ●</span>}</span>
           </div>
           <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
-          <p className="mt-1 text-sm font-medium text-cyan-200">DJ: {room.djName}</p>
           <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
           <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
-          {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Você entrou como <strong>{guestIdentity.nickname}</strong>. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
-          {!presenceOnline ? <div role={presenceError ? 'alert' : 'status'} className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">
-            <p>{presenceError ?? 'Conectando à sala…'}</p>
-            {presenceError && <button type="button" onClick={retryPresence} className="mt-2 min-h-9 rounded-lg border border-amber-200/20 px-3 font-semibold">Tentar novamente</button>}
+          {room.status === 'active' ? presenceOnline
+            ? <p role="status" className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Você entrou como <strong>{guestIdentity.nickname}</strong>. Envie uma sugestão musical para o DJ.</p>
+            : <p role="status" className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm leading-5 text-cyan-100">Conectando à sala…</p>
+            : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
+          {!presenceOnline && presenceError ? <div role="alert" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">
+            <p>{presenceError}</p>
+            <button type="button" onClick={retryPresence} className="mt-2 min-h-9 rounded-lg border border-amber-200/20 px-3 font-semibold">Tentar novamente</button>
           </div> : null}
           {presenceOnline && !identityPersisted ? <p className="mt-2 text-[10px] text-zinc-500">Este navegador não permitiu salvar o apelido; ele poderá ser solicitado novamente.</p> : null}
         </div>
@@ -455,16 +457,7 @@ export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoom
     <section className="relative mx-auto min-h-[calc(100svh-8rem)] w-full max-w-xl overflow-hidden px-4 py-5 sm:px-8 sm:py-10">
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 34px, rgba(236,72,153,.45) 35px, transparent 36px), repeating-linear-gradient(0deg, transparent 0 22px, rgba(34,211,238,.28) 23px, transparent 24px), linear-gradient(to top, rgba(217,70,239,.2), transparent)' }} />
       <div className="relative mx-auto max-w-md rounded-[1.75rem] border border-cyan-300/20 bg-[#070914]/95 p-4 shadow-[0_0_40px_rgba(217,70,239,0.11)] sm:p-6">
-          {room.viewerRole === 'owner' || room.viewerRole === 'moderator' ? <div className="space-y-4 rounded-2xl border border-cyan-300/20 bg-night-950/70 p-5 text-center">
-            <span className="inline-flex rounded-full border border-cyan-300/30 px-3 py-1 text-[9px] font-bold uppercase text-cyan-200">{room.viewerRole === 'owner' ? 'Proprietário' : 'Moderador'}</span>
-            <h1 className="text-xl font-bold text-white">DJ: {room.djName}</h1>
-            <p className="text-sm leading-6 text-zinc-400">Sua conta já tem acesso administrativo a esta sala. Não é necessário informar apelido de convidado.</p>
-            {room.roomId && <Link to={`/dj/painel/salas/${room.roomId}`} className="inline-flex min-h-11 items-center rounded-xl bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 text-xs font-bold text-night-950">Abrir gerenciamento da sala</Link>}
-          </div> : room.viewerRole === 'unauthorized' ? <div className="space-y-3 rounded-2xl border border-amber-300/20 bg-night-950/70 p-5 text-center">
-            <h1 className="text-xl font-bold text-white">Acesso de DJ não atribuído</h1>
-            <p className="text-sm leading-6 text-zinc-400">Esta conta está cadastrada, mas não é proprietária nem moderadora desta sala. Entre como convidado sem cadastro para enviar pedidos.</p>
-            <Link to="/dj/painel/salas" className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 text-xs font-semibold text-zinc-200">Voltar ao painel</Link>
-          </div> : room.status === 'active' ? <GuestIdentityGate key={experienceVersion} room={room} store={presenceStore}>
+          {room.status === 'active' ? <GuestIdentityGate key={experienceVersion} room={room} store={presenceStore}>
             {(identity, presenceOnline, presenceError, retryPresence, identityPersisted) => <GuestMusicRequests
               room={room}
               guestIdentity={identity}
@@ -475,9 +468,9 @@ export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoom
               onSubmittingChange={setRequestSubmitting}
             />}
           </GuestIdentityGate> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
-          {room.viewerRole === 'guest' && <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />}
+          <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />
          <SynthwaveArtwork className="mt-4 h-44 sm:h-56" />
-         {room.viewerRole === 'guest' && <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>}
+          <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>
       </div>
     </section>
   )

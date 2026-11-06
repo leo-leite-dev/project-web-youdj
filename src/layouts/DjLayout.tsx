@@ -1,12 +1,14 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import {
   ClockIcon,
   HomeIcon,
   ListMusicIcon,
+  MusicIcon,
   QrCodeIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  UsersIcon,
 } from '../components/Icons'
 import { useAuth } from '../features/auth/AuthContext'
 import { SignOutButton } from '../features/auth/components/SignOutButton'
@@ -18,21 +20,39 @@ const upcomingItems = [
 
 export function DjLayout() {
   const { profile, user } = useAuth()
+  const isRoomsPage = useLocation().pathname === '/dj/painel/salas'
   const displayName = profile?.displayName ?? user?.email ?? 'DJ'
   const initial = displayName.trim().charAt(0).toUpperCase() || 'D'
 
   return (
-    <div className="flex min-h-svh bg-night-950">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/8 bg-night-900/60 lg:flex">
+    <div className={`dj-layout flex min-h-svh bg-night-950 ${isRoomsPage ? 'dj-layout--rooms' : ''}`}>
+      <aside className="dj-sidebar hidden w-64 shrink-0 flex-col border-r border-white/8 bg-night-900/60 lg:flex">
         <div className="p-6">
-          <Brand />
+          {isRoomsPage ? (
+            <div className="rooms-brand" aria-label="YouDJ">
+              <span className="rooms-brand-disc" aria-hidden="true">◉</span>
+              <strong><span>You</span>DJ</strong>
+              <i aria-hidden="true"><b /><b /><b /><b /><b /></i>
+            </div>
+          ) : <Brand />}
         </div>
 
         <div className="px-4">
-          <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+          <p className="dj-nav-label px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
             Painel do DJ
           </p>
-          <nav className="mt-3 space-y-1" aria-label="Navegação do painel">
+          <nav className="dj-nav mt-3 space-y-1" aria-label="Navegação do painel">
+            {isRoomsPage ? (
+              <>
+                <NavLink to="/dj/painel/salas" className={({ isActive }) => `rooms-nav-active flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${isActive ? 'active text-accent-300' : ''}`}>
+                  <QrCodeIcon className="size-5" /> Salas
+                </NavLink>
+                <span className="rooms-nav-disabled"><MusicIcon className="size-5" /> Músicas</span>
+                <span className="rooms-nav-disabled"><ListMusicIcon className="size-5" /> Pedidos</span>
+                <span className="rooms-nav-disabled"><SettingsIcon className="size-5" /> Configurações</span>
+                <span className="rooms-nav-disabled"><UsersIcon className="size-5" /> Conta</span>
+              </>
+            ) : <>
             <NavLink
               to="/dj/painel"
               end
@@ -75,8 +95,17 @@ export function DjLayout() {
                 </span>
               </span>
             ))}
+            </>}
           </nav>
         </div>
+
+        {isRoomsPage ? (
+          <div className="rooms-sidebar-equalizer" aria-hidden="true">
+            {[22, 46, 31, 82, 105, 69, 35, 52, 118, 90, 64, 38, 76, 105, 54].map((height, index) => (
+              <i key={index} style={{ height }} />
+            ))}
+          </div>
+        ) : null}
 
         <div className="mt-auto p-4">
           <div className="rounded-2xl border border-white/10 bg-white/3 p-4">
@@ -157,7 +186,7 @@ export function DjLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-5 sm:p-8">
+        <main className={`dj-main flex-1 p-5 sm:p-8 ${isRoomsPage ? 'dj-main--rooms' : ''}`}>
           <Outlet />
         </main>
       </div>
