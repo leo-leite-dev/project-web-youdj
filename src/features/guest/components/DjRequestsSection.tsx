@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getRoomErrorMessage } from '../../rooms/lib/roomErrors'
 import { createDjRequestStore, type DjRequest, type DjRequestStore } from '../services/djRequestStore'
 
 interface DjRequestsSectionProps {
@@ -29,6 +30,7 @@ function RequestList({ items, busyId, onStatusChange }: RequestListProps) {
 export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSectionProps) {
   const [store] = useState(() => storeOverride ?? createDjRequestStore())
   const [requests, setRequests] = useState<DjRequest[]>([])
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -37,8 +39,8 @@ export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSe
   const reload = useCallback(async () => {
     setLoading(true)
     setError(null)
-    try { setRequests(await store.listByRoom(roomId)) }
-    catch { setError('Não foi possível carregar os pedidos. Verifique sua conexão e tente novamente.') }
+    try { setRequests(await store.listByRoom(roomId)); setHasLoaded(true) }
+    catch (cause) { setError(getRoomErrorMessage(cause, 'Não foi possível carregar os pedidos. Verifique sua conexão e tente novamente.')) }
     finally { setLoading(false) }
   }, [roomId, store])
 
@@ -57,7 +59,7 @@ export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSe
       setMessage(status === 'approved' ? 'Pedido aprovado.' : 'Pedido rejeitado.')
     } catch (cause) {
       await reload()
-      setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar o pedido.')
+      setError(getRoomErrorMessage(cause, cause instanceof Error ? cause.message : 'Não foi possível atualizar o pedido.'))
     } finally { setBusyId(null) }
   }
 
@@ -67,9 +69,9 @@ export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSe
 
   return <section aria-labelledby="requests-title" className="mt-6 rounded-2xl border border-white/8 bg-night-900/50 p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="requests-title" className="font-semibold text-white">Pedidos</h2><p className="mt-1 text-xs text-zinc-500">Aprovar um pedido não adiciona à playlist nem inicia reprodução.</p></div><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button></div>
-    {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+    {error && <div className="mt-3 space-y-2" role="alert"><p className="text-sm text-red-300">{error}</p><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-red-300/20 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Tentar novamente</button></div>}
     {message && <p role="status" className="mt-3 text-sm text-emerald-200">{message}</p>}
-    {loading ? <p role="status" className="mt-4 text-sm text-zinc-400">Carregando pedidos…</p> : <>
+    {loading && !hasLoaded ? <p role="status" className="mt-4 text-sm text-zinc-400">Carregando pedidos…</p> : !hasLoaded ? null : <>
       <h3 className="mt-5 text-sm font-semibold text-white">Pedidos pendentes <span className="text-accent-300">({pending.length})</span></h3><RequestList items={pending} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
       <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Aprovados <span className="text-emerald-200">({approved.length})</span></h3><RequestList items={approved} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
       <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Rejeitados <span className="text-red-200">({rejected.length})</span></h3><RequestList items={rejected} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />

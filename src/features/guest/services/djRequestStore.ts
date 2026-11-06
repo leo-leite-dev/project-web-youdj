@@ -14,15 +14,8 @@ export interface DjRequest {
   createdAt: string
 }
 
-export interface DjRequestSummary {
-  pending: number
-  approved: number
-  rejected: number
-}
-
 export interface DjRequestStore {
   listByRoom: (roomId: string) => Promise<DjRequest[]>
-  summary: () => Promise<DjRequestSummary>
   setStatus: (requestId: string, status: 'approved' | 'rejected') => Promise<void>
 }
 
@@ -36,6 +29,7 @@ class SupabaseDjRequestStore implements DjRequestStore {
   async listByRoom(roomId: string): Promise<DjRequest[]> {
     const { data, error } = await this.client.rpc('dj_list_room_guest_requests', { p_room_id: roomId })
     if (error) throw error
+    if (!data) throw new Error('A lista de pedidos retornou uma resposta inválida.')
     return data.map((row) => ({
       id: row.id,
       roomName: row.room_name,
@@ -49,21 +43,13 @@ class SupabaseDjRequestStore implements DjRequestStore {
     }))
   }
 
-  async summary(): Promise<DjRequestSummary> {
-    const { data, error } = await this.client.rpc('dj_guest_request_summary')
-    if (error) throw error
-    const counts = data[0]
-    if (!counts) throw new Error('O resumo de pedidos não está disponível.')
-    return { pending: counts.pending_count, approved: counts.approved_count, rejected: counts.rejected_count }
-  }
-
   async setStatus(requestId: string, status: 'approved' | 'rejected'): Promise<void> {
     const { data, error } = await this.client.rpc('dj_set_guest_request_status', {
       p_request_id: requestId,
       p_status: status,
     })
     if (error) throw error
-    if (!data) throw new Error('Este pedido já foi alterado ou não pertence a uma sala sua.')
+    if (!data) throw new Error('Este pedido já foi alterado ou sua conta não pode moderar a sala associada.')
   }
 }
 

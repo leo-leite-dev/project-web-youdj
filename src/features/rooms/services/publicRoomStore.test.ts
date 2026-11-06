@@ -34,7 +34,7 @@ describe('SupabasePublicRoomStore', () => {
       requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : null
 
       return new Response(
-        JSON.stringify([{ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active', surprise_mode: true, show_playlist: false, show_now_playing: true, show_guest_requests: false }]),
+        JSON.stringify([{ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active', surprise_mode: true, show_playlist: false, show_now_playing: true, show_guest_requests: false, dj_name: 'DJ Ana', viewer_role: 'guest', room_id: null }]),
         { headers: { 'Content-Type': 'application/json' }, status: 200 },
       )
     }
@@ -42,9 +42,9 @@ describe('SupabasePublicRoomStore', () => {
     const store = createSupabasePublicRoomStore(createTestClient(fetcher))
     const room = await store.findByCode(' ab12cd34ef ')
 
-    expect(requestUrl).toContain('/rest/v1/rpc/room_by_code')
+    expect(requestUrl).toContain('/rest/v1/rpc/room_by_code_with_membership')
     expect(requestBody).toEqual({ p_code: 'AB12CD34EF' })
-    expect(room).toEqual({ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active', musicPreferences: { surpriseMode: true, showPlaylist: false, showNowPlaying: true, showGuestRequests: false } })
+    expect(room).toEqual({ code: 'AB12CD34EF', name: 'Festa Teste', status: 'active', djName: 'DJ Ana', viewerRole: 'guest', roomId: null, musicPreferences: { surpriseMode: true, showPlaylist: false, showNowPlaying: true, showGuestRequests: false } })
   })
 
   it('returns null when the code does not exist', async () => {

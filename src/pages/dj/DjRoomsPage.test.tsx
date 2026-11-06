@@ -42,7 +42,8 @@ describe('DjRoomsPage', () => {
     expect(screen.getByLabelText('Link público da sala Festa Teste')).toHaveValue(
       `${window.location.origin}/sala/${room.code}`,
     )
-    expect(screen.getByRole('link', { name: 'Entrar na sala Festa Teste' })).toHaveAttribute('href', `/sala/${room.code}`)
+    expect(screen.getAllByText('DJ: DJ Teste').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: 'Entrar na sala Festa Teste' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Gerenciar sala Festa Teste' })).toHaveAttribute('href', `/dj/painel/salas/${room.id}`)
 
     fireEvent.click(screen.getByRole('button', { name: 'Pausar sala' }))
@@ -69,7 +70,7 @@ describe('DjRoomsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Pausar sala' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Sua sessão não tem permissão para gerenciar salas. Entre novamente.',
+      'Sua conta não tem permissão para esta sala. Confirme se você é o proprietário ou moderador convidado.',
     )
     expect(screen.getByText('Ativa')).toBeInTheDocument()
   })

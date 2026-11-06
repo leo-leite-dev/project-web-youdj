@@ -75,6 +75,33 @@ export type Database = {
           created_at: string
         }[]
       }
+      dj_get_room_management_context: {
+        Args: { p_room_id: string }
+        Returns: {
+          room_id: string
+          room_name: string
+          code: string
+          status: string
+          dj_name: string
+          access_role: 'owner' | 'moderator'
+          surprise_mode: boolean
+          show_playlist: boolean
+          show_now_playing: boolean
+          show_guest_requests: boolean
+        }[]
+      }
+      dj_list_room_moderators: {
+        Args: { p_room_id: string }
+        Returns: { user_id: string; email: string | null; display_name: string; created_at: string }[]
+      }
+      dj_invite_room_moderator: {
+        Args: { p_room_id: string; p_email: string }
+        Returns: boolean
+      }
+      dj_revoke_room_moderator: {
+        Args: { p_room_id: string; p_moderator_id: string }
+        Returns: boolean
+      }
       dj_guest_request_summary: {
         Args: Record<PropertyKey, never>
         Returns: { pending_count: number; approved_count: number; rejected_count: number }[]
@@ -97,6 +124,21 @@ export type Database = {
           show_playlist: boolean
           show_now_playing: boolean
           show_guest_requests: boolean
+        }[]
+      }
+      room_by_code_with_membership: {
+        Args: { p_code: string }
+        Returns: {
+          code: string
+          name: string
+          status: string
+          surprise_mode: boolean
+          show_playlist: boolean
+          show_now_playing: boolean
+          show_guest_requests: boolean
+          dj_name: string
+          viewer_role: 'owner' | 'moderator' | 'guest' | 'unauthorized'
+          room_id: string | null
         }[]
       }
     }

@@ -1,7 +1,11 @@
+import type { CSSProperties } from 'react'
 import { RoomsSection } from '../../features/rooms/components/RoomsSection'
 import { useRooms } from '../../features/rooms/hooks/useRooms'
 import type { RoomStore } from '../../features/rooms/services/roomStore'
 import { useAuth } from '../../features/auth/AuthContext'
+import { SignOutButton } from '../../features/auth/components/SignOutButton'
+import referenceArtwork from '../../assets/dj-rooms-banner.png'
+import './DjRoomsPage.css'
 
 interface DjRoomsPageProps {
   roomStore?: RoomStore
@@ -20,29 +24,34 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
   } = useRooms(profile?.id ?? null, roomStore)
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-400">
-          Painel do DJ
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Salas
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-          Crie e gerencie suas salas, altere o status e compartilhe o link público ou QR Code com
-          seus convidados.
-        </p>
+    <div className="rooms-page" style={{ '--rooms-artwork': `url("${referenceArtwork}")` } as CSSProperties}>
+      <header className="rooms-hero">
+        <div className="rooms-hero-copy">
+          <p>PAINEL DO DJ</p>
+          <h1>Salas <span aria-hidden="true">//</span></h1>
+        </div>
+        <div className="rooms-live-profile" aria-label={`DJ: ${profile?.displayName ?? 'DJ'}`}>
+          <span aria-hidden="true">♫</span><span>DJ: {profile?.displayName ?? 'DJ'}</span><b aria-hidden="true">⌄</b>
+          <SignOutButton className="rooms-hero-signout" label="Sair" />
+        </div>
+        <div className="rooms-hero-equalizer" aria-hidden="true">
+          {[18, 29, 42, 21, 55, 35, 66, 44, 78, 55, 94, 69, 46, 83, 59, 102, 74, 50].map((height, index) => (
+            <i key={index} style={{ height }} />
+          ))}
+        </div>
+      </header>
+      <div className="rooms-content">
+        <RoomsSection
+          createRoom={createRoom}
+          error={error}
+          onRetry={reload}
+          rooms={rooms}
+          status={status}
+          djName={profile?.displayName ?? 'DJ'}
+          updateRoomStatus={updateRoomStatus}
+          updateRoomMusicPreferences={updateRoomMusicPreferences}
+        />
       </div>
-
-      <RoomsSection
-        createRoom={createRoom}
-        error={error}
-        onRetry={reload}
-        rooms={rooms}
-        status={status}
-        updateRoomStatus={updateRoomStatus}
-        updateRoomMusicPreferences={updateRoomMusicPreferences}
-      />
     </div>
   )
 }

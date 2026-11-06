@@ -110,15 +110,35 @@ describe('GuestRoomPage', () => {
     expectArtworkImmediatelyBelowReturnButton()
   })
 
+  it('does not confirm entry until presence is registered and shows the backend failure', async () => {
+    const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    let rejectHeartbeat: ((error: Error) => void) | undefined
+    const presenceStore: GuestPresenceStore = {
+      heartbeat: vi.fn(() => new Promise<void>((_resolve, reject) => { rejectHeartbeat = reject })),
+    }
+    renderRoom('/sala/a1b2c3d4e5', store, { presenceStore })
+
+    expect((await screen.findAllByText('Conectando à sala…')).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Você entrou como/)).not.toBeInTheDocument()
+
+    await act(async () => {
+      rejectHeartbeat?.(new Error('Falha original de presença'))
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha original de presença')
+    expect(screen.queryByText(/Você entrou como/)).not.toBeInTheDocument()
+  })
+
   it('sends a manual request only after explicit submission and confirms receipt', async () => {
     const store = new FakePublicRoomStore({ rooms: [makePublicRoom({ code: 'A1B2C3D4E5' })] })
+    const presenceStore: GuestPresenceStore = { heartbeat: vi.fn().mockResolvedValue(undefined) }
     const privateCode = 'a'.repeat(64)
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       if (String(input) === '/api/youtube-search-usage') return searchUsageResponse(0)
       if (String(input) === '/api/guest-requests') return new Response(JSON.stringify({ received: true, privateCode }), { status: 201 })
       throw new Error(`Unexpected request: ${String(input)}`)
     })
-    renderRoom('/sala/a1b2c3d4e5', store)
+    renderRoom('/sala/a1b2c3d4e5', store, { presenceStore })
     await screen.findByRole('heading', { name: /peça uma música/i })
     expect(await screen.findByText('Pesquisas ao YouTube hoje: 0/100')).toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
@@ -129,7 +149,7 @@ describe('GuestRoomPage', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido manual' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
+    expect(await screen.findByText(/pedido recebido/i)).toBeInTheDocument()
     expect(screen.getByText(privateCode)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Solicitar exclusão por e-mail' })).toHaveAttribute('href', expect.stringContaining(encodeURIComponent(privateCode)))
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/api/guest-requests', expect.objectContaining({ method: 'POST' })))
@@ -137,10 +157,19 @@ describe('GuestRoomPage', () => {
     const requestBody = JSON.parse(String(requestCall?.[1]?.body)) as { acceptedLegal: boolean; guestId: string }
     expect(requestBody.acceptedLegal).toBe(true)
     expect(requestBody.guestId).toBe(DEFAULT_IDENTITY.guestId)
-    fireEvent.click(screen.getByRole('button', { name: 'Voltar à sala' }))
+    const anotherRequestButton = screen.getByRole('button', { name: 'Pedir outra música' })
+    const returnButton = screen.getByRole('button', { name: 'Voltar à sala' })
+    expect(anotherRequestButton.compareDocumentPosition(returnButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(anotherRequestButton)
     expect(screen.getByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.getByLabelText('Pesquisar no YouTube')).toHaveValue('')
-    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(screen.getByLabelText('Título')).toHaveValue('')
+    expect(screen.getByLabelText('Artista')).toHaveValue('')
+    expect(screen.getByLabelText('Link do YouTube (opcional)')).toHaveValue('')
+    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(readGuestIdentity()).toEqual(DEFAULT_IDENTITY)
+    expect(presenceStore.heartbeat).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/guest-requests')).toHaveLength(1)
     fetchSpy.mockRestore()
   })
 
@@ -190,7 +219,7 @@ describe('GuestRoomPage', () => {
     expect(screen.queryByRole('button', { name: 'Enviar pedido ao DJ' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /música exemplo/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido ao DJ' }))
-    expect(await screen.findByRole('status')).toHaveTextContent(/pedido recebido/i)
+    expect(await screen.findByText(/pedido recebido/i)).toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(1)
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search-usage')).toHaveLength(2)
     const requestCall = fetchSpy.mock.calls.find(([url]) => url === '/api/guest-requests')

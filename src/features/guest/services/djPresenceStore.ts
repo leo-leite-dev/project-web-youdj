@@ -26,6 +26,7 @@ class SupabaseDjPresenceStore implements DjPresenceStore {
   async listOnline(roomId: string): Promise<RoomPresenceSnapshot> {
     const { data, error } = await this.client.rpc('dj_room_online_guests', { p_room_id: roomId })
     if (error) throw error
+    if (!data) throw new Error('A presença da sala retornou uma resposta inválida.')
 
     const first = data[0]
     if (!first || !Number.isSafeInteger(first.online_count) || first.online_count < 0) {

@@ -25,11 +25,16 @@ export interface Room {
   musicPreferences: RoomMusicPreferences
 }
 
-/** Campos públicos expostos pela consulta por código (sem dados do DJ). */
+export type RoomAccessRole = 'owner' | 'moderator' | 'guest' | 'unauthorized'
+
+/** Consulta pública limitada; IDs internos só vêm preenchidos para membros. */
 export interface PublicRoom {
   code: string
+  djName: string
   name: string
+  roomId: string | null
   status: RoomStatus
+  viewerRole: RoomAccessRole
   musicPreferences: RoomMusicPreferences
 }
 

@@ -19,8 +19,11 @@ export function makeRoom(overrides: Partial<Room> = {}): Room {
 export function makePublicRoom(overrides: Partial<PublicRoom> = {}): PublicRoom {
   return {
     code: 'AB12CD34EF',
+    djName: 'DJ Teste',
     name: 'Festa Teste',
+    roomId: null,
     status: 'active',
+    viewerRole: 'guest',
     musicPreferences: DEFAULT_ROOM_MUSIC_PREFERENCES,
     ...overrides,
   }

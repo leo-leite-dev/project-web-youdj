@@ -1,9 +1,8 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireDjAuth } from '../features/auth/RequireDjAuth'
 import { DjLayout } from '../layouts/DjLayout'
 import { PublicLayout } from '../layouts/PublicLayout'
 import { NotFoundPage } from '../pages/NotFoundPage'
-import { DjDashboardPage } from '../pages/dj/DjDashboardPage'
 import { DjLoginPage } from '../pages/dj/DjLoginPage'
 import { DjRoomManagementPage } from '../pages/dj/DjRoomManagementPage'
 import { DjRoomsPage } from '../pages/dj/DjRoomsPage'
@@ -27,7 +26,7 @@ export function AppRoutes() {
       </Route>
       <Route element={<RequireDjAuth />}>
         <Route path="dj/painel" element={<DjLayout />}>
-          <Route index element={<DjDashboardPage />} />
+          <Route index element={<Navigate to="/dj/painel/salas" replace />} />
           <Route path="salas" element={<DjRoomsPage />} />
           <Route path="salas/:roomId" element={<DjRoomManagementPage />} />
         </Route>

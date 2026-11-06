@@ -11,7 +11,6 @@ describe('DjRequestsSection', () => {
         { id: 'approved-1', roomName: 'Festa', guestName: 'Bia', title: 'Pedido aprovado', artist: 'Canal', videoId: 'abcdefghijl', submittedUrl: null, status: 'approved', createdAt: '2026-11-04T11:00:00Z' },
         { id: 'rejected-1', roomName: 'Festa', guestName: 'Caio', title: 'Pedido rejeitado', artist: 'Canal', videoId: null, submittedUrl: null, status: 'rejected', createdAt: '2026-11-04T10:00:00Z' },
       ]),
-      summary: vi.fn().mockResolvedValue({ pending: 1, approved: 1, rejected: 1 }),
       setStatus: vi.fn().mockResolvedValue(undefined),
     }
     render(<DjRequestsSection roomId="room-a" store={store} />)
@@ -36,7 +35,6 @@ describe('DjRequestsSection', () => {
       listByRoom: vi.fn().mockResolvedValue([
         { id: 'pending-1', roomName: 'Festa', guestName: 'Ana', title: 'Pedido novo', artist: 'Canal', videoId: null, submittedUrl: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
       ]),
-      summary: vi.fn().mockResolvedValue({ pending: 1, approved: 0, rejected: 0 }),
       setStatus: vi.fn().mockRejectedValue(new Error('Sem autorização')),
     }
     render(<DjRequestsSection roomId="room-a" store={store} />)
@@ -45,12 +43,34 @@ describe('DjRequestsSection', () => {
     expect(screen.getByText('Pedido novo')).toBeInTheDocument()
   })
 
+  it('does not present an empty list when loading requests fails', async () => {
+    const store: DjRequestStore = {
+      listByRoom: vi.fn().mockRejectedValue({ code: 'PGRST202' }),
+      setStatus: vi.fn(),
+    }
+    render(<DjRequestsSection roomId="room-a" store={store} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('migrations locais')
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument()
+    expect(screen.queryByText('Nenhum pedido nesta seção.')).not.toBeInTheDocument()
+  })
+
+  it('shows the empty state only after a successful empty response', async () => {
+    const store: DjRequestStore = {
+      listByRoom: vi.fn().mockResolvedValue([]),
+      setStatus: vi.fn(),
+    }
+    render(<DjRequestsSection roomId="room-a" store={store} />)
+
+    expect(await screen.findAllByText('Nenhum pedido nesta seção.')).toHaveLength(3)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('confirms rejection and removes the request from the pending list', async () => {
     const store: DjRequestStore = {
       listByRoom: vi.fn().mockResolvedValue([
         { id: 'pending-1', roomName: 'Festa', guestName: 'Ana', title: 'Pedido novo', artist: 'Canal', videoId: null, submittedUrl: null, status: 'pending', createdAt: '2026-11-04T12:00:00Z' },
       ]),
-      summary: vi.fn().mockResolvedValue({ pending: 1, approved: 0, rejected: 0 }),
       setStatus: vi.fn().mockResolvedValue(undefined),
     }
     render(<DjRequestsSection roomId="room-a" store={store} />)

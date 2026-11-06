@@ -59,6 +59,7 @@ function GuestMusicRequests({
   const [searching, setSearching] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [privateCode, setPrivateCode] = useState<string | null>(null)
+  const [receiptVisible, setReceiptVisible] = useState(false)
   const [youtubeUsage, setYoutubeUsage] = useState<YoutubeSearchUsage | null>(null)
   const [usageStatus, setUsageStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const searchSequence = useRef(0)
@@ -138,6 +139,7 @@ function GuestMusicRequests({
     try {
       const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId)
       setPrivateCode(receipt.privateCode)
+      setReceiptVisible(true)
       setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
       setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
@@ -145,7 +147,7 @@ function GuestMusicRequests({
     } finally { setBusy(false); onSubmittingChange(false) }
   }
 
-  const stage = privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
+  const stage = receiptVisible && privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
 
   return (
     <div className="space-y-5">
@@ -158,10 +160,13 @@ function GuestMusicRequests({
           <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
           <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
           <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
-          {room.status === 'active' ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Você entrou como <strong>{guestIdentity.nickname}</strong>. Envie uma sugestão musical para o DJ.</p> : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
-          {!presenceOnline ? <div role={presenceError ? 'alert' : 'status'} className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">
-            <p>{presenceError ?? 'Conectando à sala…'}</p>
-            {presenceError && <button type="button" onClick={retryPresence} className="mt-2 min-h-9 rounded-lg border border-amber-200/20 px-3 font-semibold">Tentar novamente</button>}
+          {room.status === 'active' ? presenceOnline
+            ? <p role="status" className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Você entrou como <strong>{guestIdentity.nickname}</strong>. Envie uma sugestão musical para o DJ.</p>
+            : <p role="status" className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-3 text-sm leading-5 text-cyan-100">Conectando à sala…</p>
+            : <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-amber-200">Sala indisponível: este evento está pausado no momento.</p>}
+          {!presenceOnline && presenceError ? <div role="alert" className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">
+            <p>{presenceError}</p>
+            <button type="button" onClick={retryPresence} className="mt-2 min-h-9 rounded-lg border border-amber-200/20 px-3 font-semibold">Tentar novamente</button>
           </div> : null}
           {presenceOnline && !identityPersisted ? <p className="mt-2 text-[10px] text-zinc-500">Este navegador não permitiu salvar o apelido; ele poderá ser solicitado novamente.</p> : null}
         </div>
@@ -187,6 +192,7 @@ function GuestMusicRequests({
         <p role="status" aria-live="polite" className="text-sm leading-6 text-emerald-200">{message}</p>
         <div className="break-all rounded-xl border border-cyan-300/20 bg-night-950 p-3 text-left"><p className="text-xs text-zinc-400">Comprovante privado — salve agora; ele não poderá ser recuperado depois.</p><code className="mt-2 block select-all font-mono text-xs text-cyan-200">{privateCode}</code><a className="mt-3 inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>
         <p className="text-xs text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
+        <button type="button" onClick={() => { setReceiptVisible(false); setMessage('') }} className="min-h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 px-4 text-sm font-black text-[#080914] shadow-[0_0_22px_rgba(217,70,239,0.18)] transition hover:shadow-[0_0_30px_rgba(34,211,238,0.28)]">Pedir outra música</button>
       </section>}
 
       {stage === 'entry' && <section className="space-y-4 border-t border-cyan-300/20 pt-5">
@@ -465,9 +471,9 @@ export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoom
               onSubmittingChange={setRequestSubmitting}
             />}
           </GuestIdentityGate> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
-         <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />
+          <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />
          <SynthwaveArtwork className="mt-4 h-44 sm:h-56" />
-        <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>
+          <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>
       </div>
     </section>
   )
