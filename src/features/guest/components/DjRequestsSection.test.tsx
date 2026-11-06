@@ -19,7 +19,7 @@ describe('DjRequestsSection', () => {
     expect(screen.getByText('Pedido novo')).toBeInTheDocument()
     expect(screen.getByText('Convidado: Ana DJ')).toBeInTheDocument()
     expect(screen.getByText('Pedido aprovado')).toBeInTheDocument()
-    expect(screen.getByText(/fora da playlist/i)).toBeInTheDocument()
+    expect(screen.getByText(/na fila/i)).toBeInTheDocument()
     expect(screen.getByText('Pedido rejeitado')).toBeInTheDocument()
     expect(screen.getByText('Convidado: Caio')).toBeInTheDocument()
     expect(store.listByRoom).toHaveBeenCalledWith('room-a')
