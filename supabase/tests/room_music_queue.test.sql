@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(14);
 
 insert into auth.users (instance_id, id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, is_anonymous) values
 ('00000000-0000-0000-0000-000000000000', '51111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'queue-a@example.test', now(), '{"provider":"email","providers":["email"]}', '{}', false),
@@ -23,6 +23,7 @@ set local role authenticated;
 select is(public.dj_set_guest_request_status('53333333-3333-3333-3333-333333333333', 'approved'), true, 'DJ approves request');
 select is(public.dj_set_guest_request_status('53333333-3333-3333-3333-333333333333', 'approved'), false, 'repeat approval does not create a duplicate');
 select is((select count(*)::integer from public.dj_list_room_music_queue((select id from public.rooms where code='QUEUE00001'))), 1, 'approved request appears once in its room queue');
+select is((select q."position" from public.dj_list_room_music_queue((select id from public.rooms where code='QUEUE00001')) q where q.request_id='53333333-3333-3333-3333-333333333333'), 1::bigint, 'queue RPC preserves the position output column expected by the frontend');
 select is((select status from public.dj_list_room_guest_requests((select id from public.rooms where code='QUEUE00001')) where id='53333333-3333-3333-3333-333333333333'), 'approved', 'queue operation preserves request status');
 select is(public.dj_set_guest_request_status('54444444-4444-4444-4444-444444444444', 'approved'), true, 'second request approved');
 select is(public.dj_reorder_room_music_queue((select id from public.rooms where code='QUEUE00001'), array['54444444-4444-4444-4444-444444444444'::uuid, '53333333-3333-3333-3333-333333333333'::uuid]), true, 'DJ can reorder room queue');

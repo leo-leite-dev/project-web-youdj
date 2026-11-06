@@ -3,11 +3,11 @@ create table public.room_music_queue (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
   request_id uuid not null unique references public.guest_requests(id) on delete cascade,
-  position bigint not null,
+  "position" bigint not null,
   added_at timestamptz not null default now(),
-  unique (room_id, position)
+  unique (room_id, "position")
 );
-create index room_music_queue_room_order_idx on public.room_music_queue(room_id, position);
+create index room_music_queue_room_order_idx on public.room_music_queue(room_id, "position");
 alter table public.room_music_queue enable row level security;
 revoke all on public.room_music_queue from public, anon, authenticated, service_role;
 
@@ -32,9 +32,9 @@ begin
   get diagnostics changed = row_count;
   if changed = 1 and p_status = 'approved' then
     perform 1 from public.rooms where id = target_room for update;
-    select coalesce(max(position), 0) + 1 into next_position
+    select coalesce(max("position"), 0) + 1 into next_position
       from public.room_music_queue where room_id = target_room;
-    insert into public.room_music_queue(room_id, request_id, position)
+    insert into public.room_music_queue(room_id, request_id, "position")
       values (target_room, p_request_id, next_position) on conflict (request_id) do nothing;
   end if;
   return changed = 1;
@@ -42,14 +42,14 @@ end;
 $$;
 
 create function public.dj_list_room_music_queue(p_room_id uuid)
-returns table (request_id uuid, title text, artist text, video_id text, submitted_url text, guest_name text, position bigint, added_at timestamptz)
+returns table (request_id uuid, title text, artist text, video_id text, submitted_url text, guest_name text, "position" bigint, added_at timestamptz)
 language plpgsql stable security definer set search_path = '' as $$
 begin
   if private.current_room_role(p_room_id) is null then raise exception 'not_authorized' using errcode = '42501'; end if;
   return query select request.id, request.title, request.artist, request.video_id,
-    request.submitted_url, coalesce(request.guest_name, 'Convidado'), queue.position, queue.added_at
+    request.submitted_url, coalesce(request.guest_name, 'Convidado'), queue."position", queue.added_at
     from public.room_music_queue queue join public.guest_requests request on request.id = queue.request_id
-    where queue.room_id = p_room_id order by queue.position;
+    where queue.room_id = p_room_id order by queue."position";
 end;
 $$;
 
@@ -68,10 +68,10 @@ begin
     raise exception 'invalid_queue_order' using errcode = '22023';
   end if;
   foreach item_id in array p_request_ids loop
-    update public.room_music_queue set position = -item_position - 1 where room_id = p_room_id and request_id = item_id;
+    update public.room_music_queue set "position" = -item_position - 1 where room_id = p_room_id and request_id = item_id;
     item_position := item_position + 1;
   end loop;
-  update public.room_music_queue set position = -position - 1 where room_id = p_room_id;
+  update public.room_music_queue set "position" = -"position" - 1 where room_id = p_room_id;
   return true;
 end;
 $$;
