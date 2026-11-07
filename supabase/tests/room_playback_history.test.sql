@@ -28,7 +28,7 @@ select is(public.dj_mark_room_request_played((select id from public.rooms where 
 select is(public.dj_mark_room_request_played((select id from public.rooms where code='PLAYBACK01'), '63333333-3333-3333-3333-333333333332'), true, 'same video from a second request has independent history');
 select is((select count(*)::integer from public.dj_list_room_played_requests((select id from public.rooms where code='PLAYBACK01'))), 2, 'both individual requests are listed');
 select is(public.dj_mark_room_request_played((select id from public.rooms where code='PLAYBACK01'), '63333333-3333-3333-3333-333333333333'), false, 'pending request cannot be recorded as played');
-select is((select status from public.guest_requests where id='63333333-3333-3333-3333-333333333331'), 'approved', 'playback history does not alter approval');
+select is((select status from public.dj_list_room_guest_requests((select id from public.rooms where code='PLAYBACK01')) where id='63333333-3333-3333-3333-333333333331'), 'approved', 'playback history does not alter approval');
 select throws_ok($$select public.dj_list_room_played_requests((select id from public.rooms where code='PLAYBACK02'))$$, '42501', 'not_authorized', 'DJ cannot read another room history');
 select throws_ok($$select public.dj_mark_room_request_played((select id from public.rooms where code='PLAYBACK02'), '63333333-3333-3333-3333-333333333331')$$, '42501', 'not_authorized', 'DJ cannot record against another room');
 reset role;
