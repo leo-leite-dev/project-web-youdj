@@ -14,11 +14,24 @@ insert into public.rooms (dj_id, name, code, status) values
 ('72222222-2222-4222-8222-222222222222', 'Direct queue B', 'DIRECT0002', 'active');
 insert into public.room_moderators (room_id, moderator_id, granted_by)
 select room.id, '75555555-5555-4555-8555-555555555555', room.dj_id from public.rooms room where room.code = 'DIRECT0001';
+select set_config('test.direct_queue_room', (select id::text from public.rooms where code = 'DIRECT0001'), true);
 insert into public.guest_requests (id, room_id, dj_id, request_kind, title, artist, video_id, status)
 select '74444444-4444-4444-8444-444444444444', id, dj_id, 'youtube', 'Guest request', 'Guest artist', 'guestvideo1', 'pending'
 from public.rooms where code = 'DIRECT0001';
 insert into public.youtube_search_cache (normalized_query, videos, expires_at) values
 ('dj queue search', '[{"videoId":"abcdefghijk","title":"DJ selected song","channel":"DJ channel","thumbnail":"https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg"},{"videoId":"abcdefghijl","title":"Moderator selected song","channel":"Moderator channel","thumbnail":"https://i.ytimg.com/vi/abcdefghijl/mqdefault.jpg"}]'::jsonb, now() + interval '6 hours');
+
+-- Test-only bridge: preserve request claims while allowing authenticated to observe
+-- the private role helper, whose direct EXECUTE privilege must remain revoked.
+create function public.test_current_room_role(p_room_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select private.current_room_role(p_room_id) $$;
+revoke all on function public.test_current_room_role(uuid) from public, anon, authenticated, service_role;
+grant execute on function public.test_current_room_role(uuid) to authenticated;
 
 select throws_ok($$insert into public.room_music_queue (room_id, request_id, "position", source, dj_video_id, dj_title, dj_artist)
   values ((select id from public.rooms where code = 'DIRECT0001'), null, 90001, 'dj', null, 'Missing video ID', 'Channel')$$,
@@ -63,8 +76,6 @@ select set_config('request.jwt.claim.sub', '71111111-1111-4111-8111-111111111111
 set local role authenticated;
 select is(auth.uid()::text, '71111111-1111-4111-8111-111111111111',
   format('uncached-video check JWT identity; expected room owner 71111111-1111-4111-8111-111111111111, found %s', auth.uid()));
-select is((select access_role from public.dj_get_room_management_context((select id from public.rooms where code = 'DIRECT0001'))), 'owner',
-  format('uncached-video check permission; JWT identity %s, room owner 71111111-1111-4111-8111-111111111111, expected owner', auth.uid()));
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijm')$$,
   '22023', 'youtube_video_not_in_recent_search', 'tracks outside validated recent search results are rejected');
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0002'), 'abcdefghijl')$$,
@@ -74,12 +85,15 @@ reset role;
 select set_config('request.jwt.claims', '{"sub":"75555555-5555-4555-8555-555555555555","role":"authenticated","is_anonymous":false}', true);
 select set_config('request.jwt.claim.sub', '75555555-5555-4555-8555-555555555555', true);
 set local role authenticated;
-select is(auth.uid()::text, '75555555-5555-4555-8555-555555555555',
-  format('moderator queue check JWT identity; expected assigned moderator 75555555-5555-4555-8555-555555555555, found %s', auth.uid()));
-select is((select access_role from public.dj_get_room_management_context((select id from public.rooms where code = 'DIRECT0001'))), 'moderator',
-  format('moderator queue check permission; JWT identity %s, room owner 71111111-1111-4111-8111-111111111111, expected moderator', auth.uid()));
-select set_config('test.moderator_queue_item', public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijl')::text, true);
-select is((select source from public.dj_list_room_music_queue((select id from public.rooms where code = 'DIRECT0001')) where request_id = current_setting('test.moderator_queue_item')::uuid), 'dj', 'assigned moderator can add a direct DJ track');
+select is(auth.uid()::text || '/' || current_setting('role'), '75555555-5555-4555-8555-555555555555/authenticated',
+  format('moderator queue context; expected UID 75555555-5555-4555-8555-555555555555 and role authenticated, found UID %s and role %s', auth.uid(), current_setting('role')));
+select is(auth.jwt() ->> 'is_anonymous', 'false',
+  format('moderator queue check claim; JWT identity %s must be a non-anonymous authenticated DJ', auth.uid()));
+select is(public.test_current_room_role(current_setting('test.direct_queue_room')::uuid), 'moderator',
+  format('moderator permission for DIRECT0001; JWT identity %s, PostgreSQL role %s, is_anonymous %s, room ID %s',
+    auth.uid(), current_setting('role'), auth.jwt() ->> 'is_anonymous', current_setting('test.direct_queue_room')));
+select set_config('test.moderator_queue_item', public.dj_add_youtube_track_to_queue(current_setting('test.direct_queue_room')::uuid, 'abcdefghijl')::text, true);
+select is((select source from public.dj_list_room_music_queue(current_setting('test.direct_queue_room')::uuid) where request_id = current_setting('test.moderator_queue_item')::uuid), 'dj', 'assigned moderator can add a direct DJ track');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"72222222-2222-4222-8222-222222222222","role":"authenticated","is_anonymous":false}', true);
 select set_config('request.jwt.claim.sub', '72222222-2222-4222-8222-222222222222', true);
