@@ -73,13 +73,13 @@ describe('GuestRoomPage', () => {
     const identity = readGuestIdentity()
     expect(identity).toMatchObject({ nickname: 'Ana DJ' })
     expect(identity?.guestId).toMatch(/^[0-9a-f-]{36}$/)
-    expect(presenceStore.heartbeat).toHaveBeenCalledWith('A1B2C3D4E5', identity)
+    expect(presenceStore.heartbeat).toHaveBeenCalledWith('A1B2C3D4E5', identity, expect.stringMatching(/^[a-f0-9]{64}$/))
 
     firstVisit.unmount()
     renderRoom('/sala/a1b2c3d4e5', store, { seedIdentity: false, presenceStore })
     expect(await screen.findByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
-    expect(presenceStore.heartbeat).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(presenceStore.heartbeat).toHaveBeenCalledTimes(2))
   })
 
   it('shows an invalid link message for malformed room codes without querying', () => {
@@ -247,6 +247,7 @@ describe('GuestRoomPage', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'música teste' } })
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Buscar músicas' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Buscar músicas' }))
 
     expect(await screen.findByText(/cota diária do youtube foi atingida/i)).toBeInTheDocument()

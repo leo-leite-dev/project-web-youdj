@@ -12,6 +12,7 @@ export type GuestRequestInput =
 export interface GuestRequestReceipt {
   received: true
   privateCode: string
+  autoApproved: boolean
 }
 
 export type GuestRequestStatus = 'pending' | 'approved' | 'rejected'
@@ -113,15 +114,16 @@ export async function submitGuestRequest(
   request: GuestRequestInput,
   acceptedLegal: boolean,
   guestId: string,
+  guestCredential: string,
 ): Promise<GuestRequestReceipt> {
-  const payload = await post<unknown>('/api/guest-requests', { roomCode, request, acceptedLegal, guestId })
+  const payload = await post<unknown>('/api/guest-requests', { roomCode, request, acceptedLegal, guestId, guestCredential })
   if (typeof payload !== 'object' || payload === null
     || !('received' in payload) || payload.received !== true
     || !('privateCode' in payload) || typeof payload.privateCode !== 'string'
     || !/^[a-f0-9]{64}$/.test(payload.privateCode)) {
     throw new Error('Não foi possível validar o comprovante do pedido.')
   }
-  return { received: true, privateCode: payload.privateCode }
+  return { received: true, privateCode: payload.privateCode, autoApproved: 'autoApproved' in payload && payload.autoApproved === true }
 }
 
 const GUEST_REQUEST_STATUSES_PATH = '/api/guest-request-status'

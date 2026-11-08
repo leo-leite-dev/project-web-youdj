@@ -11,6 +11,7 @@ import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
 import type { PublicRoom } from '../../features/rooms/roomTypes'
 import { GuestIdentityGate } from '../../features/guest/components/GuestIdentityGate'
 import type { GuestIdentity } from '../../features/guest/services/guestIdentity'
+import { getOrCreateRoomGuestCredential } from '../../features/guest/services/guestIdentity'
 import type { GuestPresenceStore } from '../../features/guest/services/guestPresenceStore'
 import { getYoutubeSearchUsage, guestRequestStatusStore, searchGuestVideos, submitGuestRequest, type GuestRequestInput, type GuestRequestStatusItem, type YoutubeSearchUsage, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
 import { readGuestRequestReceipts, saveGuestRequestReceipt } from '../../features/guest/services/guestRequestReceipts'
@@ -143,12 +144,16 @@ function GuestMusicRequests({
     setBusy(true); setSearching(false); setMessage(''); setPrivateCode(null)
     onSubmittingChange(true)
     try {
-      const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId)
+      const guestCredential = getOrCreateRoomGuestCredential(room.code)
+      if (!guestCredential) throw new Error('Não foi possível validar a identidade privada deste navegador. Tente novamente.')
+      const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId, guestCredential)
       setPrivateCode(receipt.privateCode)
       setReceiptSaved(saveGuestRequestReceipt(room.code, receipt.privateCode))
       setReceiptVisible(true)
       setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
-      setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
+      setMessage(receipt.autoApproved
+        ? 'Pedido aprovado automaticamente como Convidado VIP e adicionado ao fim da fila. A reprodução atual não foi interrompida. Guarde o código abaixo para solicitar a exclusão.'
+        : 'Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.')
     } finally { setBusy(false); onSubmittingChange(false) }

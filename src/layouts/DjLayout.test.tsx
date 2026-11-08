@@ -65,4 +65,25 @@ describe('DjLayout navigation', () => {
     expect(screen.getByRole('heading', { name: 'Gerenciamento individual' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Visão geral' })).not.toBeInTheDocument()
   })
+
+  it('uses the room banner with accessible room and sign-out icons on the mobile header', () => {
+    render(
+      <AuthContext.Provider value={authValue}>
+        <MemoryRouter initialEntries={['/dj/painel/salas/room-a']}>
+          <Routes>
+            <Route path="/dj/painel" element={<DjLayout />}>
+              <Route path="salas/:roomId" element={<h1>Gerenciamento individual</h1>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+
+    const mobileHeader = screen.getByRole('banner')
+    expect(within(mobileHeader).getByRole('img', { name: 'YouDJ' })).toBeInTheDocument()
+    expect(within(mobileHeader).getByRole('link', { name: 'Salas' })).toHaveAttribute('href', '/dj/painel/salas')
+    expect(within(mobileHeader).getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+    expect(within(mobileHeader).queryByText(authValue.user?.email ?? '')).not.toBeInTheDocument()
+    expect(within(mobileHeader).queryByText('Ana DJ')).not.toBeInTheDocument()
+  })
 })

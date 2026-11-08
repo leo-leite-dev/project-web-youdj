@@ -1,53 +1,279 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { CircleCheck, CircleX, Clock3, Ellipsis, ExternalLink, ListOrdered, Music2, Play, Search, UserRound } from 'lucide-react'
 import { getRoomErrorMessage } from '../../rooms/lib/roomErrors'
+import { createDjMusicQueueStore, type DjMusicQueueStore, type QueueTrack } from '../services/djMusicQueueStore'
 import { createDjRequestStore, type DjRequest, type DjRequestStore } from '../services/djRequestStore'
+import { formatRequestedAt } from '../lib/formatRequestedAt'
 
 interface DjRequestsSectionProps {
   roomId: string
   store?: DjRequestStore
+  queueStore?: DjMusicQueueStore
+  filter?: 'pending' | 'approved' | 'rejected'
+  active?: boolean
+  onCountsChange?: (counts: { pending: number; approved: number; rejected: number }) => void
 }
 
-interface RequestListProps {
+type QueueState = 'idle' | 'loading' | 'ready' | 'error'
+type ApprovedSortOrder = 'newest' | 'oldest' | 'title'
+type PendingSortOrder = 'oldest' | 'newest' | 'title'
+type RejectedSortOrder = 'newest' | 'oldest' | 'title'
+
+const WAVEFORM_BAR_HEIGHTS = [18, 31, 43, 25, 62, 38, 76, 48, 29, 68, 42, 83, 55, 35, 72, 46, 64, 30, 58, 39, 74, 47, 28, 61] as const
+
+function removeTopicSuffix(value: string): string {
+  return value.replace(/\s+-\s+Topic$/i, '')
+}
+
+function getRequestExternalUrl(request: DjRequest): string | null {
+  if (request.videoId) return `https://www.youtube.com/watch?v=${encodeURIComponent(request.videoId)}`
+  if (!request.submittedUrl) return null
+  try {
+    const url = new URL(request.submittedUrl)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
+interface ApprovedRequestGridProps {
+  items: DjRequest[]
+  queuePositions: ReadonlyMap<string, number>
+  queueState: QueueState
+  playedRequestIds: ReadonlySet<string>
+}
+
+interface PendingRequestGridProps {
   items: DjRequest[]
   busyId: string | null
   onStatusChange: (requestId: string, status: 'approved' | 'rejected') => void
 }
 
-function RequestList({ items, busyId, onStatusChange }: RequestListProps) {
-  if (items.length === 0) return <p className="mt-4 text-sm text-zinc-500">Nenhum pedido nesta seção.</p>
-  return <ul className="mt-4 space-y-3">{items.map((request) => <li key={request.id} className="flex flex-col gap-3 rounded-xl border border-white/8 bg-night-950/60 p-3 sm:flex-row sm:items-center">
-    {request.videoId && <img src={`https://i.ytimg.com/vi/${request.videoId}/mqdefault.jpg`} alt="" loading="lazy" className="aspect-video w-full rounded-lg object-cover sm:w-32" />}
-    <div className="min-w-0 flex-1"><p className="font-medium text-white">{request.title}</p><p className="mt-1 text-xs text-fuchsia-200">Convidado: {request.guestName}</p><p className="mt-1 text-xs text-zinc-400">{request.artist} · {request.roomName}</p>
-      {request.videoId && <a href={`https://www.youtube.com/watch?v=${request.videoId}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent-300 underline">Abrir vídeo no YouTube</a>}
-      {!request.videoId && request.submittedUrl && <a href={request.submittedUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent-300 underline">Link enviado pelo convidado</a>}
-    </div>
-    {request.status === 'pending'
-      ? <div className="flex shrink-0 gap-2"><button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'approved')} className="min-h-11 flex-1 rounded-lg bg-emerald-500/15 px-3 text-xs font-semibold text-emerald-200 disabled:opacity-50">Aprovar</button><button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'rejected')} className="min-h-11 flex-1 rounded-lg bg-red-400/10 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Rejeitar</button></div>
-      : <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'approved' ? 'bg-emerald-400/10 text-emerald-200' : 'bg-red-400/10 text-red-200'}`}>{request.status === 'approved' ? 'Aprovado · na fila' : 'Rejeitado'}</span>}
-  </li>)}</ul>
+interface RejectedRequestGridProps {
+  items: DjRequest[]
 }
 
-export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSectionProps) {
+function RejectedRequestGrid({ items }: RejectedRequestGridProps) {
+  if (items.length === 0) return <p className="mt-4 text-sm text-zinc-500">Nenhum pedido rejeitado encontrado.</p>
+
+  return <ul className="mt-4 room-request-list--rejected">{items.map((request) => {
+    const requestedAt = formatRequestedAt(request.createdAt)
+
+    return <li key={request.id} className="room-approved-card room-rejected-card">
+      <div className="room-approved-card__badges room-rejected-card__badges">
+        <span className="room-rejected-card__status"><CircleX aria-hidden="true" />Rejeitado</span>
+      </div>
+      <div className="room-approved-card__track">
+        <div className="room-approved-card__cover">
+          {request.videoId
+            ? <img src={`https://i.ytimg.com/vi/${request.videoId}/mqdefault.jpg`} alt="" loading="lazy" />
+            : <Music2 aria-hidden="true" />}
+        </div>
+        <div className="room-approved-card__copy">
+          <h3 title={request.title}>{request.title}</h3>
+          <p title={removeTopicSuffix(request.artist)}>{removeTopicSuffix(request.artist)}</p>
+          <div className="room-approved-waveform" aria-hidden="true">
+            {WAVEFORM_BAR_HEIGHTS.map((height, index) => <span key={index} style={{ height: `${height}%` }} />)}
+          </div>
+        </div>
+      </div>
+      <div className="room-approved-card__footer room-rejected-card__footer">
+        <div className="room-approved-card__metadata">
+          {requestedAt && <p><Clock3 aria-hidden="true" /><span>{requestedAt}</span></p>}
+          <p><UserRound aria-hidden="true" /><span>Convidado: {request.guestName}</span></p>
+        </div>
+      </div>
+    </li>
+  })}</ul>
+}
+
+function PendingRequestGrid({ items, busyId, onStatusChange }: PendingRequestGridProps) {
+  if (items.length === 0) return <p className="mt-4 text-sm text-zinc-500">Nenhum pedido pendente encontrado.</p>
+
+  return <ul className="mt-4 room-request-list--pending">{items.map((request) => {
+    const requestedAt = formatRequestedAt(request.createdAt)
+    const videoUrl = getRequestExternalUrl(request)
+
+    return <li key={request.id} className="room-approved-card room-pending-card">
+      <div className="room-approved-card__badges room-pending-card__badges">
+        <span className="room-pending-card__status"><Clock3 aria-hidden="true" />Pendente</span>
+        {videoUrl && <details className="room-approved-card__menu room-pending-card__menu">
+          <summary aria-label={`Mais ações para ${removeTopicSuffix(request.title)}`}><Ellipsis aria-hidden="true" /></summary>
+          <div className="room-approved-card__menu-popover">
+            <a href={videoUrl} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" />Abrir vídeo</a>
+          </div>
+        </details>}
+      </div>
+      <div className="room-approved-card__track room-pending-card__track">
+        <div className="room-approved-card__cover">
+          {request.videoId
+            ? <img src={`https://i.ytimg.com/vi/${request.videoId}/mqdefault.jpg`} alt="" loading="lazy" />
+            : <Music2 aria-hidden="true" />}
+          {videoUrl && <a href={videoUrl} target="_blank" rel="noreferrer" aria-label={`Abrir vídeo de ${removeTopicSuffix(request.title)}`} className="room-approved-card__play"><Play aria-hidden="true" /></a>}
+        </div>
+        <div className="room-approved-card__copy">
+          <h3 title={removeTopicSuffix(request.title)}>{removeTopicSuffix(request.title)}</h3>
+          <p title={removeTopicSuffix(request.artist)}>{removeTopicSuffix(request.artist)}</p>
+          <div className="room-approved-waveform" aria-hidden="true">
+            {WAVEFORM_BAR_HEIGHTS.map((height, index) => <span key={index} style={{ height: `${height}%` }} />)}
+          </div>
+        </div>
+      </div>
+      <div className="room-pending-card__actions">
+        <button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'approved')}><CircleCheck aria-hidden="true" />Aprovar</button>
+        <button type="button" disabled={busyId === request.id} onClick={() => onStatusChange(request.id, 'rejected')}><CircleX aria-hidden="true" />Rejeitar</button>
+      </div>
+      <div className="room-approved-card__footer room-pending-card__footer">
+        <div className="room-approved-card__metadata">
+          {requestedAt && <p><Clock3 aria-hidden="true" /><span>{requestedAt}</span></p>}
+          <p><UserRound aria-hidden="true" /><span>Convidado: {request.guestName}</span></p>
+        </div>
+      </div>
+    </li>
+  })}</ul>
+}
+
+function ApprovedRequestGrid({ items, queuePositions, queueState, playedRequestIds }: ApprovedRequestGridProps) {
+  if (items.length === 0) return <p className="mt-4 text-sm text-zinc-500">Nenhum pedido aprovado encontrado.</p>
+
+  return <ul className="mt-4 room-request-list--approved">{items.map((request) => {
+    const requestedAt = formatRequestedAt(request.createdAt)
+    const queuePosition = queuePositions.get(request.id)
+    const isPlayed = playedRequestIds.has(request.id)
+    const videoUrl = getRequestExternalUrl(request)
+    const queueLabel = queuePosition !== undefined
+      ? `Na fila #${queuePosition}`
+      : queueState === 'idle' || queueState === 'loading'
+        ? 'Carregando fila…'
+        : queueState === 'error'
+          ? 'Fila indisponível'
+          : 'Fora da fila'
+
+    return <li key={request.id} className="room-approved-card">
+      <div className="room-approved-card__badges">
+        <div className="room-approved-card__status-group">
+          <span className="room-approved-card__approved"><CircleCheck aria-hidden="true" />Aprovado</span>
+          {isPlayed && <span className="room-approved-card__played">Tocada</span>}
+        </div>
+        <span className={`room-approved-card__position ${queuePosition === undefined ? 'room-approved-card__position--muted' : ''}`}>
+          <ListOrdered aria-hidden="true" />{queueLabel}
+        </span>
+      </div>
+      <div className="room-approved-card__track">
+        <div className="room-approved-card__cover">
+          {request.videoId
+            ? <img src={`https://i.ytimg.com/vi/${request.videoId}/mqdefault.jpg`} alt="" loading="lazy" />
+            : <Music2 aria-hidden="true" />}
+          {videoUrl && <a href={videoUrl} target="_blank" rel="noreferrer" aria-label={`Abrir vídeo de ${request.title}`} className="room-approved-card__play"><Play aria-hidden="true" /></a>}
+        </div>
+        <div className="room-approved-card__copy">
+          <h3 title={request.title}>{request.title}</h3>
+          <p title={request.artist}>{request.artist.replace(/ - Topic$/, '')}</p>
+          <div className="room-approved-waveform" aria-hidden="true">
+            {WAVEFORM_BAR_HEIGHTS.map((height, index) => <span key={index} style={{ height: `${height}%` }} />)}
+          </div>
+        </div>
+      </div>
+      <div className="room-approved-card__footer">
+        <div className="room-approved-card__metadata">
+          {requestedAt && <p><Clock3 aria-hidden="true" /><span>{requestedAt}</span></p>}
+          <p><UserRound aria-hidden="true" /><span>Convidado: {request.guestName}</span></p>
+        </div>
+        <details className="room-approved-card__menu">
+          <summary aria-label={`Mais ações para ${request.title}`}><Ellipsis aria-hidden="true" /></summary>
+          <div className="room-approved-card__menu-popover">
+            {videoUrl
+              ? <a href={videoUrl} target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" />Abrir vídeo</a>
+              : <span>Nenhuma ação disponível</span>}
+          </div>
+        </details>
+      </div>
+    </li>
+  })}</ul>
+}
+
+export function DjRequestsSection({ roomId, store: storeOverride, queueStore: queueStoreOverride, filter = 'pending', active = true, onCountsChange }: DjRequestsSectionProps) {
   const [store] = useState(() => storeOverride ?? createDjRequestStore())
+  const queueStoreRef = useRef<DjMusicQueueStore | null>(queueStoreOverride ?? null)
   const [requests, setRequests] = useState<DjRequest[]>([])
+  const [queueTracks, setQueueTracks] = useState<QueueTrack[]>([])
+  const [queueState, setQueueState] = useState<QueueState>('idle')
+  const [search, setSearch] = useState('')
+  const [sortOrder, setSortOrder] = useState<ApprovedSortOrder>('newest')
+  const [pendingSearch, setPendingSearch] = useState('')
+  const [pendingSortOrder, setPendingSortOrder] = useState<PendingSortOrder>('oldest')
+  const [rejectedSearch, setRejectedSearch] = useState('')
+  const [rejectedSortOrder, setRejectedSortOrder] = useState<RejectedSortOrder>('newest')
+  const [playedRequestIds, setPlayedRequestIds] = useState<ReadonlySet<string>>(() => new Set())
   const [hasLoaded, setHasLoaded] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const inFlightRef = useRef(false)
+  const queueInFlightRef = useRef(false)
 
-  const reload = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try { setRequests(await store.listByRoom(roomId)); setHasLoaded(true) }
-    catch (cause) { setError(getRoomErrorMessage(cause, 'Não foi possível carregar os pedidos. Verifique sua conexão e tente novamente.')) }
-    finally { setLoading(false) }
+  const reloadQueue = useCallback(async (silent = false) => {
+    if (queueInFlightRef.current) return
+    queueInFlightRef.current = true
+    if (!silent) setQueueState('loading')
+    try {
+      const queueStore = queueStoreRef.current ?? createDjMusicQueueStore()
+      queueStoreRef.current = queueStore
+      const tracks = await queueStore.listByRoom(roomId)
+      setQueueTracks(tracks)
+      setQueueState('ready')
+    } catch {
+      setQueueState('error')
+    } finally {
+      queueInFlightRef.current = false
+    }
+  }, [roomId])
+
+  const reload = useCallback(async (silent = false) => {
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
+    try {
+      const nextRequests = await store.listByRoom(roomId)
+      const played = store.listPlayedRequestIds ? await store.listPlayedRequestIds(roomId) : []
+      setRequests((current) => JSON.stringify(current) === JSON.stringify(nextRequests) ? current : nextRequests)
+      setPlayedRequestIds(new Set(played))
+      setHasLoaded(true)
+    }
+    catch (cause) { if (!silent) setError(getRoomErrorMessage(cause, 'Não foi possível carregar os pedidos. Verifique sua conexão e tente novamente.')) }
+    finally { inFlightRef.current = false; setLoading(false) }
   }, [roomId, store])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void reload() }, 0)
     return () => window.clearTimeout(timer)
   }, [reload])
+
+  useEffect(() => {
+    if (!active) return
+    let timer: number
+    const poll = () => {
+      timer = window.setTimeout(() => {
+        if (document.visibilityState === 'visible') void reload(true)
+        poll()
+      }, 5000)
+    }
+    poll()
+    return () => window.clearTimeout(timer)
+  }, [active, reload])
+
+  useEffect(() => {
+    if (!active || filter !== 'approved') return
+    void reloadQueue()
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void reloadQueue(true)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [active, filter, reloadQueue])
 
   async function updateStatus(requestId: string, status: 'approved' | 'rejected') {
     setBusyId(requestId)
@@ -66,15 +292,57 @@ export function DjRequestsSection({ roomId, store: storeOverride }: DjRequestsSe
   const pending = requests.filter((request) => request.status === 'pending')
   const approved = requests.filter((request) => request.status === 'approved')
   const rejected = requests.filter((request) => request.status === 'rejected')
+  const queuePositions = new Map(queueTracks.map((track, index) => [track.requestId, index + 1]))
+  const normalizedSearch = search.trim().toLocaleLowerCase()
+  const visibleApproved = approved
+    .filter((request) => `${request.title} ${request.artist} ${request.guestName}`.toLocaleLowerCase().includes(normalizedSearch))
+    .sort((first, second) => {
+      if (sortOrder === 'oldest') return Date.parse(first.createdAt) - Date.parse(second.createdAt)
+      if (sortOrder === 'title') return first.title.localeCompare(second.title, 'pt-BR', { sensitivity: 'base' })
+      return Date.parse(second.createdAt) - Date.parse(first.createdAt)
+    })
+  const normalizedPendingSearch = pendingSearch.trim().toLocaleLowerCase()
+  const visiblePending = pending
+    .filter((request) => `${removeTopicSuffix(request.title)} ${removeTopicSuffix(request.artist)} ${request.guestName}`.toLocaleLowerCase().includes(normalizedPendingSearch))
+    .sort((first, second) => {
+      if (pendingSortOrder === 'newest') return Date.parse(second.createdAt) - Date.parse(first.createdAt)
+      if (pendingSortOrder === 'title') return removeTopicSuffix(first.title).localeCompare(removeTopicSuffix(second.title), 'pt-BR', { sensitivity: 'base' })
+      return Date.parse(first.createdAt) - Date.parse(second.createdAt)
+    })
+  const normalizedRejectedSearch = rejectedSearch.trim().toLocaleLowerCase()
+  const visibleRejected = rejected
+    .filter((request) => `${request.title} ${removeTopicSuffix(request.artist)} ${request.guestName}`.toLocaleLowerCase().includes(normalizedRejectedSearch))
+    .sort((first, second) => {
+      if (rejectedSortOrder === 'oldest') return Date.parse(first.createdAt) - Date.parse(second.createdAt)
+      if (rejectedSortOrder === 'title') return first.title.localeCompare(second.title, 'pt-BR', { sensitivity: 'base' })
+      return Date.parse(second.createdAt) - Date.parse(first.createdAt)
+    })
 
-  return <section aria-labelledby="requests-title" className="mt-6 rounded-2xl border border-white/8 bg-night-900/50 p-5 sm:p-6">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="requests-title" className="font-semibold text-white">Pedidos</h2><p className="mt-1 text-xs text-zinc-500">Aprovar um pedido não adiciona à playlist nem inicia reprodução.</p></div><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button></div>
+  useEffect(() => {
+    onCountsChange?.({ pending: pending.length, approved: approved.length, rejected: rejected.length })
+  }, [approved.length, onCountsChange, pending.length, rejected.length])
+
+  return <section aria-labelledby="requests-title" className={`room-requests-section${filter === 'approved' ? ' room-requests-section--approved' : ''}${filter === 'pending' ? ' room-requests-section--pending' : ''}${filter === 'rejected' ? ' room-requests-section--rejected' : ''}`}>
+    <div className={`room-requests-header flex flex-wrap items-center justify-between gap-3${filter === 'approved' ? ' room-requests-header--approved' : ''}${filter === 'pending' ? ' room-requests-header--pending' : ''}${filter === 'rejected' ? ' room-requests-header--rejected' : ''}`}>
+      <div><h2 id="requests-title" className="font-semibold text-white">{filter === 'pending' ? 'Pedidos pendentes' : filter === 'approved' ? 'Pedidos aprovados' : 'Pedidos rejeitados'} <span className="text-fuchsia-300">({filter === 'pending' ? pending.length : filter === 'approved' ? approved.length : rejected.length})</span></h2><p className="mt-1 text-xs text-zinc-400">{filter === 'pending' ? 'Pedidos pendentes aguardam sua decisão antes de entrarem na fila de reprodução.' : filter === 'approved' ? 'Pedidos aprovados e posição atual na fila.' : 'Pedidos recusados nesta sala.'}</p></div>
+      {filter === 'pending' && <div className="room-approved-controls room-pending-controls">
+        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar pedidos pendentes</span><input type="search" value={pendingSearch} onChange={(event) => setPendingSearch(event.currentTarget.value)} placeholder="Buscar pedido..." /></label>
+        <label className="room-approved-sort"><span>Ordenar:</span><select value={pendingSortOrder} onChange={(event) => setPendingSortOrder(event.currentTarget.value as PendingSortOrder)}><option value="oldest">Mais antigos</option><option value="newest">Mais recentes</option><option value="title">Título (A–Z)</option></select></label>
+      </div>}
+      {filter === 'rejected' && <div className="room-approved-controls room-rejected-controls">
+        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar pedidos rejeitados</span><input type="search" value={rejectedSearch} onChange={(event) => setRejectedSearch(event.currentTarget.value)} placeholder="Buscar música, artista ou convidado" /></label>
+        <label className="room-approved-sort"><span>Ordenar:</span><select value={rejectedSortOrder} onChange={(event) => setRejectedSortOrder(event.currentTarget.value as RejectedSortOrder)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="title">Título (A–Z)</option></select></label>
+      </div>}
+      {filter === 'approved' && <div className="room-approved-controls room-approved-header-controls">
+        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar pedidos aprovados</span><input type="search" value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Buscar música, artista ou convidado" /></label>
+        <label className="room-approved-sort"><span>Ordenar:</span><select value={sortOrder} onChange={(event) => setSortOrder(event.currentTarget.value as ApprovedSortOrder)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="title">Título (A–Z)</option></select></label>
+      </div>}
+      <button type="button" onClick={() => { void reload(); if (filter === 'approved') void reloadQueue() }} disabled={loading} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button>
+    </div>
     {error && <div className="mt-3 space-y-2" role="alert"><p className="text-sm text-red-300">{error}</p><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-red-300/20 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Tentar novamente</button></div>}
     {message && <p role="status" className="mt-3 text-sm text-emerald-200">{message}</p>}
     {loading && !hasLoaded ? <p role="status" className="mt-4 text-sm text-zinc-400">Carregando pedidos…</p> : !hasLoaded ? null : <>
-      <h3 className="mt-5 text-sm font-semibold text-white">Pedidos pendentes <span className="text-accent-300">({pending.length})</span></h3><RequestList items={pending} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
-      <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Aprovados <span className="text-emerald-200">({approved.length})</span></h3><RequestList items={approved} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
-      <h3 className="mt-6 border-t border-white/8 pt-5 text-sm font-semibold text-white">Rejeitados <span className="text-red-200">({rejected.length})</span></h3><RequestList items={rejected} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} />
+      {filter === 'pending' ? <PendingRequestGrid items={visiblePending} busyId={busyId} onStatusChange={(id, status) => void updateStatus(id, status)} /> : filter === 'approved' ? <ApprovedRequestGrid items={visibleApproved} queuePositions={queuePositions} queueState={queueState} playedRequestIds={playedRequestIds} /> : <RejectedRequestGrid items={visibleRejected} />}
     </>}
   </section>
 }

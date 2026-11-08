@@ -23,7 +23,7 @@ describe('useRooms', () => {
 
     await waitFor(() => expect(result.current.status).toBe('error'))
     expect(result.current.error).toBe(
-      'Sua sessão não tem permissão para gerenciar salas. Entre novamente.',
+      'Sua conta não tem permissão para esta sala. Confirme se você é o proprietário ou moderador convidado.',
     )
 
     store.listError = undefined

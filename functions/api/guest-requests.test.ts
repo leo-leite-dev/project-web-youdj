@@ -7,6 +7,7 @@ const env = {
   SUPABASE_SERVICE_ROLE_KEY: 'request-server-key-never-returned',
 }
 const guestId = 'a1111111-1111-4111-8111-111111111111'
+const guestCredential = 'b'.repeat(64)
 
 function request(body: unknown) {
   return new Request('https://example.test/api/guest-requests', {
@@ -22,13 +23,14 @@ describe('guest request endpoint', () => {
   it('sends the persistent browser identity to the private request RPC', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
       const body = JSON.parse(String(init?.body)) as { p_private_code: string }
-      return Response.json({ received: true, private_code: body.p_private_code })
+      return Response.json({ received: true, private_code: body.p_private_code, auto_approved: true })
     })
 
     const response = await onRequestPost({
       request: request({
         roomCode: 'A1B2C3D4E5',
         guestId,
+        guestCredential,
         request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
         acceptedLegal: true,
       }),
@@ -39,8 +41,10 @@ describe('guest request endpoint', () => {
     const responseBody = await response.json()
     expect(response.status).toBe(201)
     expect(rpcBody.p_guest_id).toBe(guestId)
+    expect(rpcBody.p_guest_credential).toBe(guestCredential)
     expect(rpcBody.p_private_code).toMatch(/^[a-f0-9]{64}$/)
-    expect(responseBody).toMatchObject({ received: true, privateCode: rpcBody.p_private_code })
+    expect(responseBody).toMatchObject({ received: true, privateCode: rpcBody.p_private_code, autoApproved: true })
+    expect(JSON.stringify(responseBody)).not.toContain(guestCredential)
     expect(JSON.stringify(responseBody)).not.toContain(env.SUPABASE_SERVICE_ROLE_KEY)
   })
 
@@ -50,6 +54,7 @@ describe('guest request endpoint', () => {
       request: request({
         roomCode: 'A1B2C3D4E5',
         guestId: 'not-a-uuid',
+        guestCredential,
         request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
         acceptedLegal: true,
       }),
@@ -66,6 +71,7 @@ describe('guest request endpoint', () => {
       request: request({
         roomCode: 'A1B2C3D4E5',
         guestId,
+        guestCredential,
         request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
       }),
       env,

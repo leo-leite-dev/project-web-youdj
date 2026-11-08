@@ -77,10 +77,13 @@ export type Database = {
       }
       dj_list_room_music_queue: {
         Args: { p_room_id: string }
-        Returns: { request_id: string; title: string; artist: string; video_id: string | null; submitted_url: string | null; guest_name: string; position: number; added_at: string }[]
+        Returns: { request_id: string; title: string; artist: string; video_id: string | null; submitted_url: string | null; guest_name: string; position: number; added_at: string; source: 'request' | 'dj' }[]
       }
+      dj_add_youtube_track_to_queue: { Args: { p_room_id: string; p_video_id: string }; Returns: string }
       dj_reorder_room_music_queue: { Args: { p_room_id: string; p_request_ids: string[] }; Returns: boolean }
       dj_remove_room_music_queue_item: { Args: { p_room_id: string; p_request_id: string }; Returns: boolean }
+      dj_mark_room_request_played: { Args: { p_room_id: string; p_request_id: string }; Returns: boolean }
+      dj_list_room_played_requests: { Args: { p_room_id: string }; Returns: string[] }
       dj_get_room_management_context: {
         Args: { p_room_id: string }
         Returns: {
@@ -114,7 +117,15 @@ export type Database = {
       }
       dj_room_online_guests: {
         Args: { p_room_id: string }
-        Returns: { online_count: number; guest_name: string | null; last_seen_at: string | null }[]
+        Returns: { online_count: number; guest_name: string | null; last_seen_at: string | null; guest_id: string | null; is_vip: boolean }[]
+      }
+      dj_set_room_guest_vip: {
+        Args: { p_room_id: string; p_guest_id: string; p_enabled: boolean }
+        Returns: boolean
+      }
+      dj_list_room_guest_vips: {
+        Args: { p_room_id: string }
+        Returns: { guest_id: string; guest_name: string; granted_at: string }[]
       }
       dj_set_guest_request_status: {
         Args: { p_request_id: string; p_status: string }

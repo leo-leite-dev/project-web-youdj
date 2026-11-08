@@ -202,6 +202,12 @@ proprietário.
 - Cada pedido novo traz o `guest_id`; a RPC recupera o apelido da presença recente no banco, sem
   confiar em nome enviado junto ao pedido. Apelido e ID do pedido permanecem conforme retenção de
   30 dias. Registros antigos sem apelido não são preenchidos retroativamente.
+- A permissão “Pedidos sem aprovação” é por sala e concedida/revogada somente pelo proprietário.
+  O UUID/apelido público não autoriza VIP: cada navegador mantém uma credencial aleatória por sala,
+  o servidor registra somente seu SHA-256 e a RPC de envio compara a credencial antes de aprovar e
+  inserir atomicamente no fim da fila. O limite vigente de 5 pedidos por IP/10 minutos também se
+  aplica aos VIPs. Migration `20261115000000_room_guest_vip.sql` e teste pgTAP estão preparados
+  localmente; não foram aplicados ao Supabase remoto.
 
 ### Etapa 4A — pesquisa e pedidos
 
@@ -300,7 +306,7 @@ proprietário.
   é uma RPC legada; a interface não tem página de Visão geral e `/dj/painel` redireciona para
   `/dj/painel/salas`. A listagem detalhada fica na gestão individual da sala.
   Na etapa original de moderação, aprovação não criava playlist, fila nem reprodução. A fila básica
-  por sala está descrita na Etapa 4C abaixo; reprodução continua ausente. O painel atualiza por polling, não Realtime.
+  por sala está descrita na Etapa 4C abaixo; a reprodução oficial no player está descrita adiante. O painel atualiza por polling, não Realtime.
 - Migration `20261107000000_add_dj_request_moderation.sql` está versionada e integrada em
   `main`, mas sua aplicação no Supabase remoto não está confirmada. Os 165 testes pgTAP passaram
   no GitHub Actions do PR #3; isso comprova a execução local do workflow, não o estado do banco
@@ -463,7 +469,7 @@ configuração remota foi alterada nesta etapa.
 | Supabase Realtime       | Atualização da fila e dos pedidos em tempo real               | Planejado   |
 | Cloudflare Pages        | SPA e Pages Functions                                          | Busca real respondeu HTTP 503 genérico; causa upstream não observável na versão publicada |
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
-| YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
+| YouTube IFrame Player API | Reprodução oficial na aba de fila (local ao navegador)    | Implementado; validação real pendente |
 
 Supabase Auth, as operações de perfil e o gerenciamento de `public.rooms` estão integrados em
 runtime; as migrations `20261102000000` e `20261103000000` foram aplicadas ao remoto. Links/QR e a
@@ -489,10 +495,9 @@ Princípios que devem orientar as próximas etapas:
 
 ## 8. Fora do escopo da Etapa 4B
 
-- Fila pública, Supabase Realtime, playlist e reprodução.
+- Fila pública, Supabase Realtime e playlist.
 - Identidades anônimas de convidados e rate limiting.
 - Pagamentos.
-- Player de música/vídeo.
 - Testes end-to-end em navegador.
 
 ### Etapa 4C — fila por sala (Etapa 1)
@@ -503,11 +508,48 @@ Princípios que devem orientar as próximas etapas:
 - RPCs `dj_list_room_music_queue`, `dj_reorder_room_music_queue` e
   `dj_remove_room_music_queue_item` autorizam owner/moderator via `private.current_room_role` e
   limitam cada operação à sala solicitada. A tabela não concede acesso direto aos papéis de API.
-- A aba “Fila e Player” exibe e reordena a fila e permite remover itens. Remoção afeta somente a
-  entrada da fila; o pedido aprovado mantém o status `approved`. Não há reprodução/player.
+- A aba “Fila e Player” exibe/reordena a fila e permite remover itens. Remoção afeta somente a
+  entrada da fila; o pedido aprovado mantém o status `approved`.
+- A mesma aba oferece busca explícita pelo endpoint server-side `/api/youtube-search`, compartilhando
+  a YouTube Data API, o cache e o controle de quota existentes; a chave nunca é enviada ao cliente.
+  O RPC `dj_add_youtube_track_to_queue` verifica o papel na sala, deduplica por sala/vídeo e aceita
+  somente vídeos ainda presentes no cache server-side de buscas validadas. A migration local
+  `20261117000000_add_dj_youtube_tracks_to_queue.sql` permite itens `source='dj'` sem `guest_request`,
+  estende listagem/ordenação/remoção para a identidade estável do item e mantém histórico persistente
+  de reprodução exclusivamente para pedidos. Testes pgTAP direcionados foram preparados; a migration
+  não foi executada nem validada contra o Supabase remoto.
+- A interface separa a faixa atual (“Tocando agora”, com capa e metadados) da lista de próximas
+  músicas. Faixas iniciadas ficam fora da lista visível; reordenação opera sobre as próximas e envia
+  ao RPC a ordem completa, mantendo histórico e faixa atual antes das próximas sem recarregar o player.
 - Migration `20261114000000_add_room_music_queue.sql` está versionada localmente e depende das
   migrations de pedidos e de membership (`20261105000000`, `20261111000000` e `20261112000000`);
-  aplicação remota e teste contra Supabase real não realizados.
+  sua aplicação remota foi informada anteriormente pelo responsável e não foi revalidada nem
+  executada nesta implementação.
+- `DjQueuePlayer` carrega a YouTube IFrame Player API oficial somente após ação de reprodução do DJ.
+  O iframe oficial permanece visível com seus controles; play/pause, avanço manual e avanço ao evento
+  `ENDED` usam a API, sem extrair áudio nem contornar restrições de autoplay. Quando o navegador
+  bloqueia autoplay, é apresentada uma nova ação explícita do DJ. Erros de vídeo são explicados e
+  podem ser pulados manualmente.
+- O cursor de itens iniciados e o ID da música atual ficam localmente em `sessionStorage`, separados
+  e indexados por sala. A lista usa chave versionada para ignorar registros antigos que poderiam
+  bloquear uma fila atual; se não houver item ainda não iniciado, o DJ pode recuperar/reiniciar
+  explicitamente, sem fazer a reprodução automática repetir a fila. O estado não é compartilhado
+  entre DJs/dispositivos nem persistido no Supabase; cada cliente reproduz localmente e a fila do
+  banco mantém sua ordem.
+- O histórico administrativo de execução é separado do estado do player: `room_music_playback_history`
+  grava o `request_id` individual no primeiro evento `PLAYING`, sem usar o `video_id` como identidade
+  e sem alterar status/aprovação/fila. RPCs autenticadas verificam owner/moderator da sala; a tabela
+  não concede acesso direto aos papéis de API. A aba Pedidos lê os IDs por RPC durante o polling
+  já existente e exibe “Tocada” mesmo depois do término ou recarga. Migration `20261116000000` e
+  pgTAP são locais e não foram aplicados/validados no backend remoto.
+- `DjPlaybackProvider` no `DjLayout` mantém o `DjQueuePlayer` em uma única instância além do ciclo de
+  vida das páginas. A aba Fila e Player mostra a apresentação completa; ao sair para Pedidos, Equipe
+  ou outra rota protegida, a mesma instância/iframe é exibida no mini-player flutuante. Sem música
+  iniciada, não há mini-player; ao retornar à fila, o mesmo player volta à apresentação completa sem
+  recarregar o vídeo. `DjMusicQueueSection` registra a fila no host persistente e conserva a listagem
+  e as ações administrativas apenas na aba correspondente.
+- A integração é coberta por testes com player substituto; reprodução real, permissões de embedding,
+  autoplay e disponibilidade de vídeos precisam ser validados em navegador com acesso ao YouTube.
 
 ## 9. Próximos passos recomendados
 

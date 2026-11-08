@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { PublicRoom } from '../../rooms/roomTypes'
 import {
   createGuestIdentity,
+  getOrCreateRoomGuestCredential,
   readGuestIdentity,
   saveGuestIdentity,
   type GuestIdentity,
@@ -42,7 +43,9 @@ export function GuestIdentityGate({ children, room, store: storeOverride }: Gues
       if (requestActive || document.visibilityState !== 'visible') return
       requestActive = true
       try {
-        await store.heartbeat(room.code, identity)
+        const credential = getOrCreateRoomGuestCredential(room.code)
+        if (!credential) throw new Error('Não foi possível proteger a identidade deste navegador. Verifique o armazenamento local e tente novamente.')
+        await store.heartbeat(room.code, identity, credential)
         if (mounted) {
           setPresenceOnline(true)
           setPresenceError(null)

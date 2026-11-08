@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { createGuestIdentity, readGuestIdentity, saveGuestIdentity } from './guestIdentity'
+import { createGuestIdentity, getOrCreateRoomGuestCredential, readGuestIdentity, saveGuestIdentity } from './guestIdentity'
 
 afterEach(() => localStorage.clear())
 
@@ -21,5 +21,14 @@ describe('guest browser identity', () => {
   it('ignores malformed browser storage', () => {
     localStorage.setItem('youdj.guest.identity.v1', '{broken')
     expect(readGuestIdentity()).toBeNull()
+  })
+
+  it('keeps a cryptographically random credential scoped to each room', () => {
+    const roomCredential = getOrCreateRoomGuestCredential('room000001')
+    const otherRoomCredential = getOrCreateRoomGuestCredential('room000002')
+    expect(roomCredential).toMatch(/^[a-f0-9]{64}$/)
+    expect(getOrCreateRoomGuestCredential('ROOM000001')).toBe(roomCredential)
+    expect(otherRoomCredential).toMatch(/^[a-f0-9]{64}$/)
+    expect(otherRoomCredential).not.toBe(roomCredential)
   })
 })

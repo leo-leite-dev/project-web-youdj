@@ -20,6 +20,7 @@ describe('Supabase server key compatibility', () => {
         body: JSON.stringify({
           roomCode: 'A1B2C3D4E5',
           guestId: 'a1111111-1111-4111-8111-111111111111',
+          guestCredential: 'b'.repeat(64),
           request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
           acceptedLegal: true,
         }),
@@ -51,6 +52,7 @@ describe('Supabase server key compatibility', () => {
         body: JSON.stringify({
           roomCode: 'A1B2C3D4E5',
           guestId: 'a1111111-1111-4111-8111-111111111111',
+          guestCredential: 'b'.repeat(64),
           request: { kind: 'manual', title: 'Song', artist: 'Artist', url: '' },
         }),
       }),

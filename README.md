@@ -28,8 +28,9 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > Elas não foram aplicadas remotamente e a cota personalizada do Google ainda precisa ser
 > confirmada. O endpoint
 > público atualmente publicado também respondeu HTTP 429 genérico ao teste real; a versão anterior
-> não permite identificar o upstream nem comprova resultado do YouTube. Fila,
-> pagamentos e reprodução ainda **não** estão implementados.
+> não permite identificar o upstream nem comprova resultado do YouTube. Pagamentos seguem
+> planejados; o player oficial do YouTube foi integrado localmente à fila, mas sua validação real
+> em navegador/dispositivo e a disponibilidade de cada vídeo dependem do YouTube.
 > O login com Google foi validado com conta real; a validação manual completa dos fluxos
 > autenticados e de salas em produção segue pendente. O último bundle publicado foi verificado
 > com `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` presentes.
@@ -91,6 +92,8 @@ Itens verificados no código atual:
 
 - Fundação frontend com React, Vite e TypeScript em modo strict.
 - Tailwind CSS com tokens visuais e layout responsivo mobile-first.
+- Cabeçalho mobile da gestão individual de sala com banner YouDJ, navegação para Salas e logout
+  acessíveis; o cabeçalho desktop e o card de gerenciamento permanecem preservados.
 - SPA com React Router e as rotas públicas, área do DJ e acesso de convidados.
 - Landing page com apresentação do produto, proposta de valor e chamadas para ação.
 - Cadastro e login de DJs com Supabase Auth, validação local, estados de erro/carregamento e
@@ -118,13 +121,30 @@ Itens verificados no código atual:
 - Gerenciamento por sala com presença e pedidos para proprietário e moderador atribuído; ambos podem
   aprovar/rejeitar pedidos. Somente o proprietário lista, convida e revoga moderadores; convites
   exigem conta Supabase não anônima, confirmada e com perfil. Configurações continuam owner-only.
-  Aprovação não adiciona à playlist nem inicia reprodução.
+  Aprovação manual não inicia reprodução.
+- Na aba Convidados, o proprietário pode conceder/revogar individualmente “Pedidos sem aprovação”.
+  VIPs são identificados por credencial aleatória privada e room-scoped (não pelo apelido/UUID);
+  pedidos são aprovados e enfileirados atomicamente no fim, sem interromper a faixa atual. A
+  migration `20261115000000_room_guest_vip.sql` e os testes pgTAP estão locais, não aplicados ao remoto.
 - Painel do DJ com pedidos pendentes, aprovação/rejeição e lista separada
   de aprovados e rejeitados por sala, com o apelido associado a cada pedido.
 - Aba “Fila e Player” no gerenciamento de cada sala: pedidos aprovados entram uma única vez no fim
-  da fila; DJ pode reordenar/remover sem alterar o status do pedido. Migration local adiciona
-  autorização por sala. Player/reprodução não estão implementados e migration ainda não aplicada
-  remotamente.
+  da fila; DJ pode reordenar/remover sem alterar o status do pedido. O player oficial do YouTube
+  oferece “Tocando agora” com capa, título, artista, convidado e status; a lista abaixo mostra apenas
+  as próximas músicas, numeradas a partir de 01. O player oferece início por ação do DJ, pausa,
+  próxima música e avanço automático ao término. Vídeos indisponíveis e bloqueios de autoplay recebem
+  feedback; o cursor da fila continua local à sessão. O iframe permanece montado e visível, em modo
+  completo na fila e em mini-player no painel quando fora dela, sem reiniciar ao navegar entre
+  abas/páginas. O histórico persistente registra o ID individual do pedido quando o player emite
+  `PLAYING`; Aprovados atualiza automaticamente e mantém “Tocada” após término e recarga. O estado
+  do player/progresso não é sincronizado entre dispositivos. A migration `20261116000000` e os
+  testes pgTAP estão preparados localmente, ainda não aplicados nem validados no remoto;
+  a migration `20261114000000_add_room_music_queue.sql` é requisito de backend (aplicação remota
+  informada anteriormente pelo responsável; não revalidada nesta tarefa).
+- Na mesma aba, o DJ pode pesquisar vídeos do YouTube e incluí-los diretamente na fila, sem criar
+  pedido de convidado. A busca reutiliza a Pages Function e sua chave permanece no servidor; a RPC
+  autenticada e a migration `20261117000000_add_dj_youtube_tracks_to_queue.sql` ainda precisam ser
+  confirmadas no Supabase de destino antes de esse fluxo funcionar em produção.
 - Convidado informa nome ou apelido no primeiro acesso. Um identificador aleatório é reutilizado
   somente no mesmo navegador; não há conta, e-mail ou senha, e o apelido não é identidade verificada.
   Heartbeats mantêm presença por sala, expirada após 90 segundos sem atividade.
@@ -208,13 +228,13 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 ### O que ainda não está implementado
 
 - Recuperação de senha e gestão de e-mail/senha.
-- Atualizações em tempo real, histórico e player.
+- Atualizações em tempo real e histórico.
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
 - Contas e identidades verificadas de convidados. O apelido e o ID aleatório do navegador servem
   somente para mostrar quem enviou um pedido e manter presença aproximada; não autenticam ninguém.
 - Pagamentos e histórico financeiro.
-- Reprodução musical e integração com a YouTube IFrame Player API.
+- Validação real do player em navegador e das restrições aplicadas pelo YouTube em cada vídeo.
 - Validação manual dos fluxos autenticados em produção (o build publicado em 2026-11-02 já
   contém ambas as variáveis públicas do Supabase).
 

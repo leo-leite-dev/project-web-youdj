@@ -1,5 +1,7 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Headphones } from 'lucide-react'
 import { Brand } from '../components/Brand'
+import mobileHeaderBanner from '../assets/Captura de tela 2026-11-08 163310.png'
 import {
   ClockIcon,
   ListMusicIcon,
@@ -11,6 +13,7 @@ import {
 } from '../components/Icons'
 import { useAuth } from '../features/auth/AuthContext'
 import { SignOutButton } from '../features/auth/components/SignOutButton'
+import { DjPlaybackHost, DjPlaybackProvider } from '../features/guest/components/DjPlaybackContext'
 
 const upcomingItems = [
   { label: 'Pedidos', icon: ListMusicIcon },
@@ -19,13 +22,16 @@ const upcomingItems = [
 
 export function DjLayout() {
   const { profile, user } = useAuth()
-  const isRoomsPage = useLocation().pathname === '/dj/painel/salas'
+  const currentPath = useLocation().pathname
+  const isRoomManagementPage = /^\/dj\/painel\/salas\/[^/]+$/.test(currentPath)
+  const isRoomsPage = currentPath === '/dj/painel/salas' || isRoomManagementPage
   const displayName = profile?.displayName ?? user?.email ?? 'DJ'
   const initial = displayName.trim().charAt(0).toUpperCase() || 'D'
 
   return (
+    <DjPlaybackProvider>
     <div className={`dj-layout flex min-h-svh bg-night-950 ${isRoomsPage ? 'dj-layout--rooms' : ''}`}>
-      <aside className="dj-sidebar hidden w-64 shrink-0 flex-col border-r border-white/8 bg-night-900/60 lg:flex">
+      {!isRoomManagementPage && <aside className="dj-sidebar hidden w-64 shrink-0 flex-col border-r border-white/8 bg-night-900/60 lg:flex">
         <div className="p-6">
           {isRoomsPage ? (
             <div className="rooms-brand" aria-label="YouDJ">
@@ -109,60 +115,91 @@ export function DjLayout() {
             <SignOutButton className="mt-3 w-full" />
           </div>
         </div>
-      </aside>
+      </aside>}
+
+      {isRoomManagementPage && <aside className="room-management-sidebar" aria-label="Navegação YouDJ">
+        <div className="room-management-sidebar-brand" aria-label="YouDJ Music Requests">
+          <span className="room-management-sidebar-brand-icon" aria-hidden="true"><Headphones /></span>
+          <strong><span>You</span>DJ</strong>
+          <small>MUSIC REQUESTS</small>
+        </div>
+        <nav aria-label="Navegação do painel">
+          <NavLink to="/dj/painel/salas" className={({ isActive }) => `room-management-sidebar-link ${isActive ? 'active' : ''}`}>
+            <QrCodeIcon className="size-5" /> Salas
+          </NavLink>
+        </nav>
+      </aside>}
+
+      {isRoomManagementPage && <nav className="room-art-nav" aria-label="Navegação do painel">
+        <NavLink to="/dj/painel/salas" className={({ isActive }) => `rooms-nav-active ${isActive ? 'active' : ''}`}>
+          <QrCodeIcon className="size-5" /> Salas
+        </NavLink>
+      </nav>}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-white/8 bg-night-950/80 px-5 py-3 backdrop-blur-xl lg:hidden">
-          <div className="flex items-center justify-between">
-            <Brand />
-            <Link
-              to="/"
-              className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-300"
-            >
-              Site
-            </Link>
-          </div>
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto text-xs">
-            <NavLink
-              to="/dj/painel/salas"
-              className={({ isActive }) =>
-                `inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
-                  isActive
-                    ? 'border-accent-400/30 bg-accent-500/15 text-accent-300'
-                    : 'border-white/8 text-zinc-400'
-                }`
-              }
-            >
-              Salas
+        <header className={`sticky top-0 z-30 border-b border-white/8 bg-night-950/80 px-5 py-3 backdrop-blur-xl lg:hidden${isRoomManagementPage ? ' room-mobile-header' : ''}`}>
+          {isRoomManagementPage ? <div className="room-mobile-banner">
+            <img src={mobileHeaderBanner} alt="YouDJ" />
+            <NavLink to="/dj/painel/salas" className="room-mobile-banner__rooms" aria-label="Salas" title="Salas">
+              <QrCodeIcon />
             </NavLink>
-            {upcomingItems.map(({ label }) => (
-              <span
-                key={label}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/8 px-3 py-1.5 text-zinc-500"
-              >
-                {label}
-                <ClockIcon className="size-3" />
-              </span>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/8 pt-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-500/15 text-xs font-semibold text-accent-200">
-                {initial}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-zinc-100">{displayName}</p>
-                <p className="truncate text-[10px] text-zinc-500">{user?.email}</p>
-              </div>
+            <div className="room-mobile-banner__logout">
+              <SignOutButton iconOnly className="room-mobile-banner__logout-button" />
             </div>
-            <SignOutButton className="shrink-0" />
-          </div>
+          </div> : <>
+            <div className="flex items-center justify-between">
+              <Brand />
+              <Link
+                to="/"
+                className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-300"
+              >
+                Site
+              </Link>
+            </div>
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto text-xs">
+              <NavLink
+                to="/dj/painel/salas"
+                className={({ isActive }) =>
+                  `inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 ${
+                    isActive
+                      ? 'border-accent-400/30 bg-accent-500/15 text-accent-300'
+                      : 'border-white/8 text-zinc-400'
+                  }`
+                }
+              >
+                Salas
+              </NavLink>
+              {upcomingItems.map(({ label }) => (
+                <span
+                  key={label}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/8 px-3 py-1.5 text-zinc-500"
+                >
+                  {label}
+                  <ClockIcon className="size-3" />
+                </span>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/8 pt-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-500/15 text-xs font-semibold text-accent-200">
+                  {initial}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-zinc-100">{displayName}</p>
+                  <p className="truncate text-[10px] text-zinc-500">{user?.email}</p>
+                </div>
+              </div>
+              <SignOutButton className="shrink-0" />
+            </div>
+          </>}
         </header>
 
         <main className={`dj-main flex-1 p-5 sm:p-8 ${isRoomsPage ? 'dj-main--rooms' : ''}`}>
           <Outlet />
+          <DjPlaybackHost />
         </main>
       </div>
     </div>
+    </DjPlaybackProvider>
   )
 }
