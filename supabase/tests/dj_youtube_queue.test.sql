@@ -1,5 +1,5 @@
 begin;
-select plan(23);
+select plan(27);
 
 insert into auth.users (instance_id, id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, is_anonymous) values
 ('00000000-0000-0000-0000-000000000000', '71111111-1111-4111-8111-111111111111', 'authenticated', 'authenticated', 'dj-queue-a@example.test', now(), '{"provider":"email","providers":["email"]}', '{}', false),
@@ -28,6 +28,7 @@ select ok(has_function_privilege('authenticated', 'public.dj_add_youtube_track_t
 select ok(not has_function_privilege('anon', 'public.dj_add_youtube_track_to_queue(uuid,text)', 'EXECUTE'), 'anon cannot execute the DJ add RPC');
 
 select set_config('request.jwt.claims', '{"sub":"71111111-1111-4111-8111-111111111111","role":"authenticated","is_anonymous":false}', true);
+select set_config('request.jwt.claim.sub', '71111111-1111-4111-8111-111111111111', true);
 set local role authenticated;
 select is(public.dj_set_guest_request_status('74444444-4444-4444-8444-444444444444', 'approved'), true, 'existing guest approval still queues a request');
 select set_config('test.direct_queue_item', public.dj_add_youtube_track_to_queue(
@@ -45,6 +46,7 @@ select is((select video_id from public.dj_list_room_music_queue((select id from 
 reset role;
 select is((select count(*)::integer from public.guest_requests where room_id = (select id from public.rooms where code = 'DIRECT0001')), 1, 'direct selection does not manufacture a guest request');
 select set_config('request.jwt.claims', '{"sub":"71111111-1111-4111-8111-111111111111","role":"authenticated","is_anonymous":false}', true);
+select set_config('request.jwt.claim.sub', '71111111-1111-4111-8111-111111111111', true);
 set local role authenticated;
 select is(public.dj_reorder_room_music_queue((select id from public.rooms where code = 'DIRECT0001'), array[
   current_setting('test.direct_queue_item')::uuid, '74444444-4444-4444-8444-444444444444'::uuid
@@ -57,7 +59,12 @@ select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from p
   '22023', 'invalid_youtube_track', 'invalid YouTube IDs are rejected');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"71111111-1111-4111-8111-111111111111","role":"authenticated","is_anonymous":false}', true);
+select set_config('request.jwt.claim.sub', '71111111-1111-4111-8111-111111111111', true);
 set local role authenticated;
+select is(auth.uid()::text, '71111111-1111-4111-8111-111111111111',
+  format('uncached-video check JWT identity; expected room owner 71111111-1111-4111-8111-111111111111, found %s', auth.uid()));
+select is((select access_role from public.dj_get_room_management_context((select id from public.rooms where code = 'DIRECT0001'))), 'owner',
+  format('uncached-video check permission; JWT identity %s, room owner 71111111-1111-4111-8111-111111111111, expected owner', auth.uid()));
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijm')$$,
   '22023', 'youtube_video_not_in_recent_search', 'tracks outside validated recent search results are rejected');
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0002'), 'abcdefghijl')$$,
@@ -65,16 +72,23 @@ select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from p
 
 reset role;
 select set_config('request.jwt.claims', '{"sub":"75555555-5555-4555-8555-555555555555","role":"authenticated","is_anonymous":false}', true);
+select set_config('request.jwt.claim.sub', '75555555-5555-4555-8555-555555555555', true);
 set local role authenticated;
+select is(auth.uid()::text, '75555555-5555-4555-8555-555555555555',
+  format('moderator queue check JWT identity; expected assigned moderator 75555555-5555-4555-8555-555555555555, found %s', auth.uid()));
+select is((select access_role from public.dj_get_room_management_context((select id from public.rooms where code = 'DIRECT0001'))), 'moderator',
+  format('moderator queue check permission; JWT identity %s, room owner 71111111-1111-4111-8111-111111111111, expected moderator', auth.uid()));
 select set_config('test.moderator_queue_item', public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijl')::text, true);
 select is((select source from public.dj_list_room_music_queue((select id from public.rooms where code = 'DIRECT0001')) where request_id = current_setting('test.moderator_queue_item')::uuid), 'dj', 'assigned moderator can add a direct DJ track');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"72222222-2222-4222-8222-222222222222","role":"authenticated","is_anonymous":false}', true);
+select set_config('request.jwt.claim.sub', '72222222-2222-4222-8222-222222222222', true);
 set local role authenticated;
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijm')$$,
   '42501', 'not_authorized', 'another DJ cannot add tracks to this room');
 reset role;
 select set_config('request.jwt.claims', '{"sub":"73333333-3333-4333-8333-333333333333","role":"authenticated","is_anonymous":true}', true);
+select set_config('request.jwt.claim.sub', '73333333-3333-4333-8333-333333333333', true);
 set local role authenticated;
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijn')$$,
   '42501', 'not_authorized', 'anonymous authenticated guest cannot add DJ tracks');
