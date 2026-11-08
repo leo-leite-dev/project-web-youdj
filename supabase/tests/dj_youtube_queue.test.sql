@@ -55,6 +55,9 @@ select is(public.dj_remove_room_music_queue_item((select id from public.rooms wh
 select is((select status from public.dj_list_room_guest_requests((select id from public.rooms where code = 'DIRECT0001')) where id = '74444444-4444-4444-8444-444444444444'), 'approved', 'removing a direct item does not change guest request status');
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'invalid')$$,
   '22023', 'invalid_youtube_track', 'invalid YouTube IDs are rejected');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"71111111-1111-4111-8111-111111111111","role":"authenticated","is_anonymous":false}', true);
+set local role authenticated;
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0001'), 'abcdefghijm')$$,
   '22023', 'youtube_video_not_in_recent_search', 'tracks outside validated recent search results are rejected');
 select throws_ok($$select public.dj_add_youtube_track_to_queue((select id from public.rooms where code = 'DIRECT0002'), 'abcdefghijl')$$,
