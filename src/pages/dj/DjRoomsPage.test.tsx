@@ -7,7 +7,7 @@ import { makeAuthUser, makeDjProfile } from '../../test/authTestDoubles'
 import { FakeRoomStore, makeRoom } from '../../test/roomTestDoubles'
 import { DjRoomsPage } from './DjRoomsPage'
 
-function makeAuthValue(): AuthContextValue {
+function makeAuthValue(signOut: AuthContextValue['signOut'] = () => Promise.resolve()): AuthContextValue {
   return {
     error: null,
     profile: makeDjProfile(),
@@ -17,16 +17,16 @@ function makeAuthValue(): AuthContextValue {
     retryProfile: () => {},
     signIn: async () => {},
     signInWithGoogle: async () => {},
-    signOut: () => Promise.resolve(),
+    signOut,
     signUp: async () => ({ needsEmailConfirmation: false }),
     status: 'authenticated',
     user: makeAuthUser(),
   }
 }
 
-function renderRoomsPage(store: FakeRoomStore) {
+function renderRoomsPage(store: FakeRoomStore, signOut?: AuthContextValue['signOut']) {
   return render(
-    <AuthContext.Provider value={makeAuthValue()}>
+    <AuthContext.Provider value={makeAuthValue(signOut)}>
       <MemoryRouter><DjRoomsPage roomStore={store} /></MemoryRouter>
     </AuthContext.Provider>,
   )
@@ -45,6 +45,11 @@ describe('DjRoomsPage', () => {
     expect(screen.getAllByText('DJ: DJ Teste').length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Entrar na sala Festa Teste' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Gerenciar sala Festa Teste' })).toHaveAttribute('href', `/dj/painel/salas/${room.id}`)
+    expect(screen.queryByRole('button', { name: 'Copiar link' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copiar link da sala Festa Teste' })).toBeInTheDocument()
+    const profileButton = screen.getByRole('button', { name: 'DJ: DJ Teste' })
+    expect(profileButton.closest('.rooms-hero')).toBeInTheDocument()
+    expect(document.querySelector('button.rooms-mobile-logout')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Pausar sala' }))
 
@@ -74,4 +79,5 @@ describe('DjRoomsPage', () => {
     )
     expect(screen.getByText('Ativa')).toBeInTheDocument()
   })
+
 })

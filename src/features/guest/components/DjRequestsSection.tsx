@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CircleCheck, CircleX, Clock3, Ellipsis, ExternalLink, ListOrdered, Music2, Play, Search, UserRound } from 'lucide-react'
+import { CircleCheck, CircleX, Clock3, Ellipsis, ExternalLink, ListOrdered, Music2, Play, UserRound } from 'lucide-react'
+import { SearchControl, SelectControl, type FilterOption } from '../../../components/FilterControls'
+import { RefreshButton } from '../../../components/RefreshButton'
 import { getRoomErrorMessage } from '../../rooms/lib/roomErrors'
 import { createDjMusicQueueStore, type DjMusicQueueStore, type QueueTrack } from '../services/djMusicQueueStore'
 import { createDjRequestStore, type DjRequest, type DjRequestStore } from '../services/djRequestStore'
@@ -18,6 +20,17 @@ type QueueState = 'idle' | 'loading' | 'ready' | 'error'
 type ApprovedSortOrder = 'newest' | 'oldest' | 'title'
 type PendingSortOrder = 'oldest' | 'newest' | 'title'
 type RejectedSortOrder = 'newest' | 'oldest' | 'title'
+
+const NEWEST_FIRST_OPTIONS: readonly FilterOption[] = [
+  { value: 'newest', label: 'Mais recentes' },
+  { value: 'oldest', label: 'Mais antigos' },
+  { value: 'title', label: 'Título (A–Z)' },
+]
+const OLDEST_FIRST_OPTIONS: readonly FilterOption[] = [
+  { value: 'oldest', label: 'Mais antigos' },
+  { value: 'newest', label: 'Mais recentes' },
+  { value: 'title', label: 'Título (A–Z)' },
+]
 
 const WAVEFORM_BAR_HEIGHTS = [18, 31, 43, 25, 62, 38, 76, 48, 29, 68, 42, 83, 55, 35, 72, 46, 64, 30, 58, 39, 74, 47, 28, 61] as const
 
@@ -268,11 +281,14 @@ export function DjRequestsSection({ roomId, store: storeOverride, queueStore: qu
 
   useEffect(() => {
     if (!active || filter !== 'approved') return
-    void reloadQueue()
+    const initialLoad = window.setTimeout(() => { void reloadQueue() }, 0)
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void reloadQueue(true)
     }, 5000)
-    return () => window.clearInterval(timer)
+    return () => {
+      window.clearTimeout(initialLoad)
+      window.clearInterval(timer)
+    }
   }, [active, filter, reloadQueue])
 
   async function updateStatus(requestId: string, status: 'approved' | 'rejected') {
@@ -324,20 +340,22 @@ export function DjRequestsSection({ roomId, store: storeOverride, queueStore: qu
 
   return <section aria-labelledby="requests-title" className={`room-requests-section${filter === 'approved' ? ' room-requests-section--approved' : ''}${filter === 'pending' ? ' room-requests-section--pending' : ''}${filter === 'rejected' ? ' room-requests-section--rejected' : ''}`}>
     <div className={`room-requests-header flex flex-wrap items-center justify-between gap-3${filter === 'approved' ? ' room-requests-header--approved' : ''}${filter === 'pending' ? ' room-requests-header--pending' : ''}${filter === 'rejected' ? ' room-requests-header--rejected' : ''}`}>
-      <div><h2 id="requests-title" className="font-semibold text-white">{filter === 'pending' ? 'Pedidos pendentes' : filter === 'approved' ? 'Pedidos aprovados' : 'Pedidos rejeitados'} <span className="text-fuchsia-300">({filter === 'pending' ? pending.length : filter === 'approved' ? approved.length : rejected.length})</span></h2><p className="mt-1 text-xs text-zinc-400">{filter === 'pending' ? 'Pedidos pendentes aguardam sua decisão antes de entrarem na fila de reprodução.' : filter === 'approved' ? 'Pedidos aprovados e posição atual na fila.' : 'Pedidos recusados nesta sala.'}</p></div>
-      {filter === 'pending' && <div className="room-approved-controls room-pending-controls">
-        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar pedidos pendentes</span><input type="search" value={pendingSearch} onChange={(event) => setPendingSearch(event.currentTarget.value)} placeholder="Buscar pedido..." /></label>
-        <label className="room-approved-sort"><span>Ordenar:</span><select value={pendingSortOrder} onChange={(event) => setPendingSortOrder(event.currentTarget.value as PendingSortOrder)}><option value="oldest">Mais antigos</option><option value="newest">Mais recentes</option><option value="title">Título (A–Z)</option></select></label>
+      <div className="room-requests-title-row">
+        <div><h2 id="requests-title" className="font-semibold text-white">{filter === 'pending' ? 'Pedidos pendentes' : filter === 'approved' ? 'Pedidos aprovados' : 'Pedidos rejeitados'} <span className="text-fuchsia-300">({filter === 'pending' ? pending.length : filter === 'approved' ? approved.length : rejected.length})</span></h2><p className="mt-1 text-xs text-zinc-400">{filter === 'pending' ? 'Pedidos pendentes aguardam sua decisão antes de entrarem na fila de reprodução.' : filter === 'approved' ? 'Pedidos aprovados e posição atual na fila.' : 'Pedidos recusados nesta sala.'}</p></div>
+        <RefreshButton label="Atualizar pedidos" onClick={() => { void reload(); if (filter === 'approved') void reloadQueue() }} loading={loading} />
+      </div>
+      {filter === 'pending' && <div className="room-approved-controls filter-controls room-pending-controls">
+        <SearchControl label="Buscar pedidos pendentes" value={pendingSearch} onChange={setPendingSearch} placeholder="Buscar pedido..." />
+        <SelectControl label="Ordenar:" value={pendingSortOrder} onChange={(value) => setPendingSortOrder(value as PendingSortOrder)} options={OLDEST_FIRST_OPTIONS} />
       </div>}
-      {filter === 'rejected' && <div className="room-approved-controls room-rejected-controls">
-        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar pedidos rejeitados</span><input type="search" value={rejectedSearch} onChange={(event) => setRejectedSearch(event.currentTarget.value)} placeholder="Buscar música, artista ou convidado" /></label>
-        <label className="room-approved-sort"><span>Ordenar:</span><select value={rejectedSortOrder} onChange={(event) => setRejectedSortOrder(event.currentTarget.value as RejectedSortOrder)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="title">Título (A–Z)</option></select></label>
+      {filter === 'rejected' && <div className="room-approved-controls filter-controls room-rejected-controls">
+        <SearchControl label="Buscar pedidos rejeitados" value={rejectedSearch} onChange={setRejectedSearch} placeholder="Buscar música, artista ou convidado" />
+        <SelectControl label="Ordenar:" value={rejectedSortOrder} onChange={(value) => setRejectedSortOrder(value as RejectedSortOrder)} options={NEWEST_FIRST_OPTIONS} />
       </div>}
-      {filter === 'approved' && <div className="room-approved-controls room-approved-header-controls">
-        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar pedidos aprovados</span><input type="search" value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Buscar música, artista ou convidado" /></label>
-        <label className="room-approved-sort"><span>Ordenar:</span><select value={sortOrder} onChange={(event) => setSortOrder(event.currentTarget.value as ApprovedSortOrder)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="title">Título (A–Z)</option></select></label>
+      {filter === 'approved' && <div className="room-approved-controls filter-controls room-approved-header-controls">
+        <SearchControl label="Buscar pedidos aprovados" value={search} onChange={setSearch} placeholder="Buscar música, artista ou convidado" />
+        <SelectControl label="Ordenar:" value={sortOrder} onChange={(value) => setSortOrder(value as ApprovedSortOrder)} options={NEWEST_FIRST_OPTIONS} />
       </div>}
-      <button type="button" onClick={() => { void reload(); if (filter === 'approved') void reloadQueue() }} disabled={loading} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button>
     </div>
     {error && <div className="mt-3 space-y-2" role="alert"><p className="text-sm text-red-300">{error}</p><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-red-300/20 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Tentar novamente</button></div>}
     {message && <p role="status" className="mt-3 text-sm text-emerald-200">{message}</p>}

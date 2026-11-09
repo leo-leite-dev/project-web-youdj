@@ -1,0 +1,15 @@
+.filter-search-control { display:flex; min-width:min(100%, 260px); min-height:42px; flex:1 1 280px; align-items:center; gap:10px; padding:0 13px; border:1px solid rgb(105 89 153 / 55%); border-radius:12px; background:rgb(10 9 29 / 85%); color:#a7a1c2; }
+.filter-search-control > svg { width:17px; height:17px; flex:none; }
+.filter-search-control input { width:100%; min-width:0; border:0; outline:0; background:transparent; color:#f5f1ff; font:inherit; font-size:13px; }
+.filter-search-control input::placeholder { color:#8e89a6; }
+.filter-search-control:focus-within { border-color:#1bdcf5; box-shadow:0 0 0 2px rgb(27 220 245 / 15%); }
+.filter-select-control { display:flex; min-height:42px; align-items:center; gap:9px; color:#b9b4cc; font-size:12px; }
+.filter-select-control select { min-height:40px; max-width:100%; padding:0 32px 0 11px; border:1px solid rgb(105 89 153 / 55%); border-radius:10px; background:#0b0a1d; color:#eeeaff; font:inherit; font-size:12px; }
+.filter-select-control select:focus-visible { outline:2px solid #20def6; outline-offset:2px; }
+
+@media (max-width:760px) {
+  .room-approved-controls.filter-controls { align-items:stretch; }
+  .room-approved-controls.filter-controls .filter-search-control { flex-basis:100%; }
+  .room-approved-controls.filter-controls .filter-select-control { width:max-content; justify-content:flex-end; margin-left:auto; }
+  .room-approved-controls.filter-controls .filter-select-control select { flex:none; }
+}

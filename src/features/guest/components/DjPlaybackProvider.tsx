@@ -1,26 +1,9 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { QueueTrack } from '../services/djMusicQueueStore'
 import { DjQueuePlayer } from './DjQueuePlayer'
-
-interface PlaybackQueue {
-  roomId: string
-  tracks: QueueTrack[]
-  onTrackStarted: (requestId: string) => void
-}
-
-interface DjPlaybackContextValue {
-  queue: PlaybackQueue | null
-  currentTrackId: string | null
-  playedTrackIds: ReadonlySet<string>
-  hasPlaybackStarted: boolean
-  fullViewRoomId: string | null
-  registerQueue(roomId: string, tracks: QueueTrack[], onTrackStarted: (requestId: string) => void): void
-  setFullView(roomId: string, active: boolean): void
-  updatePlayback(currentId: string | null, playedIds: ReadonlySet<string>, hasStarted: boolean): void
-}
-
-const DjPlaybackContext = createContext<DjPlaybackContextValue | null>(null)
+import { DjPlaybackContext, type PlaybackQueue } from './DjPlaybackContext'
+import { useDjPlaybackContext } from './useDjPlaybackContext'
 
 interface PlaybackContainer extends HTMLElement {
   moveBefore?: (node: Node, child: Node | null) => void
@@ -61,10 +44,6 @@ export function DjPlaybackProvider({ children }: { children: ReactNode }) {
   </DjPlaybackContext.Provider>
 }
 
-export function useDjPlaybackContext(): DjPlaybackContextValue | null {
-  return useContext(DjPlaybackContext)
-}
-
 export function DjPlaybackHost() {
   const playback = useDjPlaybackContext()
   const fallbackRef = useRef<HTMLDivElement>(null)
@@ -78,9 +57,10 @@ export function DjPlaybackHost() {
     playback.fullViewRoomId === playerRoomId || playback.hasPlaybackStarted && playback.currentTrackId !== null
   ))
   const playerTracks = playback?.queue && playback.queue.roomId === playerRoomId ? playback.queue.tracks : []
+  const updatePlayback = playback?.updatePlayback
   const handlePlayerPlaybackChange = useCallback((currentId: string | null, playedIds: ReadonlySet<string>, hasStarted: boolean) => {
-    playback?.updatePlayback(currentId, playedIds, hasStarted)
-  }, [playback?.updatePlayback])
+    updatePlayback?.(currentId, playedIds, hasStarted)
+  }, [updatePlayback])
 
   useLayoutEffect(() => {
     const slot = playerRoomId !== null && playback?.fullViewRoomId === playerRoomId

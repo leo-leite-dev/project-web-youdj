@@ -7,9 +7,11 @@ interface SignOutButtonProps {
   className?: string
   iconOnly?: boolean
   label?: string
+  onSuccess?: () => void
+  role?: 'menuitem'
 }
 
-export function SignOutButton({ className = '', iconOnly = false, label = 'Sair' }: SignOutButtonProps) {
+export function SignOutButton({ className = '', iconOnly = false, label = 'Sair', onSuccess, role }: SignOutButtonProps) {
   const { signOut } = useAuth()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,6 +22,7 @@ export function SignOutButton({ className = '', iconOnly = false, label = 'Sair'
 
     try {
       await signOut()
+      onSuccess?.()
     } catch (signOutError) {
       setError(getAuthErrorMessage(signOutError))
       setPending(false)
@@ -30,6 +33,7 @@ export function SignOutButton({ className = '', iconOnly = false, label = 'Sair'
     <div>
       <button
         type="button"
+        role={role}
         onClick={() => void handleSignOut()}
         disabled={pending}
         aria-label={iconOnly ? pending ? 'Saindo' : label : undefined}

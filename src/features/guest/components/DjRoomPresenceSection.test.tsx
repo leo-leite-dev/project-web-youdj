@@ -98,6 +98,8 @@ describe('DjRoomPresenceSection', () => {
     }
     render(<DjRoomPresenceSection roomId="room-a" store={store} />)
 
+    const refreshButton = screen.getByRole('button', { name: 'Atualizar convidados' })
+    expect(document.querySelector('.room-presence-heading-row')).toContainElement(refreshButton)
     expect(await screen.findByText('LP')).toBeInTheDocument()
     expect(screen.getAllByText('Online')).toHaveLength(2)
     expect(screen.getAllByText(/Última atividade:/)).toHaveLength(2)

@@ -1,0 +1,8 @@
+.refresh-button { display:inline-grid; width:40px; height:40px; flex:none; place-items:center; padding:0; border:1px solid rgb(255 255 255 / 12%); border-radius:10px; background:rgb(10 9 29 / 72%); color:#bdfaff; cursor:pointer; transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease; }
+.refresh-button:hover:not(:disabled) { border-color:#20def6; background:rgb(27 220 245 / 10%); box-shadow:0 0 12px rgb(27 220 245 / 18%); }
+.refresh-button:focus-visible { outline:2px solid #20def6; outline-offset:2px; }
+.refresh-button:disabled { cursor:not-allowed; opacity:.5; }
+.refresh-button__icon { width:17px; height:17px; }
+.refresh-button__icon--loading { animation:refresh-button-spin .8s linear infinite; }
+@keyframes refresh-button-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .refresh-button__icon--loading { animation-duration:2s; } }

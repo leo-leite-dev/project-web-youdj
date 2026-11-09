@@ -142,4 +142,21 @@ describe('SupabaseRoomStore', () => {
       code: '42501',
     })
   })
+
+  it('requests room deletion through the owner-checked RPC', async () => {
+    let requestUrl = ''
+    let requestBody: unknown
+    const fetcher: typeof fetch = async (input, init) => {
+      requestUrl = getUrl(input)
+      requestBody = typeof init?.body === 'string' ? JSON.parse(init.body) : null
+      return new Response(JSON.stringify(true), { headers: { 'Content-Type': 'application/json' }, status: 200 })
+    }
+    const roomId = 'aaaaaaaa-1111-4111-8111-111111111111'
+    const store = createSupabaseRoomStore(createTestClient(fetcher))
+
+    await store.delete(roomId)
+
+    expect(requestUrl).toContain('/rest/v1/rpc/dj_delete_room')
+    expect(requestBody).toEqual({ p_room_id: roomId })
+  })
 })

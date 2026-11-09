@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Check, CircleCheck, CircleX, Clock3, Copy, UsersRound } from 'lucide-react'
+import { DjProfileMenu } from '../../layouts/DjProfileMenu'
 import { DjRequestsSection } from '../../features/guest/components/DjRequestsSection'
 import { DjRoomPresenceSection } from '../../features/guest/components/DjRoomPresenceSection'
 import { DjMusicQueueSection } from '../../features/guest/components/DjMusicQueueSection'
@@ -107,10 +108,10 @@ export function DjRoomManagementPage({ roomManagementStore, requestStore, presen
   }
 
   return <div className="room-management-page">
-    <Link to="/dj/painel/salas" className="room-back-link">← Voltar às salas</Link>
     <div className="room-management-topbar">
       <div className="room-management-header-container">
         <header className="room-management-hero">
+          <DjProfileMenu />
           <div className="room-management-hero-copy">
             <p className="room-eyebrow">Gerenciamento da sala</p>
             <h1>{room.name}</h1>
@@ -121,6 +122,7 @@ export function DjRoomManagementPage({ roomManagementStore, requestStore, presen
           <div className="room-management-badges">
             <span className={`room-status ${statusStyle.className}`}>{statusStyle.label}</span>
             <span className="room-owner-badge">♛ &nbsp;{isOwner ? 'Proprietário' : 'Moderador'}</span>
+            <Link to="/dj/painel/salas" className="room-back-link">Voltar às salas</Link>
           </div>
         </header>
       </div>
@@ -144,7 +146,6 @@ export function DjRoomManagementPage({ roomManagementStore, requestStore, presen
       <div hidden={activeTab !== 'requests' || requestTab === 'guests'}><DjRequestsSection roomId={room.id} store={requestStore} queueStore={queueStore} filter={requestTab === 'guests' ? 'pending' : requestTab} active={activeTab === 'requests' && requestTab !== 'guests'} onCountsChange={updateRequestCounts} /></div>
       <DjMusicQueueSection key={room.id} roomId={room.id} roomCode={room.code} store={queueStore} playerFactory={queuePlayerFactory} active={activeTab === 'queue'} />
       {activeTab === 'team' && <section className="room-team-content">
-        <DjRoomPresenceSection roomId={room.id} store={presenceStore} canManageVip={isOwner} />
         {isOwner && storeState.store ? <DjRoomModeratorsSection roomId={room.id} store={storeState.store} /> : <p className="text-sm text-zinc-400">Somente o proprietário pode gerenciar a equipe desta sala.</p>}
       </section>}
     </div>

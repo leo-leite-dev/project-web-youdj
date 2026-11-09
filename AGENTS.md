@@ -76,6 +76,7 @@
 - Caso seja utilizada a **YouTube IFrame Player API**, respeite o player oficial e os termos aplicáveis; não extraia áudio, remova anúncios, oculte indevidamente o player ou contorne restrições.
 - Não presuma que é permitido monetizar a reprodução, uma prioridade ou um pedido vinculado a conteúdos de terceiros. Verifique condições contratuais, direitos autorais e execução pública antes de implementar cobrança comercial.
 - Respeite licenças de fontes, ícones, imagens, bibliotecas e outros recursos; arquivos gratuitos não são automaticamente livres para uso comercial.
+- **Procedência visual declarada pelo responsável do projeto:** todas as imagens do YouDJ foram criadas por ele com ferramentas de IA especificamente para este projeto. Não exija licenças CC0/CC BY nem bloqueie a publicação apenas por sua ausência nesses assets originais. Investigue restrições de uso somente quando houver indícios concretos de conteúdo de terceiros ou outra preocupação de direitos (por exemplo, obras, marcas ou personagens reconhecíveis, ou origem externa documentada). Registre a declaração no README, sem apresentá-la como licença formal do código do repositório.
 
 ## 9. Processo por tarefa e documentação
 

@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ['qrcode'],
+  },
   server: {
     host: '127.0.0.1',
     port: 3000,

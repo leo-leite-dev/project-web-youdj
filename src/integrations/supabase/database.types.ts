@@ -48,6 +48,7 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      dj_delete_room: { Args: { p_room_id: string }; Returns: boolean }
       dj_list_guest_requests: {
         Args: Record<PropertyKey, never>
         Returns: {

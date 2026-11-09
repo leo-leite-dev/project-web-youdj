@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { AuthContext } from '../../features/auth/AuthContext'
 import type { DjPresenceStore } from '../../features/guest/services/djPresenceStore'
 import type { DjMusicQueueStore } from '../../features/guest/services/djMusicQueueStore'
 import type { YouTubePlayerCallbacks, YouTubePlayerFactory } from '../../features/guest/services/youtubeIframePlayer'
@@ -26,7 +27,22 @@ function renderManagement(room: ManagedRoom, requestStore: DjRequestStore, prese
     revokeModerator: vi.fn().mockResolvedValue(true),
   }
   render(<MemoryRouter initialEntries={[`/dj/painel/salas/${room.id}`]}>
-    <Routes><Route path="/dj/painel/salas/:roomId" element={<DjRoomManagementPage roomManagementStore={roomManagementStore} requestStore={requestStore} presenceStore={presenceStore} queueStore={queueStore} queuePlayerFactory={playerFactory} />} /></Routes>
+    <AuthContext.Provider value={{
+      error: null,
+      profile: null,
+      profileError: null,
+      profileStatus: 'idle',
+      refreshSession: vi.fn(),
+      retryProfile: vi.fn(),
+      signIn: vi.fn(),
+      signInWithGoogle: vi.fn(),
+      signOut: vi.fn(),
+      signUp: vi.fn(),
+      status: 'authenticated',
+      user: { email: 'dj@example.com', id: 'dj-owner-a', isAnonymous: false, metadataDisplayName: 'DJ' },
+    }}>
+      <Routes><Route path="/dj/painel/salas/:roomId" element={<DjRoomManagementPage roomManagementStore={roomManagementStore} requestStore={requestStore} presenceStore={presenceStore} queueStore={queueStore} queuePlayerFactory={playerFactory} />} /></Routes>
+    </AuthContext.Provider>
   </MemoryRouter>)
   return roomManagementStore
 }
@@ -60,6 +76,10 @@ describe('DjRoomManagementPage', () => {
     expect(await screen.findByRole('heading', { name: 'Festa da Ana' })).toBeInTheDocument()
     expect(screen.getByText('DJ: Ana DJ')).toBeInTheDocument()
     expect(screen.getByText(/Proprietário/)).toBeInTheDocument()
+    const profileButton = screen.getByRole('button', { name: 'DJ: DJ' })
+    expect(profileButton.closest('.room-management-hero')).toBeInTheDocument()
+    expect(document.querySelector('button.room-mobile-card-logout')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Voltar às salas' })).toHaveAttribute('href', '/dj/painel/salas')
     fireEvent.click(screen.getByRole('button', { name: /Convidados/ }))
     expect(await screen.findByRole('heading', { name: /Convidados da sala.*2 online/i })).toBeInTheDocument()
     expect(screen.getByText('Apelido 1')).toBeInTheDocument()
@@ -67,8 +87,11 @@ describe('DjRoomManagementPage', () => {
     expect(screen.getByText('Convidado: Apelido 3')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: /Equipe/ }))
     expect(screen.getByRole('heading', { name: 'Moderadores desta sala' })).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Conceder VIP' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Revogar VIP' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Convidados da sala/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Apelido 1')).not.toBeInTheDocument()
+    expect(screen.queryByText('Apelido 2')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Conceder VIP' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Revogar VIP' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Entrar na sala' })).not.toBeInTheDocument()
     expect(managementStore.getRoom).toHaveBeenCalledWith(ownerRoom.id)
     expect(stores.presenceStore.listOnline).toHaveBeenCalledWith(ownerRoom.id)

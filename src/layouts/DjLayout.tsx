@@ -1,19 +1,18 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Headphones } from 'lucide-react'
 import { Brand } from '../components/Brand'
+import { YouDJWordmark } from '../components/YouDJWordmark'
+import { DjSidebar } from './DjSidebar'
 import mobileHeaderBanner from '../assets/Captura de tela 2026-11-08 163310.png'
 import {
   ClockIcon,
   ListMusicIcon,
-  MusicIcon,
   QrCodeIcon,
   SettingsIcon,
-  ShieldCheckIcon,
   UsersIcon,
 } from '../components/Icons'
 import { useAuth } from '../features/auth/AuthContext'
 import { SignOutButton } from '../features/auth/components/SignOutButton'
-import { DjPlaybackHost, DjPlaybackProvider } from '../features/guest/components/DjPlaybackContext'
+import { DjPlaybackHost, DjPlaybackProvider } from '../features/guest/components/DjPlaybackProvider'
 
 const upcomingItems = [
   { label: 'Pedidos', icon: ListMusicIcon },
@@ -30,106 +29,23 @@ export function DjLayout() {
 
   return (
     <DjPlaybackProvider>
-    <div className={`dj-layout flex min-h-svh bg-night-950 ${isRoomsPage ? 'dj-layout--rooms' : ''}`}>
-      {!isRoomManagementPage && <aside className="dj-sidebar hidden w-64 shrink-0 flex-col border-r border-white/8 bg-night-900/60 lg:flex">
-        <div className="p-6">
-          {isRoomsPage ? (
-            <div className="rooms-brand" aria-label="YouDJ">
-              <span className="rooms-brand-disc" aria-hidden="true">◉</span>
-              <strong><span>You</span>DJ</strong>
-              <i aria-hidden="true"><b /><b /><b /><b /><b /></i>
-            </div>
-          ) : <Brand />}
-        </div>
-
-        <div className="px-4">
-          <p className="dj-nav-label px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
-            Painel do DJ
-          </p>
-          <nav className="dj-nav mt-3 space-y-1" aria-label="Navegação do painel">
-            {isRoomsPage ? (
-              <>
-                <NavLink to="/dj/painel/salas" className={({ isActive }) => `rooms-nav-active flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${isActive ? 'active text-accent-300' : ''}`}>
-                  <QrCodeIcon className="size-5" /> Salas
-                </NavLink>
-                <span className="rooms-nav-disabled"><MusicIcon className="size-5" /> Músicas</span>
-                <span className="rooms-nav-disabled"><ListMusicIcon className="size-5" /> Pedidos</span>
-                <span className="rooms-nav-disabled"><SettingsIcon className="size-5" /> Configurações</span>
-                <span className="rooms-nav-disabled"><UsersIcon className="size-5" /> Conta</span>
-              </>
-            ) : <>
-            <NavLink
-              to="/dj/painel/salas"
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-accent-500/15 text-accent-300'
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                }`
-              }
-            >
-              <QrCodeIcon className="size-4" />
-              Salas
-            </NavLink>
-
-            {upcomingItems.map(({ label, icon: Icon }) => (
-              <span
-                key={label}
-                aria-disabled="true"
-                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600"
-              >
-                <Icon className="size-4" />
-                {label}
-                <span className="ml-auto rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider">
-                  em breve
-                </span>
-              </span>
-            ))}
-            </>}
-          </nav>
-        </div>
-
-        {isRoomsPage ? (
+    <div className={`dj-layout flex min-h-svh bg-night-950 ${isRoomsPage ? 'dj-layout--rooms' : ''} ${isRoomManagementPage ? 'dj-layout--room-management' : ''}`}>
+      <DjSidebar
+        brand={<div className="rooms-brand" aria-label="YouDJ"><YouDJWordmark className="rooms-brand__wordmark" /></div>}
+        decoration={(
           <div className="rooms-sidebar-equalizer" aria-hidden="true">
             {[22, 46, 31, 82, 105, 69, 35, 52, 118, 90, 64, 38, 76, 105, 54].map((height, index) => (
               <i key={index} style={{ height }} />
             ))}
           </div>
-        ) : null}
-
-        <div className="mt-auto p-4">
-          <div className="rounded-2xl border border-white/10 bg-white/3 p-4">
-            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
-              <ShieldCheckIcon className="size-3.5" />
-              Sessão ativa
-            </p>
-            <div className="mt-3 flex items-center gap-2.5">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-500/15 text-sm font-semibold text-accent-200">
-                {initial}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-zinc-100">{displayName}</p>
-                <p className="truncate text-[10px] text-zinc-500">{user?.email}</p>
-              </div>
-            </div>
-            <SignOutButton className="mt-3 w-full" />
-          </div>
-        </div>
-      </aside>}
-
-      {isRoomManagementPage && <aside className="room-management-sidebar" aria-label="Navegação YouDJ">
-        <div className="room-management-sidebar-brand" aria-label="YouDJ Music Requests">
-          <span className="room-management-sidebar-brand-icon" aria-hidden="true"><Headphones /></span>
-          <strong><span>You</span>DJ</strong>
-          <small>MUSIC REQUESTS</small>
-        </div>
-        <nav aria-label="Navegação do painel">
-          <NavLink to="/dj/painel/salas" className={({ isActive }) => `room-management-sidebar-link ${isActive ? 'active' : ''}`}>
-            <QrCodeIcon className="size-5" /> Salas
-          </NavLink>
-        </nav>
-      </aside>}
-
+        )}
+      >
+        <NavLink to="/dj/painel/salas" className={({ isActive }) => `rooms-nav-active flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${isActive ? 'active text-accent-300' : ''}`}>
+          <QrCodeIcon className="size-5" /> Salas
+        </NavLink>
+        <span className="rooms-nav-disabled"><SettingsIcon className="size-5" /> Configurações</span>
+        <span className="rooms-nav-disabled"><UsersIcon className="size-5" /> Conta</span>
+      </DjSidebar>
       {isRoomManagementPage && <nav className="room-art-nav" aria-label="Navegação do painel">
         <NavLink to="/dj/painel/salas" className={({ isActive }) => `rooms-nav-active ${isActive ? 'active' : ''}`}>
           <QrCodeIcon className="size-5" /> Salas
@@ -137,15 +53,9 @@ export function DjLayout() {
       </nav>}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className={`sticky top-0 z-30 border-b border-white/8 bg-night-950/80 px-5 py-3 backdrop-blur-xl lg:hidden${isRoomManagementPage ? ' room-mobile-header' : ''}`}>
-          {isRoomManagementPage ? <div className="room-mobile-banner">
+        <header className={`sticky top-0 z-30 border-b border-white/8 bg-night-950/80 px-5 py-3 backdrop-blur-xl lg:hidden${isRoomManagementPage ? ' room-mobile-header' : isRoomsPage ? ' rooms-mobile-header' : ''}`}>
+          {isRoomsPage ? <div className="room-mobile-banner">
             <img src={mobileHeaderBanner} alt="YouDJ" />
-            <NavLink to="/dj/painel/salas" className="room-mobile-banner__rooms" aria-label="Salas" title="Salas">
-              <QrCodeIcon />
-            </NavLink>
-            <div className="room-mobile-banner__logout">
-              <SignOutButton iconOnly className="room-mobile-banner__logout-button" />
-            </div>
           </div> : <>
             <div className="flex items-center justify-between">
               <Brand />

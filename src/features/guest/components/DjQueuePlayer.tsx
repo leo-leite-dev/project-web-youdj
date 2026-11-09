@@ -405,7 +405,9 @@ export function DjQueuePlayer({ roomId, tracks, playerFactory = createYouTubeIfr
   }, [mode, miniExpanded, title])
 
   useEffect(() => {
-    if (mode !== 'mini') setVolumePopoverOpen(false)
+    if (mode === 'mini') return
+    const timer = window.setTimeout(() => setVolumePopoverOpen(false), 0)
+    return () => window.clearTimeout(timer)
   }, [mode])
   const progress = duration > 0 ? Math.min(100, Math.max(0, currentTime / duration * 100)) : 0
 
@@ -451,7 +453,9 @@ export function DjQueuePlayer({ roomId, tracks, playerFactory = createYouTubeIfr
           ? <img src={`https://i.ytimg.com/vi/${displayTrack.videoId}/mqdefault.jpg`} alt="" className="h-16 w-28 shrink-0 rounded-lg object-cover" />
           : <div aria-hidden="true" className="h-16 w-28 shrink-0 rounded-lg bg-white/5" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{displayTrack?.title ?? 'Nenhuma música selecionada'}</p>
+          <p className={`room-player-track-title ${displayTrack ? 'truncate' : 'room-player-track-title--empty'} text-sm font-semibold text-white`}>
+            {displayTrack?.title ?? 'Nenhuma música selecionada'}
+          </p>
           {displayTrack && <>
             <p className="mt-1 truncate text-xs text-zinc-300">{displayTrack.artist}</p>
             <p className="mt-1 truncate text-xs text-zinc-500">{displayTrack.source === 'dj' ? 'Adicionada pelo DJ' : `Pedido por ${displayTrack.guestName}`}</p>

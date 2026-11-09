@@ -22,6 +22,7 @@ describe('DjRoomModeratorsSection', () => {
     })
     render(<DjRoomModeratorsSection roomId="room-a" store={store} />)
 
+    expect(screen.getByRole('button', { name: 'Atualizar moderadores' })).toHaveTextContent('')
     expect(await screen.findByText('Nenhum moderador nesta sala.')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('E-mail de conta autenticada'), { target: { value: 'mod@example.test' } })
     fireEvent.click(screen.getByRole('button', { name: 'Convidar moderador' }))

@@ -1,0 +1,19 @@
+.dj-profile-menu-wrap { position:fixed; z-index:40; top:22px; right:28px; }
+.dj-profile-menu-trigger { min-height:56px; display:flex; align-items:center; gap:10px; padding:7px 12px; border:1px solid #8e36c8; border-radius:30px; background:#080719ed; color:#f5f4ff; font:inherit; font-size:15px; box-shadow:0 0 12px #d12aff44; cursor:pointer; }
+.dj-profile-menu-trigger__icon { width:40px; height:40px; display:grid; flex:none; place-items:center; border:1px solid #ff41d0; border-radius:50%; color:#ff41d0; font-size:25px; }
+.dj-profile-menu-trigger__chevron { width:17px; height:17px; flex:none; margin-left:8px; stroke:#ddd0ff; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.dj-profile-menu-trigger__name { min-width:0; }
+.dj-profile-menu { width:min(270px,calc(100vw - 32px)); margin-top:10px; overflow-y:auto; padding:7px; border:1px solid #8e36c8; border-radius:16px; background:linear-gradient(145deg,#141027f5,#070719f5); box-shadow:0 12px 38px #0009,0 0 18px #d12aff30,inset 0 1px #ffffff12; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+.dj-profile-menu__signout { width:100%; min-height:44px; padding:0!important; border:0!important; border-radius:10px!important; background:transparent!important; box-shadow:none!important; color:#ff9acb!important; font-size:13px!important; }
+.dj-profile-menu__signout:hover,.dj-profile-menu__signout:focus-visible { background:#ff328b18!important; box-shadow:inset 0 0 0 1px #ff4c9b66!important; }
+.dj-profile-menu__signout svg { width:17px; height:17px; color:#ff68a8; }
+.dj-profile-menu__signout:focus-visible { outline:2px solid #42eaff; outline-offset:1px; }
+
+@media (max-width:600px) {
+  .dj-profile-menu-wrap { position:absolute; top:12px; right:12px; }
+  .dj-profile-menu { position:absolute; top:calc(100% + 8px); right:0; margin:0; }
+  .dj-profile-menu-trigger { min-height:36px; gap:5px; padding:3px 7px; font-size:11px; }
+  .dj-profile-menu-trigger__icon { width:25px; height:25px; font-size:15px; }
+  .dj-profile-menu-trigger__name { max-width:92px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dj-profile-menu-trigger__chevron { width:13px; height:13px; margin-left:1px; }
+}

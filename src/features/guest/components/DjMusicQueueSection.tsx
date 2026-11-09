@@ -4,8 +4,9 @@ import { createDjMusicQueueStore, type DjMusicQueueStore, type QueueTrack } from
 import type { YouTubePlayerFactory } from '../services/youtubeIframePlayer'
 import type { YoutubeVideo } from '../services/guestRequestApi'
 import { DjQueuePlayer } from './DjQueuePlayer'
-import { useDjPlaybackContext } from './DjPlaybackContext'
+import { useDjPlaybackContext } from './useDjPlaybackContext'
 import { DjYoutubeSearchCard } from './DjYoutubeSearchCard'
+import { RefreshButton } from '../../../components/RefreshButton'
 
 function getDirectAddErrorMessage(cause: unknown): string {
   const code = typeof cause === 'object' && cause !== null && 'code' in cause && typeof cause.code === 'string' ? cause.code : null
@@ -144,7 +145,7 @@ export function DjMusicQueueSection({ roomId, roomCode, store: override, playerF
       }])
       void reload(true)
     } catch (cause) {
-      throw new Error(getDirectAddErrorMessage(cause))
+      throw new Error(getDirectAddErrorMessage(cause), { cause })
     } finally {
       setBusy(false)
     }
@@ -157,7 +158,7 @@ export function DjMusicQueueSection({ roomId, roomCode, store: override, playerF
 
   return <section aria-labelledby={active ? 'queue-heading' : undefined} className={active ? 'room-queue-shell' : 'contents'}>
     {active && <>
-      <div className="room-queue-heading"><div><h2 id="queue-heading">Fila e Player</h2><p>Gerencie a fila de reprodução e controle o player da sala.</p></div><button type="button" onClick={() => void reload()} disabled={loading} className="room-queue-refresh">Atualizar</button></div>
+      <div className="room-queue-heading"><div><h2 id="queue-heading">Fila e Player</h2><p>Gerencie a fila de reprodução e controle o player da sala.</p></div><RefreshButton label="Atualizar fila" onClick={() => void reload()} loading={loading} /></div>
       {error && <div role="alert" className="mt-4 text-sm text-red-300">{error} <button type="button" onClick={() => void reload()} className="underline">Tentar novamente</button></div>}
       {loading && !loaded && <p role="status" className="mt-4 text-sm text-zinc-400">Carregando fila…</p>}
       {loading && loaded && <p role="status" className="mt-2 text-xs text-zinc-500">Atualizando a fila…</p>}

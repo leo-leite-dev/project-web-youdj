@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { getRoomErrorMessage } from '../lib/roomErrors'
+import { RefreshButton } from '../../../components/RefreshButton'
 import type { DjRoomManagementStore, RoomModerator } from '../services/djRoomManagementStore'
+import './DjRoomModeratorsSection.css'
 
 export function DjRoomModeratorsSection({ roomId, store }: { roomId: string; store: DjRoomManagementStore }) {
   const [moderators, setModerators] = useState<RoomModerator[]>([])
@@ -63,30 +65,30 @@ export function DjRoomModeratorsSection({ roomId, store }: { roomId: string; sto
     }
   }
 
-  return <section aria-labelledby="room-moderators-title" className="rounded-2xl border border-fuchsia-300/15 bg-night-900/50 p-5 sm:p-6">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fuchsia-300/70">Acesso da equipe</p>
-        <h2 id="room-moderators-title" className="mt-1 font-semibold text-white">Moderadores desta sala</h2>
-        <p className="mt-1 text-xs text-zinc-500">Moderadores podem ver presença e pedidos, e aprovar ou rejeitar músicas. Não alteram configurações nem convidam pessoas.</p>
+  return <section aria-labelledby="room-moderators-title" className="room-moderators-panel">
+    <div className="room-moderators-header">
+      <div className="room-moderators-heading">
+        <p className="room-moderators-kicker">Acesso da equipe</p>
+        <h2 id="room-moderators-title">Moderadores desta sala</h2>
+        <p className="room-moderators-description">Moderadores podem ver presença e pedidos, e aprovar ou rejeitar músicas. Não alteram configurações nem convidam pessoas.</p>
       </div>
-      <button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button>
+      <RefreshButton label="Atualizar moderadores" onClick={() => void reload()} loading={loading} className="room-moderators-refresh" />
     </div>
 
-    <form onSubmit={(event) => void invite(event)} className="mt-4 flex flex-col gap-2 sm:flex-row">
+    <form onSubmit={(event) => void invite(event)} className="room-moderators-invite-form">
       <label className="sr-only" htmlFor="room-moderator-email">E-mail de conta autenticada</label>
-      <input id="room-moderator-email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@exemplo.com" disabled={saving} className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-night-950/70 px-3 text-sm text-white outline-none focus-visible:border-fuchsia-300" />
-      <button type="submit" disabled={saving || loading} className="min-h-11 rounded-xl bg-fuchsia-400/15 px-4 text-xs font-semibold text-fuchsia-100 disabled:opacity-50">{saving ? 'Convidando…' : 'Convidar moderador'}</button>
+      <input id="room-moderator-email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@exemplo.com" disabled={saving} className="room-moderators-email" />
+      <button type="submit" disabled={saving || loading} className="room-moderators-invite">{saving ? 'Convidando…' : 'Convidar moderador'}</button>
     </form>
 
-    {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
-    {message && <p role="status" className="mt-3 text-sm text-emerald-300">{message}</p>}
-    {loading ? <p role="status" className="mt-4 text-xs text-zinc-500">Carregando moderadores…</p>
+    {error && <p role="alert" className="room-moderators-feedback room-moderators-feedback--error">{error}</p>}
+    {message && <p role="status" className="room-moderators-feedback room-moderators-feedback--success">{message}</p>}
+    {loading ? <p role="status" className="room-moderators-roster-state">Carregando moderadores…</p>
       : error ? null
-      : moderators.length === 0 ? <p className="mt-4 text-sm text-zinc-500">Nenhum moderador nesta sala.</p>
-      : <ul className="mt-4 divide-y divide-white/6">{moderators.map((moderator) => <li key={moderator.userId} className="flex flex-wrap items-center justify-between gap-3 py-3">
-        <div className="min-w-0"><p className="truncate text-sm font-medium text-white">{moderator.displayName}</p><p className="truncate text-xs text-zinc-500">{moderator.email ?? 'E-mail indisponível'}</p></div>
-        <button type="button" onClick={() => void revoke(moderator)} disabled={revokingId !== null} className="min-h-10 rounded-lg border border-red-300/15 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">{revokingId === moderator.userId ? 'Revogando…' : 'Revogar acesso'}</button>
+      : moderators.length === 0 ? <p className="room-moderators-roster-state">Nenhum moderador nesta sala.</p>
+      : <ul className="room-moderators-roster">{moderators.map((moderator) => <li key={moderator.userId} className="room-moderators-row">
+        <div className="room-moderators-person"><p>{moderator.displayName}</p><p>{moderator.email ?? 'E-mail indisponível'}</p></div>
+        <button type="button" onClick={() => void revoke(moderator)} disabled={revokingId !== null} className="room-moderators-revoke">{revokingId === moderator.userId ? 'Revogando…' : 'Revogar acesso'}</button>
       </li>)}</ul>}
   </section>
 }

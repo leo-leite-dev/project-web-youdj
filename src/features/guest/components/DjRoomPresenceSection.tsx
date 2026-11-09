@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BadgeCheck, ChevronDown, Clock3, Crown, Ellipsis, Link2, Search, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, ChevronDown, Clock3, Crown, Ellipsis, Link2, type LucideIcon } from 'lucide-react'
+import { SearchControl, SelectControl } from '../../../components/FilterControls'
+import { RefreshButton } from '../../../components/RefreshButton'
 import { getRoomErrorMessage } from '../../rooms/lib/roomErrors'
 import { createDjPresenceStore, type DjPresenceStore, type OnlineGuest, type RoomGuestVip, type RoomPresenceSnapshot } from '../services/djPresenceStore'
 import { formatRequestedAt } from '../lib/formatRequestedAt'
 
 type GuestLevel = 'all' | 'vip' | 'registered' | 'guest'
 type PresenceStatus = 'online' | 'offline' | 'unknown'
+
+const GUEST_LEVEL_OPTIONS = [
+  { value: 'all', label: 'Todos os níveis' },
+  { value: 'vip', label: 'VIPs' },
+  { value: 'registered', label: 'Cadastrados' },
+  { value: 'guest', label: 'Convidados' },
+] as const
 
 interface PresenceCardGuest {
   key: string
@@ -226,16 +235,18 @@ export function DjRoomPresenceSection({ roomId, store: storeOverride, canManageV
 
   return <section aria-labelledby="online-guests-title" className="room-presence-section">
     <div className="room-presence-header">
-      <div className="room-presence-heading">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-300/70">Presença</p>
-        <h2 id="online-guests-title" className="mt-1 font-semibold text-white">Convidados da sala <span className="text-cyan-200">({loading && !snapshot ? '—' : snapshot?.count ?? 0} online)</span></h2>
-        <p className="mt-1 text-xs text-zinc-400">Gerencie os participantes da sala por nível de acesso.</p>
+      <div className="room-presence-heading-row">
+        <div className="room-presence-heading">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-300/70">Presença</p>
+          <h2 id="online-guests-title" className="mt-1 font-semibold text-white">Convidados da sala <span className="text-cyan-200">({loading && !snapshot ? '—' : snapshot?.count ?? 0} online)</span></h2>
+          <p className="mt-1 text-xs text-zinc-400">Gerencie os participantes da sala por nível de acesso.</p>
+        </div>
+        <RefreshButton label="Atualizar convidados" onClick={() => void reload()} loading={loading} />
       </div>
-      <div className="room-approved-controls room-guest-controls">
-        <label className="room-approved-search"><Search aria-hidden="true" /><span className="sr-only">Buscar participante</span><input type="search" value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Buscar participante..." /></label>
-        <label className="room-approved-sort"><span className="sr-only">Filtrar por nível</span><select aria-label="Filtrar por nível" value={guestLevel} onChange={(event) => setGuestLevel(event.currentTarget.value as GuestLevel)}><option value="all">Todos os níveis</option><option value="vip">VIPs</option><option value="registered">Cadastrados</option><option value="guest">Convidados</option></select></label>
+      <div className="room-approved-controls filter-controls room-guest-controls">
+        <SearchControl label="Buscar participante" value={search} onChange={setSearch} placeholder="Buscar participante..." />
+        <SelectControl label="Filtrar por nível" value={guestLevel} onChange={(value) => setGuestLevel(value as GuestLevel)} options={GUEST_LEVEL_OPTIONS} visuallyHiddenLabel />
       </div>
-      <button type="button" onClick={() => void reload()} disabled={loading} className="room-guest-refresh min-h-10 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50">Atualizar</button>
     </div>
     {error && <div className="mt-3 space-y-2" role="alert"><p className="text-xs text-red-300">{error}</p><button type="button" onClick={() => void reload()} disabled={loading} className="min-h-10 rounded-lg border border-red-300/20 px-3 text-xs font-semibold text-red-200 disabled:opacity-50">Tentar novamente</button></div>}
     {vipError && <p role="alert" className="mt-3 text-xs text-amber-200">{vipError}</p>}

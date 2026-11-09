@@ -4,7 +4,7 @@ import type { DjMusicQueueStore } from '../services/djMusicQueueStore'
 import type { YouTubePlayerCallbacks, YouTubePlayerFactory } from '../services/youtubeIframePlayer'
 import * as youtubePlayer from '../services/youtubeIframePlayer'
 import * as requestApi from '../services/guestRequestApi'
-import { DjPlaybackHost, DjPlaybackProvider } from './DjPlaybackContext'
+import { DjPlaybackHost, DjPlaybackProvider } from './DjPlaybackProvider'
 import { DjQueuePlayer } from './DjQueuePlayer'
 import { DjMusicQueueSection } from './DjMusicQueueSection'
 
@@ -120,6 +120,15 @@ describe('DjMusicQueueSection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar a fila. Tente novamente.')
     expect(screen.getByRole('heading', { name: /Fila de reprodução \(—\)/ })).toBeInTheDocument()
     expect(screen.queryByText(/A fila está vazia/)).not.toBeInTheDocument()
+  })
+
+  it('left-aligns the no-selection message in the current-track panel', async () => {
+    const store: DjMusicQueueStore = { listByRoom: vi.fn().mockResolvedValue([]), addYoutubeTrack: vi.fn(), reorder: vi.fn(), remove: vi.fn() }
+    render(<DjMusicQueueSection roomId="room-empty" store={store} />)
+
+    const emptyTrack = await screen.findByText('Nenhuma música selecionada')
+    expect(emptyTrack).toHaveClass('room-player-track-title', 'room-player-track-title--empty')
+    expect(emptyTrack).not.toHaveClass('truncate')
   })
 
   it('uses atomic DOM moves for the persistent iframe when switching room tabs', async () => {
