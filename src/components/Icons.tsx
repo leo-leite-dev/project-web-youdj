@@ -49,6 +49,22 @@ export function QrCodeIcon(props: IconProps) {
   )
 }
 
+export function ManageRoomIcon(props: IconProps) {
+  return <IconBase {...props}><path d="M4 20h4l10.5-10.5a2.8 2.8 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4M12 20h8" /></IconBase>
+}
+
+export function TrashIcon(props: IconProps) {
+  return <IconBase {...props}><path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6" /></IconBase>
+}
+
+export function PauseIcon(props: IconProps) {
+  return <IconBase {...props}><path d="M8 5v14M16 5v14" /></IconBase>
+}
+
+export function PlayIcon(props: IconProps) {
+  return <IconBase {...props}><path d="m8 5 12 7-12 7V5Z" /></IconBase>
+}
+
 export function ListMusicIcon(props: IconProps) {
   return (
     <IconBase {...props}>

@@ -1,3 +1,5 @@
+import QRCode from 'qrcode'
+
 const QR_OPTIONS = {
   errorCorrectionLevel: 'M' as const,
   margin: 1,
@@ -9,6 +11,5 @@ const QR_OPTIONS = {
  * como data URL PNG, pronta para exibição e download.
  */
 export async function createRoomQrDataUrl(link: string): Promise<string> {
-  const { default: QRCode } = await import('qrcode')
   return QRCode.toDataURL(link, QR_OPTIONS)
 }

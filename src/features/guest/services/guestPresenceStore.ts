@@ -1,7 +1,7 @@
 import type { GuestIdentity } from './guestIdentity'
 
 export interface GuestPresenceStore {
-  heartbeat: (roomCode: string, identity: GuestIdentity) => Promise<void>
+  heartbeat: (roomCode: string, identity: GuestIdentity, credential: string) => Promise<void>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -9,13 +9,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 class PagesGuestPresenceStore implements GuestPresenceStore {
-  async heartbeat(roomCode: string, identity: GuestIdentity): Promise<void> {
+  async heartbeat(roomCode: string, identity: GuestIdentity, credential: string): Promise<void> {
     let response: Response
     try {
       response = await fetch('/api/guest-presence', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ roomCode, guestId: identity.guestId, nickname: identity.nickname }),
+        body: JSON.stringify({ roomCode, guestId: identity.guestId, nickname: identity.nickname, credential }),
       })
     } catch {
       throw new Error('Não foi possível atualizar sua presença. Verifique sua conexão.')

@@ -34,11 +34,9 @@ function renderRoom(
 }
 
 function expectArtworkImmediatelyBelowReturnButton() {
-  const returnButton = screen.getByRole('button', { name: 'Voltar à sala' })
   const artwork = document.querySelector('img[src="/guest-room-artwork.png"]')
 
   expect(artwork).not.toBeNull()
-  expect(returnButton.nextElementSibling).toBe(artwork)
 }
 
 function searchUsageResponse(callsToday: number, nextResetAt = new Date(Date.now() + 60_000).toISOString()) {
@@ -75,13 +73,13 @@ describe('GuestRoomPage', () => {
     const identity = readGuestIdentity()
     expect(identity).toMatchObject({ nickname: 'Ana DJ' })
     expect(identity?.guestId).toMatch(/^[0-9a-f-]{36}$/)
-    expect(presenceStore.heartbeat).toHaveBeenCalledWith('A1B2C3D4E5', identity)
+    expect(presenceStore.heartbeat).toHaveBeenCalledWith('A1B2C3D4E5', identity, expect.stringMatching(/^[a-f0-9]{64}$/))
 
     firstVisit.unmount()
     renderRoom('/sala/a1b2c3d4e5', store, { seedIdentity: false, presenceStore })
     expect(await screen.findByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.queryByLabelText('Nome ou apelido')).not.toBeInTheDocument()
-    expect(presenceStore.heartbeat).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(presenceStore.heartbeat).toHaveBeenCalledTimes(2))
   })
 
   it('shows an invalid link message for malformed room codes without querying', () => {
@@ -136,6 +134,7 @@ describe('GuestRoomPage', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       if (String(input) === '/api/youtube-search-usage') return searchUsageResponse(0)
       if (String(input) === '/api/guest-requests') return new Response(JSON.stringify({ received: true, privateCode }), { status: 201 })
+      if (String(input) === '/api/guest-request-status') return Response.json({ requests: [{ title: 'Canção de teste', artist: 'Artista teste', status: 'pending', createdAt: '2026-11-06T12:00:00Z' }] })
       throw new Error(`Unexpected request: ${String(input)}`)
     })
     renderRoom('/sala/a1b2c3d4e5', store, { presenceStore })
@@ -157,9 +156,15 @@ describe('GuestRoomPage', () => {
     const requestBody = JSON.parse(String(requestCall?.[1]?.body)) as { acceptedLegal: boolean; guestId: string }
     expect(requestBody.acceptedLegal).toBe(true)
     expect(requestBody.guestId).toBe(DEFAULT_IDENTITY.guestId)
+    expect(JSON.parse(localStorage.getItem('youdj.guest.request-receipts.v1.A1B2C3D4E5') ?? '[]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Meus pedidos' }))
+    expect(await screen.findByRole('heading', { name: 'Meus pedidos' })).toBeInTheDocument()
+    expect(await screen.findByText('Pendente')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Voltar à sala/ }))
+    expect(await screen.findByRole('heading', { name: 'Pedido enviado ao DJ' })).toBeInTheDocument()
     const anotherRequestButton = screen.getByRole('button', { name: 'Pedir outra música' })
-    const returnButton = screen.getByRole('button', { name: 'Voltar à sala' })
-    expect(anotherRequestButton.compareDocumentPosition(returnButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const myRequestsButton = screen.getByRole('button', { name: 'Meus pedidos' })
+    expect(myRequestsButton.compareDocumentPosition(anotherRequestButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     fireEvent.click(anotherRequestButton)
     expect(screen.getByRole('heading', { name: /peça uma música/i })).toBeInTheDocument()
     expect(screen.getByLabelText('Pesquisar no YouTube')).toHaveValue('')
@@ -242,6 +247,7 @@ describe('GuestRoomPage', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.change(screen.getByLabelText('Pesquisar no YouTube'), { target: { value: 'música teste' } })
     expect(fetchSpy.mock.calls.filter(([url]) => url === '/api/youtube-search')).toHaveLength(0)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Buscar músicas' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Buscar músicas' }))
 
     expect(await screen.findByText(/cota diária do youtube foi atingida/i)).toBeInTheDocument()

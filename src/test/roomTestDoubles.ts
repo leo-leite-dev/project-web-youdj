@@ -31,6 +31,7 @@ export function makePublicRoom(overrides: Partial<PublicRoom> = {}): PublicRoom 
 
 interface FakeRoomStoreOptions {
   createError?: unknown
+  deleteError?: unknown
   listError?: unknown
   updateError?: unknown
   rooms?: Room[]
@@ -38,14 +39,17 @@ interface FakeRoomStoreOptions {
 
 export class FakeRoomStore implements RoomStore {
   readonly createCalls: CreateRoomInput[] = []
+  readonly deleteCalls: string[] = []
   readonly updateCalls: Array<{ roomId: string; status: RoomStatus }> = []
   createError?: unknown
+  deleteError?: unknown
   listError?: unknown
   updateError?: unknown
   rooms: Room[]
 
   constructor(options: FakeRoomStoreOptions = {}) {
     this.createError = options.createError
+    this.deleteError = options.deleteError
     this.listError = options.listError
     this.updateError = options.updateError
     this.rooms = options.rooms ?? []
@@ -99,6 +103,12 @@ export class FakeRoomStore implements RoomStore {
     const updated = { ...room, musicPreferences }
     this.rooms = this.rooms.map((candidate) => candidate.id === roomId ? updated : candidate)
     return updated
+  }
+
+  async delete(roomId: string): Promise<void> {
+    this.deleteCalls.push(roomId)
+    if (this.deleteError) throw this.deleteError
+    this.rooms = this.rooms.filter((room) => room.id !== roomId)
   }
 }
 

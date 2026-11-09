@@ -13,6 +13,7 @@ export interface RoomStore {
   listByDj: (djId: string) => Promise<Room[]>
   updateStatus: (roomId: string, status: RoomStatus) => Promise<Room>
   updateMusicPreferences: (roomId: string, preferences: RoomMusicPreferences) => Promise<Room>
+  delete: (roomId: string) => Promise<void>
 }
 
 function toRoom(row: RoomRow): Room {
@@ -92,6 +93,11 @@ class SupabaseRoomStore implements RoomStore {
     }).eq('id', roomId).select(ROOM_COLUMNS).single()
     if (error) throw error
     return toRoom(data)
+  }
+
+  async delete(roomId: string): Promise<void> {
+    const { error } = await this.client.rpc('dj_delete_room', { p_room_id: roomId })
+    if (error) throw error
   }
 }
 

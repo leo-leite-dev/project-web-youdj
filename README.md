@@ -22,14 +22,16 @@ Plataforma SaaS de gerenciamento de pedidos musicais para DJs, festas e estabele
 > proteção do painel, salas com código público, link compartilhável e QR Code estão
 > implementados no código com Supabase Auth e RLS. As migrations de perfis, salas, códigos
 > públicos, preferências musicais e pedidos da Etapa 4A foram aplicadas ao projeto remoto segundo
-> a verificação existente. A migration de moderação da Etapa 4B está versionada, mas a aplicação
-> remota não está confirmada. Um teste local anterior foi bloqueado pelo orçamento diário interno,
+> a verificação existente. O responsável confirmou migrations 11–17 pelo comando
+> `supabase migration list --remote` e informou que a migration 18 foi aplicada com sucesso pelo
+> CLI; esta atualização não executou nem revalidou migrations remotas. Um teste local anterior foi bloqueado pelo orçamento diário interno,
 > antes da chamada ao YouTube; as migrations locais removem esse bloqueio e adicionam um contador estimado.
 > Elas não foram aplicadas remotamente e a cota personalizada do Google ainda precisa ser
 > confirmada. O endpoint
 > público atualmente publicado também respondeu HTTP 429 genérico ao teste real; a versão anterior
-> não permite identificar o upstream nem comprova resultado do YouTube. Fila,
-> pagamentos e reprodução ainda **não** estão implementados.
+> não permite identificar o upstream nem comprova resultado do YouTube. Pagamentos seguem
+> planejados; o player oficial do YouTube foi integrado localmente à fila, mas sua validação real
+> em navegador/dispositivo e a disponibilidade de cada vídeo dependem do YouTube.
 > O login com Google foi validado com conta real; a validação manual completa dos fluxos
 > autenticados e de salas em produção segue pendente. O último bundle publicado foi verificado
 > com `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` presentes.
@@ -91,6 +93,8 @@ Itens verificados no código atual:
 
 - Fundação frontend com React, Vite e TypeScript em modo strict.
 - Tailwind CSS com tokens visuais e layout responsivo mobile-first.
+- Cabeçalho mobile da gestão individual de sala com banner YouDJ, navegação para Salas e logout
+  acessíveis; o cabeçalho desktop e o card de gerenciamento permanecem preservados.
 - SPA com React Router e as rotas públicas, área do DJ e acesso de convidados.
 - Landing page com apresentação do produto, proposta de valor e chamadas para ação.
 - Cadastro e login de DJs com Supabase Auth, validação local, estados de erro/carregamento e
@@ -118,16 +122,41 @@ Itens verificados no código atual:
 - Gerenciamento por sala com presença e pedidos para proprietário e moderador atribuído; ambos podem
   aprovar/rejeitar pedidos. Somente o proprietário lista, convida e revoga moderadores; convites
   exigem conta Supabase não anônima, confirmada e com perfil. Configurações continuam owner-only.
-  Aprovação não adiciona à playlist nem inicia reprodução.
+  Aprovação manual não inicia reprodução.
+- Na aba Convidados, o proprietário pode conceder/revogar individualmente “Pedidos sem aprovação”.
+  VIPs são identificados por credencial aleatória privada e room-scoped (não pelo apelido/UUID);
+  pedidos são aprovados e enfileirados atomicamente no fim, sem interromper a faixa atual. A
+  migration `20261115000000_room_guest_vip.sql` consta no histórico remoto confirmado pelo responsável;
+  os testes pgTAP correspondentes permanecem versionados no repositório.
 - Painel do DJ com pedidos pendentes, aprovação/rejeição e lista separada
   de aprovados e rejeitados por sala, com o apelido associado a cada pedido.
+- Aba “Fila e Player” no gerenciamento de cada sala: pedidos aprovados entram uma única vez no fim
+  da fila; DJ pode reordenar/remover sem alterar o status do pedido. O player oficial do YouTube
+  oferece “Tocando agora” com capa, título, artista, convidado e status; a lista abaixo mostra apenas
+  as próximas músicas, numeradas a partir de 01. O player oferece início por ação do DJ, pausa,
+  próxima música e avanço automático ao término. Vídeos indisponíveis e bloqueios de autoplay recebem
+  feedback; o cursor da fila continua local à sessão. O iframe permanece montado e visível, em modo
+  completo na fila e em mini-player no painel quando fora dela, sem reiniciar ao navegar entre
+  abas/páginas. O histórico persistente registra o ID individual do pedido quando o player emite
+  `PLAYING`; Aprovados atualiza automaticamente e mantém “Tocada” após término e recarga. O estado
+  do player/progresso não é sincronizado entre dispositivos. O responsável confirmou migrations
+  11–17 no remoto com `supabase migration list --remote`.
+- Na mesma aba, o DJ pode pesquisar vídeos do YouTube e incluí-los diretamente na fila, sem criar
+  pedido de convidado. A busca reutiliza a Pages Function e sua chave permanece no servidor; a RPC
+  autenticada e a migration `20261117000000_add_dj_youtube_tracks_to_queue.sql` estão confirmadas
+  no histórico remoto segundo o responsável.
 - Convidado informa nome ou apelido no primeiro acesso. Um identificador aleatório é reutilizado
   somente no mesmo navegador; não há conta, e-mail ou senha, e o apelido não é identidade verificada.
   Heartbeats mantêm presença por sala, expirada após 90 segundos sem atividade.
-- A migration local `20261112000000_room_moderators_and_permissions.sql` adiciona membership
-  privado por sala e RPCs com verificação server-side owner/moderator. Requer a migration
-  `20261111000000_guest_identity_presence_room_management.sql` e ainda não foi aplicada nem
-  validada em backend remoto. Para compatibilidade transitória, a migration 11 mantém a RPC legada
+- A interface “Meus pedidos” acompanha os estados existentes usando comprovantes privados como prova
+  de posse, sem confiar no `guest_id`; os códigos são guardados por sala no navegador e podem ser
+  importados. A RPC server-side requer a migration
+  `20261113000000_guest_request_status_by_receipt.sql`, cuja aplicação consta no histórico remoto
+  confirmado pelo responsável via `supabase migration list --remote`.
+- A migration `20261112000000_room_moderators_and_permissions.sql` adiciona membership privado
+  por sala e RPCs com verificação server-side owner/moderator. A migration 11, requisito anterior,
+  também consta como aplicada no histórico remoto segundo o responsável. Para compatibilidade
+  transitória, a migration 11 mantém a RPC legada
   `submit_guest_request` aceitando pedidos sem identidade verificada; a migration 12 preserva
   `room_by_code` e adiciona `room_by_code_with_membership` para a interface nova.
 - Tema Synthwave Neon padrão nas salas públicas, com artwork definitivo em
@@ -191,21 +220,29 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; pode exigir confirmação de e-mail ou usar Google.          |
 | `/dj/painel`      | Protegida    | Resumo de salas e gestão de pedidos autorizada no backend. |
 | `/dj/painel/salas` | Protegida   | Cria, lista, ativa/pausa e compartilha salas via link e QR Code; “Entrar na sala” e “Gerenciar”. |
-| `/dj/painel/salas/:roomId` | Protegida | Gerencia presença e pedidos da sala; acesso restrito ao DJ proprietário no banco. |
+| `/dj/painel/salas/:roomId` | Protegida | Código local oferece gestão de presença/pedidos, moderadores, fila por sala, busca e player oficial; autorização é por RPC owner/moderator. A disponibilidade remota das migrations exigidas ainda precisa ser confirmada. |
 | `/sala/:roomCode` | Implementada | Solicita apelido no primeiro acesso; busca YouTube explícita, cache, contador e pedidos (requer backend). |
 | `/termos-de-uso` / `/privacidade` | Implementadas | Rascunhos informativos públicos; aprovação jurídica pendente. |
 | `*`               | Implementada | Página 404.                                                             |
 
+O painel por sala e os fluxos de fila/player estão implementados no código desta branch. Isso não
+comprova que o backend remoto esteja pronto: a documentação de release ainda registra migrations
+de pedidos, membership, VIP, fila e histórico como locais ou pendentes de aplicação/validação. O
+responsável confirmou a aplicação remota da migration de exclusão de salas (`20261118000000`), mas
+esta tarefa não executou migrations. Não publicar os fluxos que dependem dessas RPCs até verificar
+o estado remoto em modo somente leitura e resolver as migrations pendentes por autorização própria.
+
 ### O que ainda não está implementado
 
 - Recuperação de senha e gestão de e-mail/senha.
-- Atualizações em tempo real, fila, histórico e player.
+- Supabase Realtime; o painel atualiza pedidos por polling. O histórico de reprodução está
+  implementado no código, mas sua migration/RPC remota ainda não está comprovada.
 - Vínculo manual de identidades (Google e e-mail/senha) quando o Supabase não faz o
   vínculo automático por e-mail verificado.
 - Contas e identidades verificadas de convidados. O apelido e o ID aleatório do navegador servem
   somente para mostrar quem enviou um pedido e manter presença aproximada; não autenticam ninguém.
 - Pagamentos e histórico financeiro.
-- Reprodução musical e integração com a YouTube IFrame Player API.
+- Validação real do player em navegador e das restrições aplicadas pelo YouTube em cada vídeo.
 - Validação manual dos fluxos autenticados em produção (o build publicado em 2026-11-02 já
   contém ambas as variáveis públicas do Supabase).
 
@@ -243,10 +280,10 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
 - Links exclusivos e QR Codes por sala (implementado; migration dos códigos aplicada ao remoto).
 - Acesso público do convidado ao nome e ao estado da sala; primeiro acesso pede nome/apelido, sem
   conta. A presença usa heartbeats de 30 segundos e expira após 90 segundos de inatividade.
-- A listagem de participantes e pedidos é por sala; a migration local `20261111000000_guest_identity_presence_room_management.sql` ainda não foi aplicada remotamente.
+- A listagem de participantes e pedidos é por sala; a migration `20261111000000_guest_identity_presence_room_management.sql` foi confirmada no histórico remoto pelo responsável.
 - Papéis owner/moderator por sala, convites e revogações owner-only, e autorização server-side estão
-  preparados na migration local `20261112000000_room_moderators_and_permissions.sql`; requerem a
-  migration `20261111000000` aplicada em sequência antes da validação do fluxo real.
+  implementados na migration `20261112000000_room_moderators_and_permissions.sql`; a migration
+  `20261111000000` consta como aplicada em sequência no histórico remoto segundo o responsável.
 
 ### Fase 4 — Pedidos musicais · Em andamento (Etapa 4B implementada)
 
@@ -264,7 +301,7 @@ as políticas RLS foram confirmadas por consultas somente de leitura. Os 88 test
   para diagnóstico mais específico sem revelar credenciais ou corpos do provedor.
 - Termos de Uso e Política de Privacidade em rascunho, com aceite obrigatório no fluxo do convidado;
   precisam de revisão e aprovação antes da publicação.
-- Fila livre.
+- Fila livre/automática (a Etapa 1 atual cobre somente a fila gerenciada pelo DJ).
 - Reorganização de pedidos.
 - Atualizações em tempo real.
 - Prevenção de músicas repetidas.
@@ -766,18 +803,20 @@ pgTAP, incluindo a Etapa 4A, são executadas em cada Pull Request que altera `su
   usuários de teste), para uso geral.
 - Recuperação de senha e gestão de credenciais.
 - Integração do Supabase Realtime aos fluxos da aplicação.
-- Gestão de pedidos no painel, aprovação, fila e histórico.
+- Disponibilidade em produção da gestão de pedidos, fila, busca YouTube, player e histórico: o
+  código está implementado, mas depende das migrations/RPCs cujo estado remoto não está confirmado.
 - Validação real das Pages Functions, incluindo busca via chave/cota efetiva do YouTube.
 - Revisão/aprovação dos Termos de Uso e Política de Privacidade, identificação do controlador,
   canal de contato e definição dos prazos de retenção.
 - Pagamentos.
-- Reprodução musical.
+- Validação real de reprodução musical em produção.
 
 ### Próxima etapa prevista
 
-Concluir a revisão e aprovação dos documentos legais, validar o runtime das Pages Functions e a
-busca real do YouTube em produção, e concluir a validação manual dos fluxos de DJ e salas. Gestão
-dos pedidos, aprovação, fila e atualização em tempo real permanecem etapas futuras.
+Antes de publicar os fluxos do painel por sala, confirmar em modo somente leitura o estado remoto
+das migrations/RPCs necessárias; aplicar migrations pendentes requer autorização específica. Depois,
+validar os fluxos autenticados, o runtime das Pages Functions e a busca/player do YouTube em
+produção. Também permanecem pendentes a aprovação jurídica dos documentos e o Supabase Realtime.
 
 ## Contribuição e licença
 
@@ -790,6 +829,14 @@ dos pedidos, aprovação, fila e atualização em tempo real permanecem etapas f
 - Preserve acessibilidade, responsividade mobile-first e segurança multi-tenant.
 - Toda alteração relevante deve ser revisada antes de ser publicada.
 - Atualize a documentação somente com comportamentos realmente implementados.
+
+### Procedência dos assets visuais
+
+Segundo declaração do responsável pelo projeto, todas as imagens do YouDJ foram criadas por ele
+com ferramentas de IA especificamente para este projeto. Não é exigida licença CC0 ou CC BY para
+esses assets originais; a procedência só deve ser investigada novamente quando houver indícios
+concretos de conteúdo de terceiros ou outra restrição de uso. Esta declaração trata dos assets
+visuais e não define a licença do código do repositório.
 
 ### Licença
 

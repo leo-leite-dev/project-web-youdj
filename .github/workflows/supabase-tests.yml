@@ -1,6 +1,11 @@
 name: Supabase local tests
 
 on:
+  push:
+    branches: [develop]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-tests.yml"
   pull_request:
     branches: [main]
     paths:

@@ -1,9 +1,9 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties } from 'react'
 import { RoomsSection } from '../../features/rooms/components/RoomsSection'
 import { useRooms } from '../../features/rooms/hooks/useRooms'
 import type { RoomStore } from '../../features/rooms/services/roomStore'
 import { useAuth } from '../../features/auth/AuthContext'
-import { SignOutButton } from '../../features/auth/components/SignOutButton'
+import { DjProfileMenu } from '../../layouts/DjProfileMenu'
 import referenceArtwork from '../../assets/dj-rooms-banner.png'
 import './DjRoomsPage.css'
 
@@ -15,6 +15,7 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
   const { profile } = useAuth()
   const {
     createRoom,
+    deleteRoom,
     error,
     reload,
     rooms,
@@ -26,13 +27,10 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
   return (
     <div className="rooms-page" style={{ '--rooms-artwork': `url("${referenceArtwork}")` } as CSSProperties}>
       <header className="rooms-hero">
+        <DjProfileMenu />
         <div className="rooms-hero-copy">
           <p>PAINEL DO DJ</p>
           <h1>Salas <span aria-hidden="true">//</span></h1>
-        </div>
-        <div className="rooms-live-profile" aria-label={`DJ: ${profile?.displayName ?? 'DJ'}`}>
-          <span aria-hidden="true">♫</span><span>DJ: {profile?.displayName ?? 'DJ'}</span><b aria-hidden="true">⌄</b>
-          <SignOutButton className="rooms-hero-signout" label="Sair" />
         </div>
         <div className="rooms-hero-equalizer" aria-hidden="true">
           {[18, 29, 42, 21, 55, 35, 66, 44, 78, 55, 94, 69, 46, 83, 59, 102, 74, 50].map((height, index) => (
@@ -43,6 +41,7 @@ export function DjRoomsPage({ roomStore }: DjRoomsPageProps) {
       <div className="rooms-content">
         <RoomsSection
           createRoom={createRoom}
+          deleteRoom={deleteRoom}
           error={error}
           onRetry={reload}
           rooms={rooms}

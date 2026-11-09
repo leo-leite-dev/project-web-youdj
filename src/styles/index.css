@@ -28,3 +28,40 @@
     @apply bg-accent-500/40 text-white;
   }
 }
+
+.guest-room-page {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(ellipse at 75% 12%, rgb(0 170 255 / 18%), transparent 24rem),
+    radial-gradient(ellipse at 68% 65%, rgb(141 0 255 / 17%), transparent 38rem),
+    linear-gradient(115deg, #080414 0%, #080719 52%, #050612 100%);
+}
+
+.guest-room-page::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0 17.4%, rgb(226 0 255 / 85%) 17.5%, rgb(226 0 255 / 8%) 17.65%, transparent 17.9%),
+    radial-gradient(ellipse at 19% 83%, rgb(0 122 255 / 32%), transparent 18rem),
+    radial-gradient(ellipse at 90% 78%, rgb(170 0 255 / 22%), transparent 26rem);
+  opacity: .8;
+}
+
+.guest-room-page main,
+.guest-room-page footer {
+  position: relative;
+  z-index: 1;
+}
+
+.guest-room-page main {
+  background-image:
+    linear-gradient(160deg, transparent 70%, rgb(137 0 255 / 9%) 70.1%, transparent 71%),
+    linear-gradient(18deg, transparent 12%, rgb(204 0 255 / 22%) 12.1%, transparent 12.3%),
+    radial-gradient(ellipse at 68% 25%, rgb(0 174 255 / 11%), transparent 30rem),
+    radial-gradient(ellipse at 35% 85%, rgb(174 0 255 / 12%), transparent 34rem);
+}

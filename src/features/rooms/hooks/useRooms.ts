@@ -14,6 +14,7 @@ export interface UseRoomsResult {
   status: RoomsStatus
   updateRoomStatus: (roomId: string, status: RoomStatus) => Promise<Room>
   updateRoomMusicPreferences: (roomId: string, preferences: RoomMusicPreferences) => Promise<Room>
+  deleteRoom: (roomId: string) => Promise<void>
 }
 
 const LOAD_ERROR_FALLBACK = 'Não foi possível carregar suas salas. Tente novamente.'
@@ -168,5 +169,13 @@ export function useRooms(djId: string | null, storeOverride?: RoomStore): UseRoo
     return room
   }, [attempt, djId, storeState])
 
-  return { createRoom, error: errorMessage, reload, rooms, status, updateRoomStatus, updateRoomMusicPreferences }
+  const deleteRoom = useCallback(async (roomId: string): Promise<void> => {
+    if (!storeState.store || !djId) throw new Error('Sessão indisponível para excluir salas.')
+    await storeState.store.delete(roomId)
+    setResult((current) => current?.kind === 'ok' && current.djId === djId && current.attempt === attempt
+      ? { ...current, rooms: current.rooms.filter((room) => room.id !== roomId) }
+      : current)
+  }, [attempt, djId, storeState])
+
+  return { createRoom, deleteRoom, error: errorMessage, reload, rooms, status, updateRoomStatus, updateRoomMusicPreferences }
 }

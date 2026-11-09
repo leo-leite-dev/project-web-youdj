@@ -16,6 +16,7 @@ export interface DjRequest {
 
 export interface DjRequestStore {
   listByRoom: (roomId: string) => Promise<DjRequest[]>
+  listPlayedRequestIds?: (roomId: string) => Promise<string[]>
   setStatus: (requestId: string, status: 'approved' | 'rejected') => Promise<void>
 }
 
@@ -41,6 +42,12 @@ class SupabaseDjRequestStore implements DjRequestStore {
       status: row.status,
       createdAt: row.created_at,
     }))
+  }
+
+  async listPlayedRequestIds(roomId: string): Promise<string[]> {
+    const { data, error } = await this.client.rpc('dj_list_room_played_requests', { p_room_id: roomId })
+    if (error) throw error
+    return data ?? []
   }
 
   async setStatus(requestId: string, status: 'approved' | 'rejected'): Promise<void> {

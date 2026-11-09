@@ -12,8 +12,10 @@ códigos públicos, links compartilháveis, QR Codes e consulta pública limitad
 As migrations de perfil, salas e códigos públicos foram aplicadas ao Supabase remoto. A Etapa 3B
 foi verificada por consultas somente de leitura, e os 88 testes pgTAP foram aprovados no GitHub
 Actions. A interface autenticada possui gerenciamento de salas e uma página de gerenciamento por
-sala. Papéis owner/moderator e convites de moderadores foram preparados em migrations locais; esses
-novos fluxos não foram aplicados ou validados no Supabase remoto.
+sala. O responsável confirmou migrations 11–17 pelo comando `supabase migration list --remote` e
+informou que a migration `20261118000000_add_owner_room_deletion.sql` foi aplicada com sucesso
+pelo CLI. Assim, as migrations/RPCs de moderação, pedidos, VIP, fila e histórico estão presentes
+no histórico remoto segundo essa confirmação. Esta tarefa não executou nem revalidou migrations.
 
 ## 2. Tecnologias atuais
 
@@ -76,7 +78,7 @@ testáveis ficam em `features/*/lib`.
 | `/dj/cadastro`    | Implementada | Cadastro de DJ; confirmação de e-mail ou Google.        |
 | `/dj/painel`      | Protegida   | Exige sessão não anônima e perfil carregado; resume as salas. |
 | `/dj/painel/salas` | Protegida  | Cria, lista, ativa/pausa e compartilha salas; exibe o DJ associado pelo perfil. |
-| `/dj/painel/salas/:roomId` | Protegida | RPC restringe ao owner/moderator; presença/pedidos para ambos, moderadores owner-only. Migration `20261112000000` local. |
+| `/dj/painel/salas/:roomId` | Protegida | RPC restringe ao owner/moderator; presença/pedidos para ambos, moderadores owner-only. Migrations 11–12 confirmadas no histórico remoto pelo responsável. |
 | `/sala/:roomCode` | Implementada | Consulta limitada via `room_by_code_with_membership`; nome público do DJ, UUID/papel administrativo somente para membro autenticado. |
 | `*`               | Implementada | Página 404.                                            |
 
@@ -95,7 +97,7 @@ O modelo planejado é de **schema compartilhado com isolamento por linha**:
   autenticado corresponder ao dono do recurso.
 - Chaves com privilégio de serviço nunca serão usadas no cliente.
 
-### Papéis por sala (implementação local pendente de validação remota)
+### Papéis por sala (migrations remotas confirmadas pelo responsável)
 
 - `rooms.dj_id` determina o owner; `public.room_moderators` concede papel moderador por sala.
 - A tabela de membership não possui grants para papéis de API; RPCs `SECURITY DEFINER` validam
@@ -105,7 +107,8 @@ O modelo planejado é de **schema compartilhado com isolamento por linha**:
   listar pedidos/presença e alterar status somente na sala atribuída; não altera configurações,
   membership ou ownership.
 - `20261112000000_room_moderators_and_permissions.sql` depende de
-  `20261111000000_guest_identity_presence_room_management.sql`; aplicação remota não realizada.
+  `20261111000000_guest_identity_presence_room_management.sql`; ambas constam como aplicadas no
+  histórico remoto segundo o responsável.
 - A camada de interface nunca será considerada a única barreira de autorização.
 
 A primeira tabela, `public.dj_profiles`, foi aplicada ao banco remoto:
@@ -133,11 +136,14 @@ em 2026-11-02):
 - `created_at` e `updated_at` são gerados pelo banco; `updated_at` é mantido por trigger, e o
   índice `(dj_id, created_at desc)` sustenta a listagem do proprietário.
 - RLS está habilitada. `authenticated` recebe `SELECT` em todas as colunas, `INSERT` apenas em
-  `dj_id` e `name` e `UPDATE` apenas em `name` e `status`; `DELETE` não é concedido e `anon` não
-  recebe privilégios.
+  `dj_id` e `name` e `UPDATE` apenas em `name` e `status`; `DELETE` direto não é concedido e `anon`
+  não recebe privilégios.
 - As políticas exigem `dj_id = auth.uid()` e o claim `is_anonymous` explicitamente `false`, nas
-  operações de leitura, criação e atualização. Não existe política de `DELETE`, portanto nenhum
-  DJ exclui salas pela API, e nenhum DJ lê ou altera salas de outro DJ.
+  operações de leitura, criação e atualização. A migration `20261118000000` define a RPC
+  `dj_delete_room`, que permite exclusão permanente apenas ao proprietário autenticado não anônimo;
+  as FKs `ON DELETE CASCADE` removem dados vinculados à sala. O responsável confirmou a aplicação
+  remota; não houve execução nem verificação independente nesta tarefa. Nenhum DJ lê ou altera
+  salas de outro DJ.
 - A suíte pgTAP `supabase/tests/rooms_rls.test.sql` tem 33 asserções e é executada pelo mesmo
   workflow do GitHub Actions em um Supabase local isolado.
 
@@ -202,6 +208,12 @@ proprietário.
 - Cada pedido novo traz o `guest_id`; a RPC recupera o apelido da presença recente no banco, sem
   confiar em nome enviado junto ao pedido. Apelido e ID do pedido permanecem conforme retenção de
   30 dias. Registros antigos sem apelido não são preenchidos retroativamente.
+- A permissão “Pedidos sem aprovação” é por sala e concedida/revogada somente pelo proprietário.
+  O UUID/apelido público não autoriza VIP: cada navegador mantém uma credencial aleatória por sala,
+  o servidor registra somente seu SHA-256 e a RPC de envio compara a credencial antes de aprovar e
+  inserir atomicamente no fim da fila. O limite vigente de 5 pedidos por IP/10 minutos também se
+  aplica aos VIPs. Migration `20261115000000_room_guest_vip.sql` consta como aplicada no histórico
+  remoto segundo o responsável; os testes pgTAP estão versionados no repositório.
 
 ### Etapa 4A — pesquisa e pedidos
 
@@ -246,6 +258,16 @@ proprietário.
   documentos e timestamp são associados ao pedido novo, sem histórico retroativo. O código bruto
   retorna uma única vez pela Pages Function e não há RPC pública de consulta/exclusão. O aceite de
   busca não é persistido; o registro de pedido guarda apenas a declaração enviada junto ao pedido.
+- “Meus pedidos” mantém os códigos privados de comprovante no `localStorage`, com escopo por sala e
+  expiração local em 30 dias; permite importar um código apresentado anteriormente. O endpoint
+  `POST /api/guest-request-status` valida e transforma cada código em SHA-256 no servidor; nenhum
+  `guest_id` enviado pelo navegador autoriza leitura. A RPC `guest_list_requests_by_receipt_hashes`
+  usa `service_role`, limita a consulta à sala e à retenção de 30 dias e retorna apenas título,
+  artista, status e data. A migration `20261113000000_guest_request_status_by_receipt.sql` consta
+  no histórico remoto confirmado pelo responsável; o teste
+  `supabase/tests/guest_request_status.test.sql` permanece versionado no repositório. O workflow
+  pgTAP roda localmente no GitHub Actions em
+  pushes para `develop` e pull requests para `main`.
 - A pesquisa só é enviada pelo botão da lupa; mudar o texto não chama a API. O cache por query evita
   nova `search.list` em buscas repetidas, e selecionar/enviar um resultado usa o `video_id` já
   obtido, sem refazer a busca. Chave ausente, cota esgotada ou API indisponível são reportadas; pedido
@@ -290,7 +312,8 @@ proprietário.
   `dj_room_online_guests` verificam `auth.uid()` e ownership no banco; `dj_guest_request_summary`
   é uma RPC legada; a interface não tem página de Visão geral e `/dj/painel` redireciona para
   `/dj/painel/salas`. A listagem detalhada fica na gestão individual da sala.
-  Aprovação não cria playlist, fila nem reprodução. O painel atualiza por polling, não Realtime.
+  Na etapa original de moderação, aprovação não criava playlist, fila nem reprodução. A fila básica
+  por sala está descrita na Etapa 4C abaixo; a reprodução oficial no player está descrita adiante. O painel atualiza por polling, não Realtime.
 - Migration `20261107000000_add_dj_request_moderation.sql` está versionada e integrada em
   `main`, mas sua aplicação no Supabase remoto não está confirmada. Os 165 testes pgTAP passaram
   no GitHub Actions do PR #3; isso comprova a execução local do workflow, não o estado do banco
@@ -416,7 +439,8 @@ configuração remota foi alterada nesta etapa.
   ordem de reprodução; pedidos de convidados não confirmam músicas pelo DJ; música atual só poderá
   ser exibida quando houver dado real.
 - Os 105 testes pgTAP passaram, incluindo os testes específicos de preferências; os controles
-  foram validados localmente. A interface publicada ainda precisa ser confirmada após o deploy.
+  foram validados localmente. A fila e o player foram implementados depois, embora sua integração
+  dependa de migrations remotas ainda pendentes de confirmação.
 
 ### Publicação no Cloudflare Pages
 
@@ -453,7 +477,7 @@ configuração remota foi alterada nesta etapa.
 | Supabase Realtime       | Atualização da fila e dos pedidos em tempo real               | Planejado   |
 | Cloudflare Pages        | SPA e Pages Functions                                          | Busca real respondeu HTTP 503 genérico; causa upstream não observável na versão publicada |
 | APIs de pagamentos      | Pedidos pagos e histórico financeiro                          | Planejado   |
-| YouTube IFrame Player API | Reprodução/controle de vídeos e músicas                     | Planejado   |
+| YouTube IFrame Player API | Reprodução oficial na aba de fila (local ao navegador)    | Implementado; validação real pendente |
 
 Supabase Auth, as operações de perfil e o gerenciamento de `public.rooms` estão integrados em
 runtime; as migrations `20261102000000` e `20261103000000` foram aplicadas ao remoto. Links/QR e a
@@ -479,11 +503,60 @@ Princípios que devem orientar as próximas etapas:
 
 ## 8. Fora do escopo da Etapa 4B
 
-- Fila pública, Supabase Realtime, playlist e reprodução.
+- Fila pública, Supabase Realtime e playlist.
 - Identidades anônimas de convidados e rate limiting.
 - Pagamentos.
-- Player de música/vídeo.
 - Testes end-to-end em navegador.
+
+### Etapa 4C — fila por sala (Etapa 1)
+
+- Cada aprovação de pedido `pending` para `approved` insere atomicamente seu `request_id` em
+  `public.room_music_queue`, com chave única por pedido. O item é ordenado no fim da fila da sala;
+  repetir uma aprovação não duplica nem altera status.
+- RPCs `dj_list_room_music_queue`, `dj_reorder_room_music_queue` e
+  `dj_remove_room_music_queue_item` autorizam owner/moderator via `private.current_room_role` e
+  limitam cada operação à sala solicitada. A tabela não concede acesso direto aos papéis de API.
+- A aba “Fila e Player” exibe/reordena a fila e permite remover itens. Remoção afeta somente a
+  entrada da fila; o pedido aprovado mantém o status `approved`.
+- A mesma aba oferece busca explícita pelo endpoint server-side `/api/youtube-search`, compartilhando
+  a YouTube Data API, o cache e o controle de quota existentes; a chave nunca é enviada ao cliente.
+  O RPC `dj_add_youtube_track_to_queue` verifica o papel na sala, deduplica por sala/vídeo e aceita
+  somente vídeos ainda presentes no cache server-side de buscas validadas. A migration local
+  `20261117000000_add_dj_youtube_tracks_to_queue.sql` permite itens `source='dj'` sem `guest_request`,
+  estende listagem/ordenação/remoção para a identidade estável do item e mantém histórico persistente
+  de reprodução exclusivamente para pedidos. Migrations 13–17 constam como aplicadas no histórico
+  remoto segundo o responsável; testes pgTAP estão versionados.
+- A interface separa a faixa atual (“Tocando agora”, com capa e metadados) da lista de próximas
+  músicas. Faixas iniciadas ficam fora da lista visível; reordenação opera sobre as próximas e envia
+  ao RPC a ordem completa, mantendo histórico e faixa atual antes das próximas sem recarregar o player.
+- Migration `20261114000000_add_room_music_queue.sql` está versionada e depende das
+  migrations de pedidos e de membership (`20261105000000`, `20261111000000` e `20261112000000`);
+  sua aplicação remota consta no histórico informado pelo responsável.
+- `DjQueuePlayer` carrega a YouTube IFrame Player API oficial somente após ação de reprodução do DJ.
+  O iframe oficial permanece visível com seus controles; play/pause, avanço manual e avanço ao evento
+  `ENDED` usam a API, sem extrair áudio nem contornar restrições de autoplay. Quando o navegador
+  bloqueia autoplay, é apresentada uma nova ação explícita do DJ. Erros de vídeo são explicados e
+  podem ser pulados manualmente.
+- O cursor de itens iniciados e o ID da música atual ficam localmente em `sessionStorage`, separados
+  e indexados por sala. A lista usa chave versionada para ignorar registros antigos que poderiam
+  bloquear uma fila atual; se não houver item ainda não iniciado, o DJ pode recuperar/reiniciar
+  explicitamente, sem fazer a reprodução automática repetir a fila. O estado não é compartilhado
+  entre DJs/dispositivos nem persistido no Supabase; cada cliente reproduz localmente e a fila do
+  banco mantém sua ordem.
+- O histórico administrativo de execução é separado do estado do player: `room_music_playback_history`
+  grava o `request_id` individual no primeiro evento `PLAYING`, sem usar o `video_id` como identidade
+  e sem alterar status/aprovação/fila. RPCs autenticadas verificam owner/moderator da sala; a tabela
+  não concede acesso direto aos papéis de API. A aba Pedidos lê os IDs por RPC durante o polling
+  já existente e exibe “Tocada” mesmo depois do término ou recarga. Migration `20261116000000` e
+  testes pgTAP estão versionados; a aplicação consta no histórico remoto segundo o responsável.
+- `DjPlaybackProvider` no `DjLayout` mantém o `DjQueuePlayer` em uma única instância além do ciclo de
+  vida das páginas. A aba Fila e Player mostra a apresentação completa; ao sair para Pedidos, Equipe
+  ou outra rota protegida, a mesma instância/iframe é exibida no mini-player flutuante. Sem música
+  iniciada, não há mini-player; ao retornar à fila, o mesmo player volta à apresentação completa sem
+  recarregar o vídeo. `DjMusicQueueSection` registra a fila no host persistente e conserva a listagem
+  e as ações administrativas apenas na aba correspondente.
+- A integração é coberta por testes com player substituto; reprodução real, permissões de embedding,
+  autoplay e disponibilidade de vídeos precisam ser validados em navegador com acesso ao YouTube.
 
 ## 9. Próximos passos recomendados
 

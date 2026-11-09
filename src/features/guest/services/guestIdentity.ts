@@ -4,7 +4,27 @@ export interface GuestIdentity {
 }
 
 const STORAGE_KEY = 'youdj.guest.identity.v1'
+const ROOM_CREDENTIAL_PREFIX = 'youdj.guest.room-credential.v1.'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const CREDENTIAL_PATTERN = /^[a-f0-9]{64}$/
+
+export function getOrCreateRoomGuestCredential(roomCode: string): string | null {
+  const normalizedCode = roomCode.trim().toUpperCase()
+  if (!/^[A-Z0-9]{10}$/.test(normalizedCode)) return null
+  const key = `${ROOM_CREDENTIAL_PREFIX}${normalizedCode}`
+  try {
+    const existing = globalThis.localStorage.getItem(key)
+    if (existing && CREDENTIAL_PATTERN.test(existing)) return existing
+    const browserCrypto = globalThis.crypto
+    if (!browserCrypto?.getRandomValues) return null
+    const bytes = browserCrypto.getRandomValues(new Uint8Array(32))
+    const credential = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    globalThis.localStorage.setItem(key, credential)
+    return credential
+  } catch {
+    return null
+  }
+}
 
 function isControlCharacter(character: string): boolean {
   const code = character.charCodeAt(0)

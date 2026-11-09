@@ -27,7 +27,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch { return json({ error: 'Solicitação inválida.' }, 400) }
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'Envio temporariamente indisponível.' }, 503)
   if (typeof body !== 'object' || body === null || !('roomCode' in body) || !('request' in body)
-    || !('guestId' in body) || typeof body.roomCode !== 'string' || typeof body.guestId !== 'string'
+    || !('guestId' in body) || !('guestCredential' in body)
+    || typeof body.roomCode !== 'string' || typeof body.guestId !== 'string'
+    || typeof body.guestCredential !== 'string' || !/^[a-f0-9]{64}$/.test(body.guestCredential)
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.guestId)) {
     return json({ error: 'Pedido inválido.' }, 400)
   }
@@ -44,13 +46,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } else return json({ error: 'Pedido inválido.' }, 400)
   try {
     const privateCode = createPrivateCode()
-    const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/submit_guest_request_with_identity`, { method: 'POST', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ p_code: body.roomCode.trim().toUpperCase(), p_ip: request.headers.get('CF-Connecting-IP') ?? 'unknown', p_request: requestData, p_private_code: privateCode, p_terms_version: TERMS_VERSION, p_privacy_version: PRIVACY_VERSION, p_guest_id: body.guestId.toLowerCase() }) })
+    const response = await fetch(`${env.SUPABASE_URL.replace(/\/+$/, '')}/rest/v1/rpc/submit_guest_request_with_identity`, { method: 'POST', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ p_code: body.roomCode.trim().toUpperCase(), p_ip: request.headers.get('CF-Connecting-IP') ?? 'unknown', p_request: requestData, p_private_code: privateCode, p_terms_version: TERMS_VERSION, p_privacy_version: PRIVACY_VERSION, p_guest_id: body.guestId.toLowerCase(), p_guest_credential: body.guestCredential }) })
     if (!response.ok) return json({ error: 'Não foi possível enviar agora. Tente novamente em instantes.' }, response.status === 429 ? 429 : 503)
     const result: unknown = await response.json()
     if (typeof result === 'object' && result !== null && 'error' in result) return json({ error: 'Sala indisponível ou limite de pedidos atingido.' }, 429)
     if (typeof result !== 'object' || result === null || !('received' in result) || result.received !== true || !('private_code' in result) || result.private_code !== privateCode) {
       return json({ error: 'Não foi possível confirmar o recebimento. Tente novamente.' }, 503)
     }
-    return json({ received: true, privateCode }, 201)
+    return json({ received: true, privateCode, autoApproved: 'auto_approved' in result && result.auto_approved === true }, 201)
   } catch { return json({ error: 'Não foi possível enviar agora. Tente novamente em instantes.' }, 503) }
 }

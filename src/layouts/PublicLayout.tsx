@@ -6,7 +6,7 @@ export function PublicLayout() {
   const isGuestRoom = useLocation().pathname.startsWith('/sala/')
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className={`flex min-h-svh flex-col ${isGuestRoom ? 'guest-room-page' : ''}`}>
       <header className={`sticky top-0 z-40 border-b backdrop-blur-xl ${isGuestRoom ? 'border-fuchsia-400/20 bg-[#07060c]/95 shadow-[0_4px_24px_rgba(217,70,239,0.08)]' : 'border-white/8 bg-night-950/80'}`}>
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
           <Brand disabled={isGuestRoom} />

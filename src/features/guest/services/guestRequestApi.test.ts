@@ -17,12 +17,13 @@ describe('searchGuestVideos', () => {
 
   it('associates a request with the unverified guest id stored by the browser', async () => {
     const guestId = 'a1111111-1111-4111-8111-111111111111'
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ received: true, privateCode: 'a'.repeat(64) }), { status: 201 }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ received: true, privateCode: 'a'.repeat(64), autoApproved: true }), { status: 201 }))
 
-    await expect(submitGuestRequest('ROOM000001', { kind: 'manual', title: 'Canção', artist: 'Artista', url: '' }, true, guestId))
-      .resolves.toMatchObject({ received: true })
+    await expect(submitGuestRequest('ROOM000001', { kind: 'manual', title: 'Canção', artist: 'Artista', url: '' }, true, guestId, 'b'.repeat(64)))
+      .resolves.toMatchObject({ received: true, autoApproved: true })
 
-    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body)) as { guestId: string }
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body)) as { guestId: string; guestCredential: string }
     expect(body.guestId).toBe(guestId)
+    expect(body.guestCredential).toBe('b'.repeat(64))
   })
 })

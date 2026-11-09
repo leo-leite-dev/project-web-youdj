@@ -23,7 +23,7 @@ describe('useRooms', () => {
 
     await waitFor(() => expect(result.current.status).toBe('error'))
     expect(result.current.error).toBe(
-      'Sua sessão não tem permissão para gerenciar salas. Entre novamente.',
+      'Sua conta não tem permissão para esta sala. Confirme se você é o proprietário ou moderador convidado.',
     )
 
     store.listError = undefined
@@ -63,5 +63,29 @@ describe('useRooms', () => {
 
     expect(store.updateCalls).toEqual([{ roomId: room.id, status: 'paused' }])
     expect(result.current.rooms[0]?.status).toBe('paused')
+  })
+
+  it('removes a room from the list only after the store confirms deletion', async () => {
+    const room = makeRoom()
+    const otherRoom = makeRoom({ id: 'bbbbbbbb-1111-4111-8111-111111111111', name: 'Outra festa' })
+    const store = new FakeRoomStore({ rooms: [room, otherRoom] })
+    const { result } = renderHook(() => useRooms(djId, store))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    await act(async () => result.current.deleteRoom(room.id))
+
+    expect(store.deleteCalls).toEqual([room.id])
+    expect(result.current.rooms.map(({ id }) => id)).toEqual([otherRoom.id])
+  })
+
+  it('preserves the room in local state when deletion fails', async () => {
+    const room = makeRoom()
+    const store = new FakeRoomStore({ rooms: [room], deleteError: new Error('offline') })
+    const { result } = renderHook(() => useRooms(djId, store))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    await act(async () => expect(result.current.deleteRoom(room.id)).rejects.toThrow('offline'))
+
+    expect(result.current.rooms).toEqual([room])
   })
 })

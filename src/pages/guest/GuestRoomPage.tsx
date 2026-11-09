@@ -11,8 +11,10 @@ import { getRoomErrorMessage } from '../../features/rooms/lib/roomErrors'
 import type { PublicRoom } from '../../features/rooms/roomTypes'
 import { GuestIdentityGate } from '../../features/guest/components/GuestIdentityGate'
 import type { GuestIdentity } from '../../features/guest/services/guestIdentity'
+import { getOrCreateRoomGuestCredential } from '../../features/guest/services/guestIdentity'
 import type { GuestPresenceStore } from '../../features/guest/services/guestPresenceStore'
-import { getYoutubeSearchUsage, searchGuestVideos, submitGuestRequest, type GuestRequestInput, type YoutubeSearchUsage, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
+import { getYoutubeSearchUsage, guestRequestStatusStore, searchGuestVideos, submitGuestRequest, type GuestRequestInput, type GuestRequestStatusItem, type YoutubeSearchUsage, type YoutubeVideo } from '../../features/guest/services/guestRequestApi'
+import { readGuestRequestReceipts, saveGuestRequestReceipt } from '../../features/guest/services/guestRequestReceipts'
 import {
   createSupabasePublicRoomStore,
   type PublicRoomStore,
@@ -59,7 +61,12 @@ function GuestMusicRequests({
   const [searching, setSearching] = useState(false)
   const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [privateCode, setPrivateCode] = useState<string | null>(null)
+  const [receiptSaved, setReceiptSaved] = useState(true)
   const [receiptVisible, setReceiptVisible] = useState(false)
+  const [showMyRequests, setShowMyRequests] = useState(false)
+  const [myRequests, setMyRequests] = useState<GuestRequestStatusItem[]>([])
+  const [myRequestsStatus, setMyRequestsStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const [receiptInput, setReceiptInput] = useState('')
   const [youtubeUsage, setYoutubeUsage] = useState<YoutubeSearchUsage | null>(null)
   const [usageStatus, setUsageStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const searchSequence = useRef(0)
@@ -137,11 +144,16 @@ function GuestMusicRequests({
     setBusy(true); setSearching(false); setMessage(''); setPrivateCode(null)
     onSubmittingChange(true)
     try {
-      const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId)
+      const guestCredential = getOrCreateRoomGuestCredential(room.code)
+      if (!guestCredential) throw new Error('Não foi possível validar a identidade privada deste navegador. Tente novamente.')
+      const receipt = await submitGuestRequest(room.code, input, acceptedLegal, guestIdentity.guestId, guestCredential)
       setPrivateCode(receipt.privateCode)
+      setReceiptSaved(saveGuestRequestReceipt(room.code, receipt.privateCode))
       setReceiptVisible(true)
       setSelected(null); setTitle(''); setArtist(''); setUrl(''); setVideos([]); setQuery('')
-      setMessage('Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
+      setMessage(receipt.autoApproved
+        ? 'Pedido aprovado automaticamente como Convidado VIP e adicionado ao fim da fila. A reprodução atual não foi interrompida. Guarde o código abaixo para solicitar a exclusão.'
+        : 'Pedido recebido e aguardando decisão do DJ. Guarde o código abaixo para solicitar a exclusão. Aprovação não garante reprodução.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.')
     } finally { setBusy(false); onSubmittingChange(false) }
@@ -149,8 +161,46 @@ function GuestMusicRequests({
 
   const stage = receiptVisible && privateCode ? 'receipt' : selected ? 'selection' : videos.length ? 'results' : 'entry'
 
+  async function refreshMyRequests(extraCode?: string) {
+    setMyRequestsStatus('loading')
+    setMessage('')
+    try {
+      const codes = readGuestRequestReceipts(room.code).map(({ privateCode: code }) => code)
+      if (extraCode && !codes.includes(extraCode)) codes.push(extraCode)
+      const requests = await guestRequestStatusStore.list(room.code, codes)
+      setMyRequests(requests)
+      setMyRequestsStatus('loaded')
+    } catch (error) {
+      setMyRequestsStatus('error')
+      setMessage(error instanceof Error ? error.message : 'Não foi possível carregar seus pedidos.')
+    }
+  }
+
+  function openMyRequests() {
+    setShowMyRequests(true)
+    void refreshMyRequests()
+  }
+
+  const statusLabel = (status: GuestRequestStatusItem['status']) => ({
+    pending: 'Pendente', approved: 'Aprovado', rejected: 'Recusado',
+  })[status]
+
   return (
     <div className="space-y-5">
+      {showMyRequests && <section aria-labelledby="my-requests-title" className="space-y-4 rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-4 shadow-[0_0_30px_rgba(217,70,239,0.1)] sm:p-6">
+        <button type="button" onClick={() => setShowMyRequests(false)} className="min-h-10 text-sm font-semibold text-cyan-200">← Voltar à sala</button>
+        <div><h1 id="my-requests-title" className="text-2xl font-black text-white">Meus pedidos</h1><p className="mt-1 text-sm text-zinc-400">Acompanhe os pedidos desta sala. Seus comprovantes privados autorizam a consulta.</p></div>
+        {myRequestsStatus === 'loading' && <p role="status" className="text-sm text-cyan-100">Carregando seus pedidos…</p>}
+        {myRequestsStatus === 'error' && <div role="alert" className="space-y-3 rounded-xl border border-amber-300/20 p-3 text-sm text-amber-100"><p>{message}</p><button type="button" onClick={() => void refreshMyRequests()} className="min-h-10 rounded-lg border border-amber-200/30 px-3 font-semibold">Tentar novamente</button></div>}
+        {myRequestsStatus === 'loaded' && myRequests.length === 0 && <p className="rounded-xl border border-white/10 p-4 text-sm text-zinc-300">Nenhum pedido encontrado com os comprovantes salvos neste navegador.</p>}
+        {myRequestsStatus === 'loaded' && myRequests.length > 0 && <ul className="space-y-2">{myRequests.map((request) => <li key={`${request.createdAt}:${request.title}:${request.artist}`} className="flex items-start justify-between gap-3 rounded-xl border border-fuchsia-300/15 bg-night-950/70 p-3"><div className="min-w-0"><p className="break-words text-sm font-semibold text-white">{request.title}</p><p className="mt-1 break-words text-xs text-zinc-400">{request.artist}</p><time className="mt-2 block text-[10px] text-zinc-500" dateTime={request.createdAt}>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(request.createdAt))}</time></div><span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${request.status === 'approved' ? 'border-emerald-300/30 text-emerald-200' : request.status === 'rejected' ? 'border-rose-300/30 text-rose-200' : 'border-amber-300/30 text-amber-200'}`}>{statusLabel(request.status)}</span></li>)}</ul>}
+        <form className="space-y-2 border-t border-cyan-300/10 pt-4" onSubmit={(event) => { event.preventDefault(); const code = receiptInput.trim().toLowerCase(); if (/^[a-f0-9]{64}$/.test(code)) { saveGuestRequestReceipt(room.code, code); setReceiptInput(''); void refreshMyRequests(code) } else { setMessage('Informe um comprovante válido com 64 caracteres hexadecimais.') } }}>
+          <label htmlFor="request-receipt-import" className="block text-xs text-zinc-300">Recuperar pedido com comprovante privado</label><div className="flex gap-2"><input id="request-receipt-import" value={receiptInput} onChange={(event) => setReceiptInput(event.target.value)} maxLength={64} autoComplete="off" spellCheck={false} placeholder="Cole o código de 64 caracteres" className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-night-950 px-3 font-mono text-xs text-white" /><button type="submit" className="min-h-11 rounded-lg bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-3 text-xs font-bold text-night-950">Adicionar</button></div>
+        </form>
+        {message && myRequestsStatus !== 'error' && <p role="alert" className="text-xs text-amber-100">{message}</p>}
+        <button type="button" onClick={() => void refreshMyRequests()} disabled={myRequestsStatus === 'loading'} className="min-h-11 w-full rounded-full border border-cyan-300/30 text-sm font-semibold text-cyan-100 disabled:opacity-50">Atualizar pedidos</button>
+      </section>}
+      {!showMyRequests && <>
       {stage === 'entry' && <>
         <div className="rounded-2xl border border-cyan-300/20 bg-[#090b18]/95 p-4 shadow-[0_0_30px_rgba(217,70,239,0.1)] sm:p-6">
           <div className="flex items-center justify-between gap-3">
@@ -159,6 +209,7 @@ function GuestMusicRequests({
           </div>
           <h1 className="mt-4 text-2xl font-black text-white sm:text-3xl">Sala <span className="text-cyan-300">{room.name}</span></h1>
           <p className="mt-1 text-sm text-zinc-400">Código: <span className="font-mono tracking-wider text-cyan-300">{room.code}</span></p>
+          <button type="button" onClick={openMyRequests} className="mt-3 min-h-10 rounded-full border border-fuchsia-300/40 px-4 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-300/10">Meus pedidos</button>
           <div aria-hidden="true" className="mt-4 flex h-7 items-end justify-center gap-1">{[9, 14, 20, 12, 24, 18, 26, 16, 22, 11, 25, 15, 20, 10].map((height, i) => <span key={i} className={`w-1.5 rounded-t-full ${i < 7 ? 'bg-cyan-400' : 'bg-fuchsia-500'}`} style={{ height }} />)}</div>
           {room.status === 'active' ? presenceOnline
             ? <p role="status" className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-sm leading-5 text-emerald-200">✓ &nbsp;Você entrou como <strong>{guestIdentity.nickname}</strong>. Envie uma sugestão musical para o DJ.</p>
@@ -190,8 +241,9 @@ function GuestMusicRequests({
         <span aria-hidden="true" className="mx-auto grid size-12 place-items-center rounded-full border border-emerald-300 text-2xl text-emerald-300">✓</span>
         <h1 className="text-xl font-black text-white">Pedido enviado ao DJ</h1>
         <p role="status" aria-live="polite" className="text-sm leading-6 text-emerald-200">{message}</p>
-        <div className="break-all rounded-xl border border-cyan-300/20 bg-night-950 p-3 text-left"><p className="text-xs text-zinc-400">Comprovante privado — salve agora; ele não poderá ser recuperado depois.</p><code className="mt-2 block select-all font-mono text-xs text-cyan-200">{privateCode}</code><a className="mt-3 inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>
+        <div className="break-all rounded-xl border border-cyan-300/20 bg-night-950 p-3 text-left"><p className="text-xs text-zinc-400">{receiptSaved ? 'Comprovante privado — salvo neste navegador. Guarde-o para recuperar o pedido em outro dispositivo.' : 'Comprovante privado — não foi possível salvá-lo neste navegador. Copie e guarde o código para consultar depois.'}</p><code className="mt-2 block select-all font-mono text-xs text-cyan-200">{privateCode}</code><a className="mt-3 inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href={`mailto:leokerpassos.leite@gmail.com?subject=${encodeURIComponent('Solicitação de exclusão de pedido musical')}&body=${encodeURIComponent(`Código privado do pedido: ${privateCode}`)}`}>Solicitar exclusão por e-mail</a></div>
         <p className="text-xs text-zinc-400">A confirmação indica somente o recebimento; o DJ decide se aprova ou reproduz.</p>
+        <button type="button" onClick={openMyRequests} className="min-h-12 w-full rounded-full border border-cyan-300/40 px-4 text-sm font-bold text-cyan-100">Meus pedidos</button>
         <button type="button" onClick={() => { setReceiptVisible(false); setMessage('') }} className="min-h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-pink-500 px-4 text-sm font-black text-[#080914] shadow-[0_0_22px_rgba(217,70,239,0.18)] transition hover:shadow-[0_0_30px_rgba(34,211,238,0.28)]">Pedir outra música</button>
       </section>}
 
@@ -226,6 +278,7 @@ function GuestMusicRequests({
         </p>
         <p className="mt-1 text-[10px] text-zinc-500">Estimativa do YouDJ, não medição oficial do Google.</p>
       </div>}
+      </>}
     </div>
   )
 }
@@ -296,8 +349,7 @@ export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoom
   })
   const [result, setResult] = useState<GuestResult | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const [experienceVersion, setExperienceVersion] = useState(0)
-  const [requestSubmitting, setRequestSubmitting] = useState(false)
+  const [, setRequestSubmitting] = useState(false)
 
   useEffect(() => {
     if (!valid || !storeState.store) {
@@ -460,7 +512,7 @@ export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoom
     <section className="relative mx-auto min-h-[calc(100svh-8rem)] w-full max-w-xl overflow-hidden px-4 py-5 sm:px-8 sm:py-10">
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 34px, rgba(236,72,153,.45) 35px, transparent 36px), repeating-linear-gradient(0deg, transparent 0 22px, rgba(34,211,238,.28) 23px, transparent 24px), linear-gradient(to top, rgba(217,70,239,.2), transparent)' }} />
       <div className="relative mx-auto max-w-md rounded-[1.75rem] border border-cyan-300/20 bg-[#070914]/95 p-4 shadow-[0_0_40px_rgba(217,70,239,0.11)] sm:p-6">
-          {room.status === 'active' ? <GuestIdentityGate key={experienceVersion} room={room} store={presenceStore}>
+          {room.status === 'active' ? <GuestIdentityGate room={room} store={presenceStore}>
             {(identity, presenceOnline, presenceError, retryPresence, identityPersisted) => <GuestMusicRequests
               room={room}
               guestIdentity={identity}
@@ -471,8 +523,7 @@ export function GuestRoomPage({ store: storeOverride, presenceStore }: GuestRoom
               onSubmittingChange={setRequestSubmitting}
             />}
           </GuestIdentityGate> : <div className="space-y-4 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-5 text-center"><span className="inline-flex rounded-full border border-amber-300/40 px-3 py-1 text-[9px] font-bold uppercase text-amber-200">Pausada</span><MusicIcon className="mx-auto size-8 text-amber-300" /><h1 className="text-xl font-bold text-white">Sala pausada</h1><p className="text-sm leading-6 text-amber-100">Sala indisponível: este evento está pausado no momento. Tente novamente mais tarde.</p><p className="font-mono text-sm text-cyan-200">{room.code} · {room.name}</p></div>}
-          <HomeLink label="Voltar à sala" disabled={requestSubmitting} onClick={() => setExperienceVersion((version) => version + 1)} />
-         <SynthwaveArtwork className="mt-4 h-44 sm:h-56" />
+          <SynthwaveArtwork className="mt-4 h-44 sm:h-56" />
           <p className="mt-3 text-center text-[11px] text-zinc-500">Peça ao DJ o link atualizado da sala.</p>
       </div>
     </section>
