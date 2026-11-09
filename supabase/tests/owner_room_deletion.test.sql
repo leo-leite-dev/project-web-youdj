@@ -25,7 +25,7 @@ select ok(has_function_privilege('authenticated','public.dj_delete_room(uuid)','
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated","is_anonymous":false}',true);
-select throws_ok($$select public.dj_delete_room('aaaaaaaa-1111-4111-8111-111111111111')$$,'42501',null,'another DJ cannot delete the owner's room');
+select throws_ok($$select public.dj_delete_room('aaaaaaaa-1111-4111-8111-111111111111')$$,'42501',null,'another DJ cannot delete a room owned by someone else');
 select set_config('request.jwt.claims','{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated","is_anonymous":true}',true);
 select throws_ok($$select public.dj_delete_room('aaaaaaaa-1111-4111-8111-111111111111')$$,'42501',null,'anonymous guests cannot delete rooms');
 select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","is_anonymous":false}',true);
