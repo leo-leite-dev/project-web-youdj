@@ -50,6 +50,16 @@
 - Trate carregamento, vazio, erro, indisponibilidade de rede, reenvio, concorrência e sucesso com feedback verdadeiro; não exiba sucesso antes da confirmação da operação.
 - Não enfraqueça testes, tipos ou regras de segurança para obter aprovação artificial. Não refatore partes sem relação com a tarefa.
 
+### Componentização e reutilização de interface (regra permanente)
+
+- **Antes de criar qualquer elemento de UI, procure componentes, layouts e padrões existentes** que atendam à necessidade; prefira reutilizar ou evoluir o que já existe a criar outra implementação.
+- **Elementos visualmente equivalentes devem compartilhar componentes reais**, não apenas copiar a aparência ou repetir JSX/Tailwind. Isso se aplica, quando pertinente, a busca, ordenação, filtros, menus de perfil, sidebars, cabeçalhos, botões, cards, modais e estados de carregamento/vazio.
+- Extraia componentes compartilhados quando houver repetição relevante ou um padrão visual já aprovado para uso em várias telas. **Evite abstrair elementos únicos sem benefício claro** e não crie um componente genérico excessivamente complexo.
+- Configure diferenças legítimas entre páginas por **props, composição e callbacks** (rótulos, opções, seleção, ações), preservando no componente compartilhado a estrutura visual, acessibilidade e responsividade.
+- **Separe apresentação de regras específicas da página**: o componente compartilhado não deve impor a mesma busca, ordenação, consulta ou comportamento a contextos distintos.
+- Preserve a identidade visual aprovada e o funcionamento no **desktop e no mobile**; mudanças em componentes compartilhados devem considerar seus demais pontos de uso, sem introduzir regressões.
+- Ao corrigir duplicações dentro do escopo da tarefa, consolide implementações equivalentes com cuidado; **não faça refatorações amplas não solicitadas**.
+
 ## 6. Segurança, dados e Supabase
 
 - **O isolamento multi-tenant é obrigatório no banco/servidor, não apenas no frontend.** Aplique menor privilégio, RLS e grants explícitos conforme a operação; teste que DJ A não acessa nem altera dados de DJ B.
